@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Boutquin.Numerics.BenchMark</RootNamespace>
+    <AssemblyName>Boutquin.Numerics.BenchMark</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- BenchmarkDotNet requires Release-mode builds; Debug is still allowed for
+         local iteration but produces a runtime warning. -->
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <!-- CA1515 (make class internal) fires on every BenchmarkDotNet class; the
+         benchmarks must be public for BenchmarkDotNet's dynamic runner. -->
+    <NoWarn>$(NoWarn);CA1515;CA1707;CA1812;CA1822;CA5394;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Boutquin.Numerics/Boutquin.Numerics.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+</Project>

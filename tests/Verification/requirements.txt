@@ -1,0 +1,8 @@
+numpy>=2.0
+scipy>=1.13
+pandas>=2.0
+pytest>=8.0
+scikit-learn>=1.5
+statsmodels>=0.14
+arch>=8.0
+mpmath>=1.3

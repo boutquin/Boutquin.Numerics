@@ -1,0 +1,59 @@
+{
+  "library_pins": {
+    "mpmath": "1.3+"
+  },
+  "muller_reference": "mpmath.findroot(..., solver='muller')",
+  "muller_reference_tolerance": 1e-13,
+  "cases": [
+    {
+      "name": "cubic",
+      "description": "f(x) = x^3 - x - 2",
+      "bracket": [
+        1.0,
+        2.0
+      ],
+      "initial_guess": 1.5,
+      "root": 1.5213797068045676
+    },
+    {
+      "name": "quadratic",
+      "description": "f(x) = x^2 - 2  (positive root)",
+      "bracket": [
+        1.0,
+        2.0
+      ],
+      "initial_guess": 1.5,
+      "root": 1.4142135623730951
+    },
+    {
+      "name": "log",
+      "description": "f(x) = log(x) - 1",
+      "bracket": [
+        2.0,
+        3.0
+      ],
+      "initial_guess": 2.5,
+      "root": 2.718281828459045
+    },
+    {
+      "name": "cosine",
+      "description": "f(x) = cos(x) - x (Dottie number)",
+      "bracket": [
+        0.0,
+        1.0
+      ],
+      "initial_guess": 0.75,
+      "root": 0.7390851332151607
+    },
+    {
+      "name": "exp_minus_linear",
+      "description": "f(x) = e^{-x} - x",
+      "bracket": [
+        0.0,
+        1.0
+      ],
+      "initial_guess": 0.5,
+      "root": 0.5671432904097838
+    }
+  ]
+}

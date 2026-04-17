@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Boutquin.Numerics/Boutquin.Numerics.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Boutquin.Numerics.ArchitectureTests/Boutquin.Numerics.ArchitectureTests.csproj" />
+    <Project Path="tests/Boutquin.Numerics.Tests.Unit/Boutquin.Numerics.Tests.Unit.csproj" />
+    <Project Path="tests/Boutquin.Numerics.Tests.Verification/Boutquin.Numerics.Tests.Verification.csproj" />
+  </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Boutquin.Numerics.BenchMark/Boutquin.Numerics.BenchMark.csproj" />
+  </Folder>
+</Solution>

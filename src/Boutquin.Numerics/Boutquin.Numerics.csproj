@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Boutquin.Numerics</RootNamespace>
+    <AssemblyName>Boutquin.Numerics</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Allow unit tests to invoke Solvers.Internal helpers directly so the allocation
+         micro-test can measure only the inner FD + damped-linear-solve pipeline. -->
+    <InternalsVisibleTo Include="Boutquin.Numerics.Tests.Unit" />
+  </ItemGroup>
+</Project>

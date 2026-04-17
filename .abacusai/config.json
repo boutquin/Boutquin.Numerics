@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet *)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep -E \"error|Error|warning…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep -E \"(error CS|error RS0…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep \"error RS0016\" | grep -…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep \"error RS0016\" | sed \"s…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep -c \"error RS0016\")",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep \"error RS0016\" | sed \"s…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep \"error RS0016\" | head -…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep \"error RS0016\" | sed 's…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep \"error RS0016\" | sed \"s…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep \"error RS0016\" | sed \"s…)",
+      "Bash(cd /Users/pierre/Developer/Boutquin.Numerics && dotnet build --configuration Release 2>&1 | grep \"error RS0016\" | awk -F…)",
+      "Bash(Bash(git stash *))",
+      "Bash(Bash(git stash pop *))"
+    ]
+  }
+}
