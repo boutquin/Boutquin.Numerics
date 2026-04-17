@@ -44,22 +44,22 @@ public sealed class RollingWindow<T> : IEnumerable<T>
     }
 
     /// <summary>
-    /// Gets the maximum number of elements this window can hold.
+    /// Maximum number of elements this window can hold before it begins overwriting the oldest.
     /// </summary>
     public int Capacity { get; }
 
     /// <summary>
-    /// Gets the current number of elements in the window.
+    /// Number of elements currently in the window. Increases with each <see cref="Add"/> until <see cref="Capacity"/> is reached.
     /// </summary>
     public int Count => _count;
 
     /// <summary>
-    /// Gets a value indicating whether the window has reached its capacity.
+    /// <see langword="true"/> once the window has accumulated <see cref="Capacity"/> elements and subsequent additions overwrite the oldest.
     /// </summary>
     public bool IsFull => _count == Capacity;
 
     /// <summary>
-    /// Gets the element at the specified index, where 0 is the oldest element.
+    /// Element at <paramref name="index"/>, where 0 is the oldest element and <c>Count − 1</c> is the most recently added.
     /// </summary>
     /// <param name="index">The zero-based index of the element to retrieve.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="index"/> is outside the valid range.</exception>

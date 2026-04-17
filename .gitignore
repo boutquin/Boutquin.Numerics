@@ -5,6 +5,7 @@
 
 # Local-only working files
 _local/
+.abacusai/
 .claude/
 hooks/
 review-accepted.yaml
