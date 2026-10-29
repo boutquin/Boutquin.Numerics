@@ -21,6 +21,46 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers;
 
 public sealed class LevenbergMarquardtSolverTests
 {
+    [Fact]
+    public void Solve_FiniteDifferenceAtLargestFiniteInput_NeverCallsResidualWithInfinity()
+    {
+        var observed = new List<double>();
+        double[] Residual(double[] parameters)
+        {
+            observed.Add(parameters[0]);
+            return [0.5];
+        }
+
+        var solver = new LevenbergMarquardtSolver<double>(10, 1e-10, 1e-10, 1e-10, 1e-3);
+        _ = solver.Solve(Residual, [double.MaxValue]);
+
+        observed.Should().OnlyContain(value => double.IsFinite(value));
+    }
+
+    [Fact]
+    public void GenericResult_CopiesAllArraysOnBothEdges()
+    {
+        var parameters = new[] { 1.25 };
+        var residuals = new[] { -2.5 };
+        var covariance = new[,] { { 3.75 } };
+        var result = new MultivariateSolverResult<double>(parameters, 0.5, residuals, covariance, 1, true,
+            LmTerminationReason.FunctionToleranceReached, false);
+
+        parameters[0] = 99.0;
+        residuals[0] = 99.0;
+        covariance[0, 0] = 99.0;
+        result.Parameters[0].Should().Be(1.25);
+        result.FinalResiduals[0].Should().Be(-2.5);
+        result.ParameterCovariance![0, 0].Should().Be(3.75);
+
+        result.Parameters[0] = 88.0;
+        result.FinalResiduals[0] = 88.0;
+        result.ParameterCovariance[0, 0] = 88.0;
+        result.Parameters[0].Should().Be(1.25);
+        result.FinalResiduals[0].Should().Be(-2.5);
+        result.ParameterCovariance[0, 0].Should().Be(3.75);
+    }
+
     // ── Rosenbrock (§3.1 AC #1) ──────────────────────────────────
     // Classic least-squares form: r(x, y) = (10·(y − x²), 1 − x). Minimum at (1, 1) with residual zero.
 
@@ -124,6 +164,22 @@ public sealed class LevenbergMarquardtSolverTests
         result.Parameters[0].Should().BeApproximately(3.0, 1e-10);
     }
 
+    [Fact]
+    public void Solve_BoundedOptimumAtLowerBound_FiniteDifferenceNeverEvaluatesOutsideBounds()
+    {
+        // sqrt(theta) is increasing, so both residuals shrink as theta shrinks: the
+        // least-squares optimum under theta >= 0 sits exactly on the lower bound. Once LM's
+        // damped step accepts theta = 0, the next finite-difference Jacobian must not probe
+        // theta - h < 0 (outside the residual function's sqrt domain).
+        static double[] Residuals(double[] theta) => [Math.Sqrt(theta[0]) + 1.0, Math.Sqrt(theta[0]) + 2.0];
+
+        var solver = new LevenbergMarquardtSolver<double>(200, 1e-10, 1e-10, 1e-10, 1e-3);
+
+        var act = () => solver.Solve(Residuals, [1.0], jacobian: null, lowerBounds: [0.0], upperBounds: [10.0]);
+
+        act.Should().NotThrow();
+    }
+
     // ── Parameter covariance (§3.1 AC #5) ─────────────────────────
 
     [Fact]
@@ -201,6 +257,27 @@ public sealed class LevenbergMarquardtSolverTests
         act.Should().Throw<ArgumentException>();
     }
 
+    // ── Constructor validation ────────────────────────────────────
+
+    [Fact]
+    public void Ctor_NonPositiveMaxIterations_ThrowsArgumentOutOfRangeException()
+    {
+        // M-3 guard: the generic ctor validates every tolerance (function, parameter,
+        // gradient, initialDamping) but — pre-fix — never maxIterations, an asymmetry
+        // vs. every sibling solver ctor (BrentSolver, SecantSolver, MullerSolver,
+        // BisectionSolver, NewtonRaphsonSolver), which all call
+        // ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxIterations) as their
+        // first validation line.
+        var act = () => new LevenbergMarquardtSolver<double>(
+            maxIterations: 0,
+            functionTolerance: 1e-10,
+            parameterTolerance: 1e-10,
+            gradientTolerance: 1e-10,
+            initialDamping: 1e-3);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("maxIterations");
+    }
+
     // ── Max-iterations termination ───────────────────────────────
 
     [Fact]
@@ -211,6 +288,80 @@ public sealed class LevenbergMarquardtSolverTests
 
         result.Converged.Should().BeFalse();
         result.TerminationReason.Should().Be(LmTerminationReason.MaxIterationsReached);
+    }
+
+    /// <summary>
+    /// reference.md §6: MINPACK's <c>lmder</c> declares <c>FunctionToleranceReached</c> only
+    /// when <c>|actred| ≤ ftol ∧ prered ≤ ftol ∧ ½·ratio ≤ 1</c> [lmder.f 418-419] — the shipped
+    /// gate checked only the actual relative reduction. This fix adds the model's PREDICTED
+    /// relative reduction (the omission the confirmed finding demonstrates); the literal third
+    /// ½·ratio ≤ 1 clause is deliberately NOT added — see the production comment beside this
+    /// gate in <c>LevenbergMarquardtSolver.SolveCore</c> for why a literal port of that clause
+    /// regresses NIST DanWood on floating-point noise this reproduction never exercises. r(θ) =
+    /// θ² − 4 from θ₀ = 0.3 with <c>initialDamping = 1.5937268517375391</c> makes the first
+    /// damped Gauss-Newton step land almost exactly on the mirror root √7.91 ≈ 2.8125 (same
+    /// |residual| magnitude, opposite sign): the ACTUAL cost barely moves (relative reduction ≈
+    /// 1.5e-15, below ftol) while the model's PREDICTED reduction is ≈ 4.76 against a prior cost
+    /// of ≈ 7.64 (prered/cost ≈ 0.62, far above ftol) — a gate that checks only the actual
+    /// reduction reports this non-stationary landing as converged; the gradient there
+    /// (‖Jᵀr‖ ≈ 22) confirms it is nowhere near a minimum.
+    /// </summary>
+    [Fact]
+    public void Solve_FunctionToleranceGate_RequiresPredictedReductionWithinTolerance()
+    {
+        static double[] Residuals(double[] theta) => [(theta[0] * theta[0]) - 4.0];
+        static double[,] Jacobian(double[] theta) => new double[,] { { 2.0 * theta[0] } };
+
+        var solver = new LevenbergMarquardtSolver<double>(
+            maxIterations: 1,
+            functionTolerance: 1e-10,
+            parameterTolerance: 1e-10,
+            gradientTolerance: 1e-10,
+            initialDamping: 1.5937268517375391);
+
+        var result = solver.Solve(Residuals, [0.3], Jacobian);
+
+        result.TerminationReason.Should().NotBe(
+            LmTerminationReason.FunctionToleranceReached,
+            "the predicted relative reduction (~0.62) is far outside MINPACK's ftol requirement " +
+            "even though the actual relative reduction (~1.5e-15) alone is within it; declaring " +
+            "convergence here reports a non-stationary landing (‖Jᵀr‖ ≈ 22) as a stopping point");
+        result.Converged.Should().BeFalse(
+            "no MINPACK termination criterion is genuinely satisfied within the single " +
+            "budgeted iteration, so the run must exhaust its iteration budget instead");
+    }
+
+    /// <summary>
+    /// Writer-overload counterpart to
+    /// <see cref="Solve_FunctionToleranceGate_RequiresPredictedReductionWithinTolerance"/>:
+    /// same mirror-root scenario (theta^2 - 4 from theta0 = 0.3, one iteration budget) but
+    /// driven through the <see cref="LmResidualWriter{T}"/>/<see cref="LmJacobianWriter{T}"/>
+    /// pool-free overload, which routes to SolveCoreWriter's separately-maintained copy of the
+    /// MINPACK ftol gate (actred AND prered) rather than SolveCore's.
+    /// </summary>
+    [Fact]
+    public void Solve_FunctionToleranceGate_RequiresPredictedReductionWithinTolerance_WriterOverload()
+    {
+        static void Residuals(ReadOnlySpan<double> theta, Span<double> r) => r[0] = (theta[0] * theta[0]) - 4.0;
+        static void Jacobian(ReadOnlySpan<double> theta, Span<double> j) => j[0] = 2.0 * theta[0];
+
+        var solver = new LevenbergMarquardtSolver<double>(
+            maxIterations: 1,
+            functionTolerance: 1e-10,
+            parameterTolerance: 1e-10,
+            gradientTolerance: 1e-10,
+            initialDamping: 1.5937268517375391);
+
+        var result = solver.Solve(Residuals, [0.3], residualCount: 1, Jacobian);
+
+        result.TerminationReason.Should().NotBe(
+            LmTerminationReason.FunctionToleranceReached,
+            "the predicted relative reduction (~0.62) is far outside MINPACK's ftol requirement " +
+            "even though the actual relative reduction (~1.5e-15) alone is within it; declaring " +
+            "convergence here reports a non-stationary landing (‖Jᵀr‖ ≈ 22) as a stopping point");
+        result.Converged.Should().BeFalse(
+            "no MINPACK termination criterion is genuinely satisfied within the single " +
+            "budgeted iteration, so the run must exhaust its iteration budget instead");
     }
 
     // ── Deterministic output ─────────────────────────────────────

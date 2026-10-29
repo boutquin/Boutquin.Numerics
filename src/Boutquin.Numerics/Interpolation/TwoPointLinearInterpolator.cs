@@ -28,18 +28,35 @@ namespace Boutquin.Numerics.Interpolation;
 /// </remarks>
 public static class TwoPointLinearInterpolator<T> where T : IFloatingPoint<T>
 {
-    private static readonly T s_epsilon = T.CreateChecked(1e-12);
-
     /// <inheritdoc cref="TwoPointLinearInterpolator.Interpolate"/>
     public static T Interpolate(T x0, T y0, T x1, T y1, T x)
     {
-        if (T.Abs(x1 - x0) < s_epsilon)
+        if (x1 == x0)
         {
-            throw new ArgumentException("x0 and x1 must be distinct.");
+            throw new ArgumentException("x0 and x1 must be distinct.", nameof(x1));
         }
 
-        T weight = (x - x0) / (x1 - x0);
-        return y0 + (weight * (y1 - y0));
+        try
+        {
+            T weight = InterpolationHelper.LinearWeight(x, x0, x1);
+            if (T.IsFinite(weight) || !T.IsFinite(x) || !T.IsFinite(x0) || !T.IsFinite(x1))
+            {
+                return InterpolationHelper.LinearInterpolate(x, x0, y0, x1, y1);
+            }
+        }
+        catch (OverflowException)
+        {
+            // Decimal reports an unrepresentable extrapolation weight by throwing.
+        }
+        catch (DivideByZeroException) when (T.IsFinite(x) && T.IsFinite(x0) && T.IsFinite(x1))
+        {
+            // The helper's overflow scaling can round a tiny decimal interval to zero.
+        }
+
+        // A coordinate ratio can overflow even when the slope and final value fit.
+        // Divide the ordinate difference first so small intervals cancel before extrapolation.
+        T slope = (y1 - y0) / (x1 - x0);
+        return y0 + (x - x0) * slope;
     }
 }
 
@@ -51,6 +68,11 @@ public static class TwoPointLinearInterpolator<T> where T : IFloatingPoint<T>
 /// Renamed from <c>Analytics.Numerics.Interpolation.LinearInterpolator</c> to avoid
 /// collision with the multi-node <see cref="LinearInterpolator"/> (from MarketData).
 /// </remarks>
+[Obsolete(
+    "Use TwoPointLinearInterpolator<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class TwoPointLinearInterpolator
 {
     /// <summary>
@@ -64,9 +86,17 @@ public static class TwoPointLinearInterpolator
     /// <param name="x">The x-coordinate at which to interpolate.</param>
     /// <returns>The interpolated y-value: y0 + (x - x0) / (x1 - x0) * (y1 - y0).</returns>
     /// <exception cref="ArgumentException">
-    /// Thrown when <paramref name="x0"/> and <paramref name="x1"/> are not distinct
-    /// (differ by less than 1e-12).
+    /// Thrown when <paramref name="x0"/> and <paramref name="x1"/> are equal.
     /// </exception>
+    /// <remarks>
+    /// The query coordinate <paramref name="x"/> is the <b>last</b> parameter here,
+    /// following this method's original two-point signature. This differs from the
+    /// multi-node <see cref="IInterpolator{T}.Interpolate"/> convention (implemented
+    /// by <see cref="LinearInterpolator{T}"/> and its siblings), where the query
+    /// value is the <b>first</b> parameter: <c>Interpolate(T x, ReadOnlySpan&lt;T&gt; xs, ReadOnlySpan&lt;T&gt; ys)</c>.
+    /// Callers switching between the two-point and multi-node interpolators should
+    /// not assume a shared argument order.
+    /// </remarks>
     public static double Interpolate(double x0, double y0, double x1, double y1, double x)
     {
         return TwoPointLinearInterpolator<double>.Interpolate(x0, y0, x1, y1, x);

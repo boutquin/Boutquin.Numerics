@@ -16,6 +16,8 @@
 
 using System.Numerics;
 
+using Boutquin.Numerics.Internal;
+
 namespace Boutquin.Numerics.Statistics;
 
 /// <summary>
@@ -36,98 +38,104 @@ namespace Boutquin.Numerics.Statistics;
 /// Analysis, 88(2), 365-411.
 /// </para>
 /// <para>
-/// Intensity formula: <c>delta* = (pi - rho) / (T . gamma)</c>, clamped to <c>[0, 1]</c>,
-/// where <c>pi</c> is the sum of asymptotic variances of sample covariance
-/// entries, <c>rho</c> is the sum of asymptotic covariances of sample entries
-/// with the target, and <c>gamma = ||S - F||^2_F</c>.
+/// Intensity (eq. 14 with Lemmas 3.2-3.4): <c>delta = b^2 / d^2</c> with
+/// <c>d^2 = ||S_T - m . I||^2</c>, <c>b-bar^2 = (1/T^2) . Sum_k ||z_k z_k' - S_T||^2</c> and
+/// <c>b^2 = min(b-bar^2, d^2)</c>, so <c>delta</c> lies in <c>[0, 1]</c>. <c>S_T</c> is the
+/// paper's 1/T moment matrix of the demeaned returns <c>z_k</c> and <c>m = tr(S_T) / N</c>.
+/// There is no <c>rho</c> term in this estimator.
+/// </para>
+/// <para>
+/// Scale convention: the returned matrix is <c>delta . mu . I + (1 - delta) . S</c> on the
+/// library's Bessel scale <c>S = T / (T - 1) . S_T</c>, i.e. <c>T / (T - 1)</c> times the
+/// paper's estimator. The intensity is identical to the paper's.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">Floating-point numeric type.</typeparam>
 public sealed class LedoitWolfShrinkageEstimator<T> : ICovarianceEstimator<T>
     where T : IFloatingPoint<T>
 {
-    private static readonly SampleCovarianceEstimator<T> s_sampleEstimator = new();
-
     /// <inheritdoc />
     public T[,] Estimate(T[,] returns)
     {
         CovarianceHelpers<T>.ValidateReturns(returns);
+        if (typeof(T) == typeof(Half))
+        {
+            return CovarianceHelpers<T>.EstimateHalfShrinkage(returns, new LedoitWolfShrinkageEstimator<double>());
+        }
 
+        var shifted = CovarianceHelpers<T>.ShiftToAnchor(returns);
+        var means = CovarianceHelpers<T>.ComputeMeans(shifted);
+        var sampleCov = CovarianceHelpers<T>.ComputeSampleCovariance(shifted, means);
         var t = returns.GetLength(0);
         var n = returns.GetLength(1);
+        var tCount = T.CreateChecked(t);
+        var momentFactor = T.CreateChecked(t - 1) / tCount;
+        var columnScale = new T[n];
+        var unit = new T[t, n];
+        for (var j = 0; j < n; j++)
+        {
+            for (var k = 0; k < t; k++)
+            {
+                unit[k, j] = shifted[k, j] - means[j];
+                columnScale[j] = T.Max(columnScale[j], T.Abs(unit[k, j]));
+            }
+            if (columnScale[j] != T.Zero)
+            {
+                for (var k = 0; k < t; k++)
+                {
+                    unit[k, j] /= columnScale[j];
+                }
+            }
+        }
 
-        // Step 1: sample covariance.
-        var sampleCov = s_sampleEstimator.Estimate(returns);
-
-        // Step 2: target F = mu . I, mu = average of diagonal entries.
         var mu = T.Zero;
         for (var i = 0; i < n; i++)
         {
-            mu += sampleCov[i, i];
+            mu += sampleCov[i, i] / T.CreateChecked(n);
         }
 
-        mu /= T.CreateChecked(n);
-
-        // Step 3: gamma = ||S - F||_F^2 (squared Frobenius norm of the deviation).
-        var gamma = T.Zero;
+        // JMVA 2004 intensity on 1/T moments, with each fourth-order pair
+        // retained in its own physical scale until the final ratio and blend.
+        var numerator = T.Zero;
+        var dispersion = T.Zero;
+        long numeratorExponent = 0;
+        long dispersionExponent = 0;
         for (var i = 0; i < n; i++)
         {
             for (var j = 0; j < n; j++)
             {
-                var target = i == j ? mu : T.Zero;
-                var diff = sampleCov[i, j] - target;
-                gamma += diff * diff;
-            }
-        }
-
-        // Compute deviations once, reused for pi and rho.
-        var means = CovarianceHelpers<T>.ComputeMeans(returns);
-
-        // Step 4: pi = Sum_ij asymptotic variance of s_ij.
-        var tCount = T.CreateChecked(t);
-        var piSum = T.Zero;
-        for (var i = 0; i < n; i++)
-        {
-            for (var j = 0; j < n; j++)
-            {
-                var sum = T.Zero;
+                var moment = T.Zero;
                 for (var k = 0; k < t; k++)
                 {
-                    var x = (returns[k, i] - means[i]) * (returns[k, j] - means[j]) - sampleCov[i, j];
-                    sum += x * x;
+                    moment += unit[k, i] * unit[k, j];
                 }
+                moment /= tCount;
 
-                piSum += sum / tCount;
+                var pi = T.Zero;
+                for (var k = 0; k < t; k++)
+                {
+                    var deviation = unit[k, i] * unit[k, j] - moment;
+                    pi += deviation * deviation;
+                }
+                pi /= tCount;
+                var pair = ScaledArithmetic<T>.ProductScaled(columnScale[i], columnScale[j], columnScale[i], columnScale[j]);
+                var term = ScaledArithmetic<T>.MultiplyScaled(pair.Significand, pair.Exponent, pi);
+                ScaledArithmetic<T>.AddScaled(ref numerator, ref numeratorExponent, term.Significand, term.Exponent);
+
+                var difference = (sampleCov[i, j] - (i == j ? mu : T.Zero)) * momentFactor;
+                term = ScaledArithmetic<T>.ProductScaled(difference, difference, T.One, T.One);
+                ScaledArithmetic<T>.AddScaled(ref dispersion, ref dispersionExponent, term.Significand, term.Exponent);
             }
         }
 
-        // Step 5: rho = diagonal terms only (off-diagonal target is zero).
-        var rhoSum = T.Zero;
-        for (var i = 0; i < n; i++)
-        {
-            var sum = T.Zero;
-            for (var k = 0; k < t; k++)
-            {
-                var zki = returns[k, i] - means[i];
-                var term = zki * zki - sampleCov[i, i];
-                sum += term * term;
-            }
-
-            rhoSum += sum / tCount;
-        }
-
-        // Step 6: shrinkage intensity delta in [0, 1].
-        var delta = gamma == T.Zero ? T.One : (piSum - rhoSum) / (tCount * gamma);
-        delta = T.Max(T.Zero, T.Min(T.One, delta));
-
-        // Step 7: shrunk covariance = delta . F + (1 - delta) . S.
+        var (delta, deltaExponent) = dispersion == T.Zero ? (T.One, 0L)
+            : ScaledArithmetic<T>.UnitRatioScaled(numerator, numeratorExponent, dispersion, dispersionExponent, tCount);
         var shrunk = new T[n, n];
         for (var i = 0; i < n; i++)
         {
             for (var j = 0; j < n; j++)
             {
-                var target = i == j ? mu : T.Zero;
-                shrunk[i, j] = delta * target + (T.One - delta) * sampleCov[i, j];
+                shrunk[i, j] = ScaledArithmetic<T>.BlendScaled(sampleCov[i, j], i == j ? mu : T.Zero, delta, deltaExponent);
             }
         }
 
@@ -163,6 +171,11 @@ public sealed class LedoitWolfShrinkageEstimator<T> : ICovarianceEstimator<T>
 /// <see cref="LedoitWolfSingleFactorEstimator"/>.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use LedoitWolfShrinkageEstimator<decimal> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class LedoitWolfShrinkageEstimator : ICovarianceEstimator
 {
     private readonly LedoitWolfShrinkageEstimator<decimal> _inner = new();

@@ -40,17 +40,37 @@ namespace Boutquin.Numerics.Statistics;
 /// </list>
 /// </para>
 /// <para>
-/// Threshold: <c>lambda_TW = (1 + 1/sqrt(q))^2 + N^(-2/3) . c_alpha . mu_TW</c>
-/// where the finite-N correction shifts the MP edge by approximately the standard
-/// deviation of the Tracy-Widom-1 distribution scaled by the appropriate rate.
+/// Threshold: <c>lambda_TW = mu_np / t + (sigma_np / t) . s_0.99</c>, Johnstone
+/// (2001)'s centering and scaling of the largest null eigenvalue,
+/// <c>mu_np = (sqrt(t-1) + sqrt(n))^2</c> (eq. 1.3) and
+/// <c>sigma_np = (sqrt(t-1) + sqrt(n)) . (1/sqrt(t-1) + 1/sqrt(n))^(1/3)</c> (eq. 1.4)
+/// (Johnstone's observation count is <c>t</c>, variable count is <c>n</c>),
+/// divided by the observation count <c>t</c> to map his <c>n.lhat1</c>-scaled limit
+/// (Theorem 1.1) onto the correlation-eigenvalue scale. <c>s_0.99 = F1^-1(0.99) = 2.0234</c>
+/// is the Tracy-Widom (beta = 1) 99th percentile (2.02 in Johnstone's Table 1).
+/// For t &lt; n, reverse t and n in mu and sigma (p. 300 after Theorem 1.1);
+/// the covariance normalization divisor remains the observation count t. The
+/// location of the null law is carried by <c>mu_np</c>, so no factor for the TW mean
+/// enters the product. Applying this null-Wishart law to the eigenvalues of a sample
+/// <em>correlation</em> matrix is an extrapolation neither cited paper states.
+/// </para>
+/// <para>
+/// When every eigenvalue lies at or below the Tracy-Widom threshold (the all-noise
+/// case, which is common when T &lt; N) no eigenvalue cleaning is applied and the
+/// raw reconstruction passes through unchanged.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">Floating-point numeric type.</typeparam>
 public sealed class TracyWidomDenoisedCovarianceEstimator<T> : ICovarianceEstimator<T>
     where T : IFloatingPoint<T>
 {
-    private const double TracyWidomConstant = 2.02;
-    private const double TracyWidomLocation = 1.21;
+    /// <summary>
+    /// <c>F1^-1(0.99)</c>, the 99th percentile of the Tracy-Widom law for real
+    /// (beta = 1) ensembles; Johnstone (2001), Table 1, tabulates it as 2.02.
+    /// </summary>
+    private const double TracyWidomQuantile99 = 2.0234;
+
+    private static readonly SampleCovarianceEstimator<T> s_sampleEstimator = new();
 
     /// <inheritdoc />
     public T[,] Estimate(T[,] returns)
@@ -60,23 +80,18 @@ public sealed class TracyWidomDenoisedCovarianceEstimator<T> : ICovarianceEstima
         var t = returns.GetLength(0);
         var n = returns.GetLength(1);
 
-        var sampleCov = new SampleCovarianceEstimator<T>().Estimate(returns);
-
         if (n < 3)
         {
-            return sampleCov;
+            return s_sampleEstimator.Estimate(returns);
         }
 
-        var (corr, stdDevs) = CovarianceHelpers<T>.CovarianceToCorrelation(sampleCov);
+        var (corr, stdDevs) = CovarianceHelpers<T>.SampleCorrelation(returns);
         var eigen = JacobiEigenDecomposition<T>.Decompose(corr);
-        var eigenvalues = (T[])eigen.Values.Clone();
+        var eigenvalues = eigen.Values;
+        var eigenvectors = eigen.Vectors;
 
         // Tracy-Widom threshold computed in double for transcendental precision.
-        var q = (double)t / n;
-        var sqrtQ = Math.Sqrt(q);
-        var mpEdge = (1.0 + 1.0 / sqrtQ) * (1.0 + 1.0 / sqrtQ);
-        var twShift = Math.Pow(n, -2.0 / 3.0) * TracyWidomConstant * TracyWidomLocation;
-        var threshold = T.CreateChecked(mpEdge + twShift);
+        var threshold = T.CreateChecked(TracyWidomCentering(t, n) + TracyWidomShift(t, n));
 
         // Replace noise eigenvalues with their average.
         var noiseCount = 0;
@@ -102,13 +117,41 @@ public sealed class TracyWidomDenoisedCovarianceEstimator<T> : ICovarianceEstima
             }
         }
 
-        var cleanedCorr = CovarianceHelpers<T>.ReconstructFromEigen(eigenvalues, eigen.Vectors);
-        for (var i = 0; i < n; i++)
-        {
-            cleanedCorr[i, i] = T.One;
-        }
+        var cleanedCorr = DenoisedCovarianceEstimator<T>.RescaleToUnitDiagonal(
+            CovarianceHelpers<T>.ReconstructFromEigen(eigenvalues, eigenvectors));
 
         return CovarianceHelpers<T>.CorrelationToCovariance(cleanedCorr, stdDevs);
+    }
+
+    /// <summary>
+    /// Tracy-Widom finite-N shift <c>(sigma_np / t) . s_0.99</c> added to the centering
+    /// <see cref="TracyWidomCentering"/> to form the 99% signal/noise threshold.
+    /// </summary>
+    /// <remarks>
+    /// Johnstone (2001), Theorem 1.1, gives <c>(lhat1 - mu_np) / sigma_np -&gt; W1 ~ F1</c>
+    /// for <c>lhat1</c> the largest eigenvalue of <c>X^T X</c> over <c>n</c> observations of
+    /// <c>p</c> variables, with <c>mu_np = (sqrt(n-1) + sqrt(p))^2</c> (eq. 1.3) and
+    /// <c>sigma_np = (sqrt(n-1) + sqrt(p)) . (1/sqrt(n-1) + 1/sqrt(p))^(1/3)</c> (eq. 1.4).
+    /// Here Johnstone's observation count <c>n</c> is this code's <paramref name="t"/> and his
+    /// variable count <c>p</c> is this code's <paramref name="n"/>; dividing by
+    /// <paramref name="t"/> maps the relation onto the correlation-eigenvalue scale.
+    /// </remarks>
+    internal static double TracyWidomShift(int t, int n)
+    {
+        var sqrtNm1 = Math.Sqrt(Math.Max(t, n) - 1);
+        var sqrtP = Math.Sqrt(Math.Min(t, n));
+        var sigmaNp = (sqrtNm1 + sqrtP) * Math.Pow(1.0 / sqrtNm1 + 1.0 / sqrtP, 1.0 / 3.0);
+        return sigmaNp / t * TracyWidomQuantile99;
+    }
+
+    /// <summary>
+    /// Johnstone (2001)'s centering, reversing dimension roles when t &lt; n, mapped onto the
+    /// correlation-eigenvalue scale by dividing by the observation count <paramref name="t"/>.
+    /// </summary>
+    internal static double TracyWidomCentering(int t, int n)
+    {
+        var root = Math.Sqrt(Math.Max(t, n) - 1) + Math.Sqrt(Math.Min(t, n));
+        return root * root / t;
     }
 }
 
@@ -127,6 +170,11 @@ public sealed class TracyWidomDenoisedCovarianceEstimator<T> : ICovarianceEstima
 /// </list>
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use TracyWidomDenoisedCovarianceEstimator<decimal> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class TracyWidomDenoisedCovarianceEstimator : ICovarianceEstimator
 {
     private readonly TracyWidomDenoisedCovarianceEstimator<decimal> _inner = new();

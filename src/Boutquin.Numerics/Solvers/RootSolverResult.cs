@@ -32,7 +32,7 @@ namespace Boutquin.Numerics.Solvers;
 /// <param name="Converged">Whether a convergence criterion was met within the iteration cap.</param>
 /// <param name="Iterations">Number of main-loop iterations performed.</param>
 /// <param name="FinalResidual">Value of <c>f(Root)</c> in function-value units.</param>
-/// <param name="EstimatedError">Upper bound on the absolute root error.</param>
+/// <param name="EstimatedError">Solver-reported estimate in input units, not a guaranteed upper bound on the absolute root error; residual tolerance alone does not prove zero root error.</param>
 public sealed record RootSolverResult<T>(
     T Root,
     bool Converged,
@@ -44,7 +44,7 @@ public sealed record RootSolverResult<T>(
 /// <summary>
 /// Outcome of a root-finding operation, reporting the root estimate, convergence
 /// status, iteration cost, final residual in function-value units, and an
-/// estimated upper bound on the root error.
+/// solver-reported estimate of root error in input units.
 /// </summary>
 /// <param name="Root">
 /// Computed root estimate. When <paramref name="Converged"/> is <see langword="false"/>
@@ -68,15 +68,19 @@ public sealed record RootSolverResult<T>(
 /// is the clearest success signal regardless of <paramref name="Converged"/>.
 /// </param>
 /// <param name="EstimatedError">
-/// Upper bound on the absolute root error <c>|Root - root*|</c>, in input units.
-/// Semantics vary by solver family:
+/// Solver-reported estimate in input units, not a guaranteed upper bound on the absolute root error
+/// <c>|Root - root*|</c>. In particular, residual tolerance alone does not prove zero root error:
+/// an endpoint accepted by residual tolerance can report zero here without being the exact root.
+/// Semantics vary by solver and termination path:
 /// <list type="bullet">
 ///   <item>Bracketed solvers (<see cref="BisectionSolver"/>, <see cref="BrentSolver"/>,
-///         bracketed <see cref="NewtonRaphsonSolver"/>) — final bracket half-width <c>(b−a)/2</c>.</item>
+///         bracketed <see cref="NewtonRaphsonSolver"/>) — a bracket half-width, a last step,
+///         or zero on endpoint residual acceptance. A half-width bounds error only
+///         when the estimate is the midpoint of a retained sign-changing bracket.</item>
 ///   <item>Unbracketed Secant / Muller — magnitude of the last step <c>|x_n − x_{n−1}|</c>,
-///         which bounds the error only under local convergence assumptions.</item>
+///         which is an estimate only under local convergence assumptions.</item>
 ///   <item>Unbracketed Newton — last step size, or <see cref="double.NaN"/> when the
-///         derivative vanished or produced a non-finite iterate (no bound available).</item>
+///         derivative vanished or produced a non-finite iterate (no estimate available).</item>
 /// </list>
 /// </param>
 public sealed record RootSolverResult(

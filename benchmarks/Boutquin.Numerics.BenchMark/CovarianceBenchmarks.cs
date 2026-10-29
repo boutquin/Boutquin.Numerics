@@ -20,10 +20,9 @@ using Boutquin.Numerics.Statistics;
 namespace Boutquin.Numerics.BenchMark;
 
 /// <summary>
-/// Throughput comparison across covariance estimators on two realistic
-/// dimensionalities: <c>(T=252, N=10)</c> — one year of daily returns for
-/// a small basket; and <c>(T=1260, N=50)</c> — five years for a mid-basket
-/// where N/T and estimator behaviour diverge meaningfully.
+/// Throughput comparison across covariance estimators on all four combinations
+/// of T = 252 or 1260 observations and N = 10 or 50 variables. The independent
+/// BenchmarkDotNet parameters form a Cartesian product.
 /// </summary>
 [MemoryDiagnoser]
 public class CovarianceBenchmarks
@@ -51,32 +50,32 @@ public class CovarianceBenchmarks
     }
 
     [Benchmark(Baseline = true)]
-    public decimal[,] Sample() => new SampleCovarianceEstimator().Estimate(_returns);
+    public decimal[,] Sample() => new SampleCovarianceEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] LedoitWolfLinear() => new LedoitWolfShrinkageEstimator().Estimate(_returns);
+    public decimal[,] LedoitWolfLinear() => new LedoitWolfShrinkageEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] LedoitWolfCC() => new LedoitWolfConstantCorrelationEstimator().Estimate(_returns);
+    public decimal[,] LedoitWolfCC() => new LedoitWolfConstantCorrelationEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] LedoitWolfFM() => new LedoitWolfSingleFactorEstimator().Estimate(_returns);
+    public decimal[,] LedoitWolfFM() => new LedoitWolfSingleFactorEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] QIS() => new QuadraticInverseShrinkageEstimator().Estimate(_returns);
+    public decimal[,] QIS() => new QuadraticInverseShrinkageEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] OAS() => new OracleApproximatingShrinkageEstimator().Estimate(_returns);
+    public decimal[,] OAS() => new OracleApproximatingShrinkageEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] Denoised() => new DenoisedCovarianceEstimator().Estimate(_returns);
+    public decimal[,] Denoised() => new DenoisedCovarianceEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] TracyWidom() => new TracyWidomDenoisedCovarianceEstimator().Estimate(_returns);
+    public decimal[,] TracyWidom() => new TracyWidomDenoisedCovarianceEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] Nercome() => new NercomeCovarianceEstimator().Estimate(_returns);
+    public decimal[,] Nercome() => new NercomeCovarianceEstimator<decimal>().Estimate(_returns);
 
     [Benchmark]
-    public decimal[,] Poet() => new PoetCovarianceEstimator(1, 0.5).Estimate(_returns);
+    public decimal[,] Poet() => new PoetCovarianceEstimator<decimal>(1, 0.5m).Estimate(_returns);
 }

@@ -83,6 +83,11 @@ public sealed class SampleCovarianceEstimator<T> : ICovarianceEstimator<T>
 /// series.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use SampleCovarianceEstimator<decimal> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class SampleCovarianceEstimator : ICovarianceEstimator
 {
     private readonly SampleCovarianceEstimator<decimal> _inner = new();

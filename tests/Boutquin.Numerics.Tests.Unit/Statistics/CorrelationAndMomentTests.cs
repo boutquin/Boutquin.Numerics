@@ -22,12 +22,76 @@ namespace Boutquin.Numerics.Tests.Unit.Statistics;
 public sealed class CorrelationAndMomentTests
 {
     [Fact]
+    public void DistanceCorrelation_TinyFiniteSelfSeriesRemainsOne()
+    {
+        double[] values = [0.0, 1e-10, 2e-10, 3e-10];
+
+        DistanceCorrelation<double>.Compute(values, values).Should().BeApproximately(1.0, 1e-12);
+    }
+
+    [Fact]
+    public void DistanceCorrelation_LargeFiniteSelfSeriesRemainsOne()
+    {
+        double[] values = [1e100, 2e100, 3e100];
+
+        DistanceCorrelation<double>.Compute(values, values).Should().BeApproximately(1.0, 1e-12);
+    }
+
+    [Fact]
+    public void DistanceCorrelation_HalfSelfSeriesAtSquaredCountBoundaryRemainsOne()
+    {
+        var values = Enumerable.Range(0, 256).Select(i => (Half)(i % 7)).ToArray();
+
+        ((float)DistanceCorrelation<Half>.Compute(values, values)).Should().BeApproximately(1f, 0.02f);
+    }
+
+    [Fact]
     public void Spearman_PerfectMonotoneNonLinear_EqualsOne()
     {
         // y = x³ — strictly monotonic, but Pearson < 1.
         decimal[] x = [-3m, -2m, -1m, 0m, 1m, 2m, 3m];
         decimal[] y = [-27m, -8m, -1m, 0m, 1m, 8m, 27m];
         RankCorrelation.Spearman(x, y).Should().Be(1m);
+    }
+
+    [Fact]
+    public void Spearman_PerfectMonotone_IsExactlyPlusOne()
+    {
+        decimal[] x = [1m, 2m, 3m, 4m, 5m];
+        decimal[] y = [10m, 20m, 30m, 40m, 50m];
+        Math.Abs(RankCorrelation.Spearman(x, y) - 1m).Should().BeLessThan(1e-14m);
+    }
+
+    [Fact]
+    public void Spearman_PerfectAntiMonotone_IsExactlyMinusOne()
+    {
+        decimal[] x = [1m, 2m, 3m, 4m, 5m];
+        decimal[] y = [50m, 40m, 30m, 20m, 10m];
+        Math.Abs(RankCorrelation.Spearman(x, y) - (-1m)).Should().BeLessThan(1e-14m);
+    }
+
+    [Fact]
+    public void Spearman_HalfLongTiedSeriesReturnsZero()
+    {
+        var values = new Half[65_520];
+
+        RankCorrelation<Half>.Spearman(values, values).Should().Be((Half)0);
+    }
+
+    [Fact]
+    public void KendallTauB_PerfectMonotone_IsExactlyPlusOne()
+    {
+        decimal[] x = [1m, 2m, 3m, 4m, 5m];
+        decimal[] y = [2m, 4m, 6m, 8m, 10m];
+        Math.Abs(RankCorrelation.KendallTauB(x, y) - 1m).Should().BeLessThan(1e-14m);
+    }
+
+    [Fact]
+    public void KendallTauB_PerfectAntiMonotone_IsExactlyMinusOne()
+    {
+        decimal[] x = [1m, 2m, 3m, 4m, 5m];
+        decimal[] y = [10m, 8m, 6m, 4m, 2m];
+        Math.Abs(RankCorrelation.KendallTauB(x, y) - (-1m)).Should().BeLessThan(1e-14m);
     }
 
     [Fact]
@@ -42,21 +106,43 @@ public sealed class CorrelationAndMomentTests
     }
 
     [Fact]
-    public void DistanceCorrelation_DetectsQuadraticDependence()
+    public void KendallTauB_ExtremeFiniteDecimalOrderDoesNotOverflow()
     {
-        // y = x² with x ~ U(-1, 1) — Pearson = 0 but dCor > 0.
-        var rng = new System.Random(42);
-        var n = 400;
-        var x = new double[n];
-        var y = new double[n];
-        for (var i = 0; i < n; i++)
-        {
-            x[i] = rng.NextDouble() * 2.0 - 1.0;
-            y[i] = x[i] * x[i];
-        }
+        decimal[] x = [decimal.MinValue, 0m, decimal.MaxValue];
+        decimal[] y = [decimal.MaxValue, 0m, decimal.MinValue];
 
-        var dcor = DistanceCorrelation.Compute(x, y);
-        dcor.Should().BeGreaterThan(0.3, "distance correlation should detect quadratic dependence");
+        decimal genericResult = 0m;
+        var genericFailure = Record.Exception(() => genericResult = RankCorrelation<decimal>.KendallTauB(x, y));
+        genericFailure.Should().BeNull();
+        genericResult.Should().Be(-1m);
+    }
+
+    [Fact]
+    public void KendallTauB_HalfTwentyFourConcordantPairsRemainOne()
+    {
+        var values = Enumerable.Range(0, 24).Select(i => (Half)i).ToArray();
+
+        RankCorrelation<Half>.KendallTauB(values, values).Should().Be((Half)1);
+    }
+
+    [Fact]
+    public void KendallTauB_GuaranteedTypesLargeConcordantSeriesRemainOne()
+    {
+        var values = Enumerable.Range(0, 400).Select(i => (double)i).ToArray();
+        var decimals = Array.ConvertAll(values, static value => (decimal)value);
+
+        RankCorrelation<double>.KendallTauB(values, values).Should().Be(1d);
+        RankCorrelation<decimal>.KendallTauB(decimals, decimals).Should().Be(1m);
+    }
+
+    [Fact]
+    public void DistanceCorrelation_QuadraticDependence_MatchesReferenceValue()
+    {
+        // y = x² on a fixed, deterministic grid — Pearson = 0, dCor > 0.
+        // Externally computed (reference Székely 2007 implementation): 0.9869160440537484.
+        double[] x = [1.0, 2.0, 3.0, 4.0, 5.0];
+        double[] y = [1.0, 4.0, 9.0, 16.0, 25.0];
+        DistanceCorrelation.Compute(x, y).Should().BeApproximately(0.9869160440537484, 1e-6);
     }
 
     [Fact]

@@ -37,7 +37,15 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers.NistStRD;
 /// solver termination at a point slightly away from the NIST-certified optimum while
 /// still failing loudly if the solver lands on a local minimum or stalls.
 /// </para>
+/// <para>
+/// This class is a member of <see cref="NistNonlinearSolveCollection"/> — the bounded,
+/// non-parallel xunit collection that stops these 500&#8211;2000-iteration solves from
+/// competing for CPU with the rest of the suite. The placement is asserted by
+/// <see cref="NistStRDParallelismConfigTests"/>; do not remove the
+/// <c>[Collection]</c> attribute without updating that guard.
+/// </para>
 /// </remarks>
+[Collection(NistNonlinearSolveCollection.Name)]
 public sealed class NistStRDTests
 {
     // ── Lanczos3 — Sum of three exponentials (24 obs, 6 params) ────────────
@@ -668,6 +676,13 @@ public sealed class NistStRDTests
     {
         var diag = $"[termination={result.TerminationReason}, iters={result.Iterations}, cost={result.FinalCost:G6}]";
         result.Converged.Should().BeTrue(because: diag);
+
+        // A successful fit must report one of the three convergence reasons — never
+        // MaxIterationsReached or DampingOverflow (those imply Converged == false).
+        result.TerminationReason.Should().BeOneOf(
+            LmTerminationReason.FunctionToleranceReached,
+            LmTerminationReason.ParameterToleranceReached,
+            LmTerminationReason.GradientToleranceReached);
 
         var sse = 2.0 * result.FinalCost;
 

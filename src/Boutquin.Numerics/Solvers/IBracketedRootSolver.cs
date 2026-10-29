@@ -25,8 +25,9 @@ namespace Boutquin.Numerics.Solvers;
 /// <para><b>Generic-math tier:</b> B (IEEE 754 transcendental). The constraint
 /// <see cref="IFloatingPointIeee754{TSelf}"/> ensures the caller can construct
 /// objective functions using transcendentals (<c>T.Exp</c>, <c>T.Log</c>, etc.),
-/// which is the typical use case for root finding. <c>decimal</c> callers use the
-/// legacy <see cref="IBracketedRootSolver"/> facade.</para>
+/// which is the typical use case for root finding. An IEEE floating-point type is
+/// required; <c>decimal</c> is unsupported. The legacy
+/// <see cref="IBracketedRootSolver"/> facade accepts <c>double</c> only.</para>
 /// </remarks>
 /// <typeparam name="T">IEEE 754 floating-point type.</typeparam>
 public interface IBracketedRootSolver<T>
@@ -50,12 +51,14 @@ public interface IBracketedRootSolver<T>
 /// </para>
 /// <para>
 /// The universal guarantee at the interface level is <em>eventual convergence for
-/// continuous sign-changing functions</em>. The convergence <em>order</em> and the
-/// worst-case iteration bound are per-implementation contracts:
+/// continuous sign-changing functions with a sufficient iteration budget</em>.
+/// Each implementation has a finite iteration cap, so callers must inspect
+/// <see cref="RootSolverResult.Converged"/> after a solve. The convergence <em>order</em>
+/// and the worst-case iteration bound are per-implementation contracts:
 /// </para>
 /// <list type="bullet">
-///   <item><see cref="BisectionSolver"/> — linear convergence, one bit per iteration, bounded <c>⌈log₂((b−a)/tol)⌉</c>.</item>
-///   <item><see cref="BrentSolver"/> — superlinear in smooth regions, <c>⌈log₂((b−a)/tol)⌉</c> worst case via halving-interval guarantee.</item>
+///   <item><see cref="BisectionSolver"/> — linear convergence, one bit per iteration; for width greater than tolerance, the strict step test needs at most <c>⌊log₂((b−a)/tol)⌋ + 1</c> iterations.</item>
+///   <item><see cref="BrentSolver"/> — interpolation with at most <c>2⌈log₂((b−a)/tol)⌉ + 2</c> iterations, via a forced-bisection safeguard that halves the bracket at least every two iterations. The safeguard may cost extra evaluations even on smooth functions.</item>
 ///   <item><see cref="NewtonRaphsonSolver"/> — quadratic when the derivative is well-behaved, falls back to bisection otherwise (also implements <see cref="IUnbracketedRootSolver"/>).</item>
 /// </list>
 /// </remarks>
@@ -73,8 +76,8 @@ public interface IBracketedRootSolver
     /// <param name="upperBound">Right endpoint of the bracketing interval.</param>
     /// <returns>
     /// A <see cref="RootSolverResult"/> carrying the root estimate, convergence flag,
-    /// iteration count, final residual <c>|f(root)|</c>, and an estimated error bound
-    /// (final bracket half-width for bracket-based solvers).
+    /// iteration count, signed final residual <c>f(root)</c>, and a solver-reported
+    /// error estimate. Take the absolute value of the residual for tolerance comparisons.
     /// </returns>
     /// <exception cref="InvalidOperationException">
     /// Thrown by implementations when <c>f(lowerBound)</c> and <c>f(upperBound)</c>

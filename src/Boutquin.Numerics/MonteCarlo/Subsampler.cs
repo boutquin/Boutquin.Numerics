@@ -21,10 +21,11 @@ namespace Boutquin.Numerics.MonteCarlo;
 /// <summary>
 /// Subsampling (Politis, Romano &amp; Wolf 1999). Constructs the empirical
 /// distribution of a statistic by evaluating it on every overlapping
-/// subsample of length <c>b &lt; T</c>. Unlike the bootstrap, subsampling
-/// is consistent under far weaker assumptions — including unit roots,
-/// extreme-value statistics, and slowly mixing series — at the cost of
-/// requiring a smaller subsample size <c>b ≪ T</c>.
+/// subsample of length <c>b &lt; T</c>. Run returns sorted raw statistics.
+/// A confidence distribution as in Politis–Romano (1994), equation 3.1,
+/// requires caller-chosen centering and scaling: <c>τ_b(θ̂_b − θ̂_T)</c>.
+/// Consistency requires the applicable mixing and continuity assumptions,
+/// <c>b → ∞</c>, <c>b/T → 0</c>, and <c>τ_b/τ_T → 0</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -47,14 +48,17 @@ public static class Subsampler
     /// <summary>
     /// Computes the subsample distribution of a scalar statistic.
     /// </summary>
-    /// <param name="series">Source series (length T).</param>
+    /// <param name="series">
+    /// Source series (length T, with T ≥ 2 — see <see cref="SuggestSubsampleLength"/> for
+    /// the matching domain on the length side). Accepts any contiguous memory —
+    /// <c>T[]</c>, <c>Span&lt;T&gt;</c>, <c>Memory&lt;T&gt;.Span</c>, etc.
+    /// </param>
     /// <param name="subsampleLength">Subsample length b. Must satisfy 1 ≤ b &lt; T.</param>
-    /// <param name="statistic">Statistic to evaluate on each subsample.</param>
+    /// <param name="statistic">Statistic to evaluate on each subsample; each result must be finite.</param>
     /// <returns>Sorted (ascending) array of statistic values, length T − b + 1.</returns>
-    public static T[] Run<T>(T[] series, int subsampleLength, Func<ReadOnlySpan<T>, T> statistic)
+    public static T[] Run<T>(ReadOnlySpan<T> series, int subsampleLength, Func<ReadOnlySpan<T>, T> statistic)
         where T : IFloatingPoint<T>
     {
-        ArgumentNullException.ThrowIfNull(series);
         ArgumentNullException.ThrowIfNull(statistic);
         if (subsampleLength < 1 || subsampleLength >= series.Length)
         {
@@ -67,7 +71,13 @@ public static class Subsampler
         var values = new T[subsampleCount];
         for (var i = 0; i < subsampleCount; i++)
         {
-            values[i] = statistic(series.AsSpan(i, subsampleLength));
+            var value = statistic(series.Slice(i, subsampleLength));
+            if (!T.IsFinite(value))
+            {
+                throw new ArgumentException($"Statistic returned a non-finite value for subsample {i}.", nameof(statistic));
+            }
+
+            values[i] = value;
         }
 
         Array.Sort(values);
@@ -77,6 +87,32 @@ public static class Subsampler
     /// <summary>
     /// Suggested subsample length using the b ≈ T^(2/3) rule of thumb.
     /// </summary>
+    /// <param name="seriesLength">
+    /// Length T of the series the subsample will be drawn from. Must be ≥ 2 — <see cref="Run{T}"/>
+    /// requires <c>1 ≤ b &lt; T</c>, and no such <c>b</c> exists for <c>T &lt; 2</c>.
+    /// </param>
+    /// <returns>
+    /// A subsample length clamped to <c>[1, seriesLength − 1]</c> so the result is
+    /// always a valid argument to <see cref="Run{T}"/> (which requires
+    /// <c>1 ≤ b &lt; seriesLength</c>). For short series the T^(2/3) rule can exceed
+    /// <c>seriesLength − 1</c>; the upper clamp keeps the suggestion usable.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="seriesLength"/> is less than 2 — no subsample length in
+    /// <c>[1, seriesLength − 1]</c> exists for <see cref="Run{T}"/> to accept.
+    /// </exception>
     public static int SuggestSubsampleLength(int seriesLength)
-        => Math.Max(2, (int)Math.Round(Math.Pow(seriesLength, 2.0 / 3.0)));
+    {
+        if (seriesLength < 2)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(seriesLength), seriesLength,
+                "Series length must be at least 2 — Run requires 1 <= subsampleLength < seriesLength, " +
+                "which admits no valid value for seriesLength < 2.");
+        }
+
+        var suggested = Math.Max(2, (int)Math.Round(Math.Pow(seriesLength, 2.0 / 3.0)));
+        // Clamp into [1, seriesLength − 1] so Run never rejects the suggestion.
+        return Math.Clamp(suggested, 1, seriesLength - 1);
+    }
 }

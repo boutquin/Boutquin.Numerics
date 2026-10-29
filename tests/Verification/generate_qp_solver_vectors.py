@@ -31,10 +31,38 @@ from conftest import save_vector
 SEED = 20260415
 
 
+def _certify_bounded_simplex(weights: np.ndarray, gradient: np.ndarray, lb: float, ub: float) -> None:
+    """Check feasibility and a convex first-order objective-gap certificate.
+
+    For convex f, f(w)-min(f) <= grad(f,w) dot (w-v), where v minimizes
+    grad(f,w) dot v on the box/simplex. Fill the smallest gradient first.
+    The 1e-6 scaled gap is an objective certificate, not a per-weight bound.
+    """
+    if (weights.ndim != 1 or weights.shape != gradient.shape
+            or not np.all(np.isfinite(weights)) or not np.all(np.isfinite(gradient))
+            or abs(float(np.sum(weights)) - 1.0) > 1e-8
+            or np.any(weights < lb - 1e-8) or np.any(weights > ub + 1e-8)):
+        raise RuntimeError("QP reference certificate failed: non-finite or infeasible weights")
+    vertex = np.full(weights.size, lb, dtype=float)
+    remaining = 1.0 - weights.size * lb
+    for index in np.argsort(gradient, kind="stable"):
+        amount = min(ub - lb, max(0.0, remaining))
+        vertex[index] += amount
+        remaining -= amount
+    if abs(remaining) > 1e-8:
+        raise RuntimeError("QP reference certificate failed: infeasible bounds")
+    gap = float(gradient @ (weights - vertex))
+    if gap > 1e-6 * max(1.0, float(np.max(np.abs(gradient)))):
+        raise RuntimeError(f"QP reference certificate failed: convex objective gap {gap}")
+
+
 def make_psd_cov(vols: list[float], corr: np.ndarray) -> np.ndarray:
     """Construct covariance from volatilities and correlation matrix."""
     d = np.diag(vols)
-    return d @ corr @ d
+    cov = d @ corr @ d
+    # Matrix products can round mirrored entries differently. Supply an exactly
+    # symmetric covariance to both solvers, as the public QP contract requires.
+    return (cov + cov.T) / 2
 
 
 def solve_min_variance_slsqp(
@@ -53,9 +81,9 @@ def solve_min_variance_slsqp(
         constraints=constraints,
         options={"ftol": 1e-12, "maxiter": 2000},
     )
-    assert result.success or result.status == 9, (
-        f"SLSQP failed: {result.message}"
-    )
+    if not result.success:
+        raise RuntimeError(f"SLSQP failed with status {result.status}: {result.message}")
+    _certify_bounded_simplex(result.x, 2.0 * cov @ result.x, lb, ub)
     return result.x.tolist()
 
 
@@ -80,9 +108,9 @@ def solve_mean_variance_slsqp(
         constraints=constraints,
         options={"ftol": 1e-12, "maxiter": 2000},
     )
-    assert result.success or result.status == 9, (
-        f"SLSQP failed: {result.message}"
-    )
+    if not result.success:
+        raise RuntimeError(f"SLSQP failed with status {result.status}: {result.message}")
+    _certify_bounded_simplex(result.x, risk_aversion * cov @ result.x - mu, lb, ub)
     return result.x.tolist()
 
 

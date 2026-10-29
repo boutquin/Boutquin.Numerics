@@ -1,0 +1,281 @@
+{
+  "source": "Patton, Politis & White (2009), corrected Tables 1 and 2",
+  "source_url": "https://public.econ.duke.edu/~ap172/Patton_Politis_White_2009.pdf",
+  "contract": "Seeded independent replication, not an exact replay of unpublished paper samples",
+  "normal_stream": "NR3 p365 Normaldev_BM: v2 first, v1 cached, cached zero discarded; operator-selected author stream 2026-10-02",
+  "numpy_version": "2.4.3",
+  "conventions": "Stationary initialization; author lag-window indexing; common truncated-row sample covariances; upper cap Bmax, no lower floor",
+  "tolerance": "Six combined Monte Carlo SEs plus 0.0005 printed rounding; SD/RMSE author delta-method influence variances from companion replay",
+  "rows": [
+    {
+      "phi": 0.7,
+      "length": 200,
+      "seed": 20090000,
+      "replications": 1000,
+      "stationary_optimum": 11.465207126223573,
+      "mean": 0.8439659223592267,
+      "standard_deviation": 0.3560823001362534,
+      "rmse": 0.38860576842226796,
+      "author_mean": 0.8439659223592267,
+      "author_sd": 0.3560823001362534,
+      "author_rmse": 0.38860576842226796,
+      "mean_convention_drift": 0.0,
+      "sd_convention_drift": 0.0,
+      "rmse_convention_drift": 0.0,
+      "mean_combined_mcse": 0.01561277055715368,
+      "sd_companion_mcse": 0.031728236967420914,
+      "rmse_companion_mcse": 0.025775946644127162,
+      "sd_combined_mcse": 0.04487050302951406,
+      "rmse_combined_mcse": 0.0364526933271299,
+      "mean_paper_tolerance": 0.09417662334292208,
+      "sd_paper_tolerance": 0.2697230181770844,
+      "rmse_paper_tolerance": 0.2192161599627794,
+      "printed_mean": 0.859,
+      "printed_sd": 0.342,
+      "printed_rmse": 0.37,
+      "checkpoints": [
+        {
+          "trial": 0,
+          "estimate": 7.952665248032213
+        },
+        {
+          "trial": 1,
+          "estimate": 16.8488248818319
+        },
+        {
+          "trial": 499,
+          "estimate": 8.591672527365198
+        },
+        {
+          "trial": 999,
+          "estimate": 7.9170919072362285
+        }
+      ]
+    },
+    {
+      "phi": 0.7,
+      "length": 800,
+      "seed": 20090001,
+      "replications": 1000,
+      "stationary_optimum": 18.199881853200598,
+      "mean": 0.9237496704359259,
+      "standard_deviation": 0.2529527654155398,
+      "rmse": 0.2640742872535447,
+      "author_mean": 0.9237496704359259,
+      "author_sd": 0.2529527654155398,
+      "author_rmse": 0.2640742872535447,
+      "mean_convention_drift": 0.0,
+      "sd_convention_drift": 0.0,
+      "rmse_convention_drift": 0.0,
+      "mean_combined_mcse": 0.0111140047476762,
+      "sd_companion_mcse": 0.030158952244586232,
+      "rmse_companion_mcse": 0.027333517582807353,
+      "sd_combined_mcse": 0.04265119929125635,
+      "rmse_combined_mcse": 0.038655431272969616,
+      "mean_paper_tolerance": 0.0671840284860572,
+      "sd_paper_tolerance": 0.2564071957475381,
+      "rmse_paper_tolerance": 0.23243258763781774,
+      "printed_mean": 0.927,
+      "printed_sd": 0.244,
+      "printed_rmse": 0.254,
+      "checkpoints": [
+        {
+          "trial": 0,
+          "estimate": 18.218148134688192
+        },
+        {
+          "trial": 1,
+          "estimate": 17.131621432569325
+        },
+        {
+          "trial": 499,
+          "estimate": 15.606051193549987
+        },
+        {
+          "trial": 999,
+          "estimate": 18.368135532218584
+        }
+      ]
+    },
+    {
+      "phi": 0.1,
+      "length": 200,
+      "seed": 20090002,
+      "replications": 1000,
+      "stationary_optimum": 2.013445441237568,
+      "mean": 0.9530250375114813,
+      "standard_deviation": 1.211536698457084,
+      "rmse": 1.2118415728292953,
+      "author_mean": 0.9530250375114813,
+      "author_sd": 1.211536698457084,
+      "author_rmse": 1.2118415728292953,
+      "mean_convention_drift": 0.0,
+      "sd_convention_drift": 0.0,
+      "rmse_convention_drift": 0.0,
+      "mean_combined_mcse": 0.04854966706073576,
+      "sd_companion_mcse": 0.2520916357538019,
+      "rmse_companion_mcse": 0.25072319244551633,
+      "sd_combined_mcse": 0.3565114102438449,
+      "rmse_combined_mcse": 0.35457613915792874,
+      "mean_paper_tolerance": 0.29179800236441455,
+      "sd_paper_tolerance": 2.1395684614630697,
+      "rmse_paper_tolerance": 2.1279568349475726,
+      "printed_mean": 0.959,
+      "printed_sd": 0.943,
+      "printed_rmse": 0.943,
+      "checkpoints": [
+        {
+          "trial": 0,
+          "estimate": 2.029930559419892
+        },
+        {
+          "trial": 1,
+          "estimate": 2.408732875665779
+        },
+        {
+          "trial": 499,
+          "estimate": 2.0682673424575877
+        },
+        {
+          "trial": 999,
+          "estimate": 1.8864738096758131
+        }
+      ]
+    },
+    {
+      "phi": 0.1,
+      "length": 800,
+      "seed": 20090003,
+      "replications": 1000,
+      "stationary_optimum": 3.196145411501092,
+      "mean": 0.8998700500304702,
+      "standard_deviation": 0.36229762860402315,
+      "rmse": 0.3757050957883153,
+      "author_mean": 0.8998700500304702,
+      "author_sd": 0.36229762860402315,
+      "author_rmse": 0.3757050957883153,
+      "mean_convention_drift": 0.0,
+      "sd_convention_drift": 0.0,
+      "rmse_convention_drift": 0.0,
+      "mean_combined_mcse": 0.015348894803603897,
+      "sd_companion_mcse": 0.03179247464137746,
+      "rmse_companion_mcse": 0.02901307236563918,
+      "sd_combined_mcse": 0.04496134881923871,
+      "rmse_combined_mcse": 0.04103068042559899,
+      "mean_paper_tolerance": 0.09259336882162339,
+      "sd_paper_tolerance": 0.27026809291543225,
+      "rmse_paper_tolerance": 0.24668408255359395,
+      "printed_mean": 0.881,
+      "printed_sd": 0.323,
+      "printed_rmse": 0.344,
+      "checkpoints": [
+        {
+          "trial": 0,
+          "estimate": 2.8196118443975324
+        },
+        {
+          "trial": 1,
+          "estimate": 2.013932743202366
+        },
+        {
+          "trial": 499,
+          "estimate": 1.0042771904704002
+        },
+        {
+          "trial": 999,
+          "estimate": 2.4496120659681466
+        }
+      ]
+    },
+    {
+      "phi": -0.4,
+      "length": 200,
+      "seed": 20090004,
+      "replications": 1000,
+      "stationary_optimum": 5.660878050250599,
+      "mean": 1.111442573101458,
+      "standard_deviation": 0.7088814004365706,
+      "rmse": 0.717237599505563,
+      "author_mean": 1.111442573101458,
+      "author_sd": 0.7088814004365706,
+      "author_rmse": 0.717237599505563,
+      "mean_convention_drift": 0.0,
+      "sd_convention_drift": 0.0,
+      "rmse_convention_drift": 0.0,
+      "mean_combined_mcse": 0.030286116289232487,
+      "sd_companion_mcse": 0.05460618397138644,
+      "rmse_companion_mcse": 0.05624338299559028,
+      "sd_combined_mcse": 0.07722480596177503,
+      "rmse_combined_mcse": 0.07954015502610809,
+      "mean_paper_tolerance": 0.18221669773539492,
+      "sd_paper_tolerance": 0.46384883577065017,
+      "rmse_paper_tolerance": 0.4777409301566486,
+      "printed_mean": 1.062,
+      "printed_sd": 0.644,
+      "printed_rmse": 0.646,
+      "checkpoints": [
+        {
+          "trial": 0,
+          "estimate": 5.9269117617752185
+        },
+        {
+          "trial": 1,
+          "estimate": 6.094974714087825
+        },
+        {
+          "trial": 499,
+          "estimate": 5.476345152410489
+        },
+        {
+          "trial": 999,
+          "estimate": 1.7839590932867315
+        }
+      ]
+    },
+    {
+      "phi": -0.4,
+      "length": 800,
+      "seed": 20090005,
+      "replications": 1000,
+      "stationary_optimum": 8.986083772031492,
+      "mean": 1.093909408596182,
+      "standard_deviation": 0.3869628824336921,
+      "rmse": 0.3980069209597927,
+      "author_mean": 1.093909408596182,
+      "author_sd": 0.3869628824336921,
+      "author_rmse": 0.3980069209597927,
+      "mean_convention_drift": 0.0,
+      "sd_convention_drift": 0.0,
+      "rmse_convention_drift": 0.0,
+      "mean_combined_mcse": 0.016886807643287448,
+      "sd_companion_mcse": 0.01310046493746938,
+      "rmse_companion_mcse": 0.013853048279454666,
+      "sd_combined_mcse": 0.0185268551879624,
+      "rmse_combined_mcse": 0.019591168757014058,
+      "mean_paper_tolerance": 0.10182084585972469,
+      "sd_paper_tolerance": 0.11166113112777441,
+      "rmse_paper_tolerance": 0.11804701254208436,
+      "printed_mean": 1.081,
+      "printed_sd": 0.368,
+      "printed_rmse": 0.377,
+      "checkpoints": [
+        {
+          "trial": 0,
+          "estimate": 5.207799377921311
+        },
+        {
+          "trial": 1,
+          "estimate": 7.559249046287821
+        },
+        {
+          "trial": 499,
+          "estimate": 6.805831904918046
+        },
+        {
+          "trial": 999,
+          "estimate": 11.566582771134708
+        }
+      ]
+    }
+  ]
+}

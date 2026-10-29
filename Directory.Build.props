@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);NU5104;CA1707;CA1716;CA1822</NoWarn>
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
@@ -24,11 +26,28 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').Contains('/tests/'))">
-    <NoWarn>$(NoWarn);CS1591;CA2007</NoWarn>
+  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').Contains('/examples/'))">
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <!-- MinVer 7 deliberately emits 0.0.0.0 for every pre-1.0 build. Boutquin packages
+       instead bind within the current pre-1.0 minor line, where SemVer permits breaking
+       changes, and return to major-line binding at 1.0. This must run after MinVer writes
+       its values and before the SDK consumes AssemblyVersion. -->
+  <Target Name="ApplyBoutquinAssemblyVersionPolicy"
+          AfterTargets="MinVer"
+          BeforeTargets="GetAssemblyVersion"
+          Condition="'$(IsPackable)' == 'true'
+                     and '$(MinVerSkip)' != 'true'
+                     and '$(MinVerMajor)' != ''">
+    <PropertyGroup>
+      <AssemblyVersion Condition="'$(MinVerMajor)' == '0'">0.$(MinVerMinor).0.0</AssemblyVersion>
+      <AssemblyVersion Condition="'$(MinVerMajor)' != '0'">$(MinVerMajor).0.0.0</AssemblyVersion>
+    </PropertyGroup>
+  </Target>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
@@ -38,12 +57,5 @@
   <ItemGroup>
     <PackageReference Include="MinVer" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
-  </ItemGroup>
-
-  <!-- Public API snapshot: enforce explicit declaration of all public type and member additions -->
-  <!-- Note: PublicApiAnalyzers 3.x auto-includes PublicAPI.Shipped.txt and PublicAPI.Unshipped.txt
-       via its own .props file — do NOT add AdditionalFiles here or they will be duplicated. -->
-  <ItemGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').Contains('/src/'))">
-    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="All" />
   </ItemGroup>
 </Project>

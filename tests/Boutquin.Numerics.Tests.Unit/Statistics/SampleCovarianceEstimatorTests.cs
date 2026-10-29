@@ -22,6 +22,59 @@ namespace Boutquin.Numerics.Tests.Unit.Statistics;
 public sealed class SampleCovarianceEstimatorTests
 {
     [Fact]
+    public void Estimate_LargeFiniteDoubleProduct_ReturnsFiniteVariance()
+    {
+        var returns = new double[1000, 1];
+        returns[0, 0] = 1e155;
+
+        var covariance = new SampleCovarianceEstimator<double>().Estimate(returns);
+
+        covariance[0, 0].Should().BeApproximately(1e307, 1e294);
+    }
+
+    [Fact]
+    public void Estimate_LongHalfSeries_PreservesVarianceBeyondHalfCountRange()
+    {
+        var returns = new Half[70_000, 1];
+        for (var i = 0; i < returns.GetLength(0); i++)
+        {
+            returns[i, 0] = (Half)(i % 2);
+        }
+
+        var covariance = new SampleCovarianceEstimator<Half>().Estimate(returns);
+
+        ((float)covariance[0, 0]).Should().BeApproximately(0.25f, 0.001f);
+    }
+
+    [Fact]
+    public void Estimate_LongAlternatingHalfSeries_PreservesVariance()
+    {
+        var returns = new Half[4096, 1];
+        for (var i = 0; i < 4096; i++)
+        {
+            returns[i, 0] = (Half)(i % 2);
+        }
+
+        var covariance = new SampleCovarianceEstimator<Half>().Estimate(returns);
+
+        ((float)covariance[0, 0]).Should().BeApproximately(0.25f, 0.001f);
+    }
+
+    [Fact]
+    public void Estimate_HalfSeriesBeyondExactIntegerSum_PreservesVariance()
+    {
+        var returns = new Half[5000, 1];
+        for (var i = 0; i < 5000; i++)
+        {
+            returns[i, 0] = (Half)(i % 2);
+        }
+
+        var covariance = new SampleCovarianceEstimator<Half>().Estimate(returns);
+
+        ((float)covariance[0, 0]).Should().BeApproximately(0.25f, 0.001f);
+    }
+
+    [Fact]
     public void Estimate_UsesUnbiasedDivisor()
     {
         // Two assets, T = 3. Hand-computed expected covariance with N-1 divisor.

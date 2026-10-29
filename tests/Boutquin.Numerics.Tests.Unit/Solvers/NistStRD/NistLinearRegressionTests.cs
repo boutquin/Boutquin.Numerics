@@ -28,12 +28,12 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers.NistStRD;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Accuracy bar: coefficients match to 10 significant digits; standard errors match to
-/// 8 significant digits where NIST publishes them. The suite deliberately mixes the
+/// Accuracy bar: coefficients match to 1e-12 relative and standard errors to 1e-11 where
+/// NIST publishes them, on every problem except <c>Filip</c> (1e-7 and 1e-6). The suite deliberately mixes the
 /// well-conditioned <c>Norris</c> and <c>NoInt*</c> problems with the pathological
-/// <c>Longley</c> (cond ≈ 5·10⁷), <c>Wampler4</c> (cond ≈ 5·10¹⁰), and <c>Wampler5</c>
-/// (cond ≈ 5·10¹³) — the normal-equation estimator fails the latter three entirely,
-/// while Householder QR recovers every published digit.
+/// <c>Longley</c> and <c>Wampler4/5</c> problems. All five Wampler designs have
+/// cond ≈ 6.4·10⁶; the latter two increase response noise and cancellation.
+/// Pivoted QR with augmented refinement satisfies the stated coefficient bars.
 /// </para>
 /// <para>
 /// R²: NIST publishes the centred form for intercept models and the uncentred form for
@@ -44,52 +44,25 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers.NistStRD;
 /// </remarks>
 public sealed class NistLinearRegressionTests
 {
-    // Coefficient tolerance bar. The spec targets 10 significant digits for well-conditioned
-    // problems and preserves "QR stability" — i.e. the estimator does not degrade to
-    // normal-equation performance — on the ill-conditioned Wampler/Filip family. Pure
-    // double-precision QR with column pivoting and iterative refinement lands at ~10 digits
-    // up to cond ≈ 10⁹ (Norris, Pontius, Longley), 8 digits for cond ≈ 10¹⁰–10¹¹ (Filip,
-    // Wampler4), and 6–7 digits for cond ≈ 10¹³ (Wampler5). The per-problem tolerance table
-    // encodes that reality while keeping every well-conditioned problem on the 10-digit bar;
-    // a single monolithic tolerance would either mask stability regressions on Longley or
-    // demand extended precision on Wampler5. Dedicated companion tests
-    // (Longley_AchievesTenDigits…, Wampler5_AchievesTenDigits…) assert the QR-stability
-    // claim separately at the same per-problem bar.
-    private const double DefaultCoefficientTolerance = 1e-9;
-    private const double StandardErrorTolerance = 1e-7;
+    // Coefficient and standard-error bars. Double-precision QR with column pivoting and
+    // Björck's augmented-system refinement (residual blocks accumulated in decimal)
+    // reproduces the certified coefficients to 1e-12 and the standard errors to 1e-11 on
+    // every problem except Filip, including Longley and Wampler4/5. The Wampler
+    // designs share cond ≈ 6.4·10⁶; their different response noise does not alter it.
+    // These are the bars the OrdinaryLeastSquares<T> summary documents.
+    private const double StandardErrorTolerance = 1e-11;
     private const double RssTolerance = 1e-7;
     private const double RSquaredTolerance = 1e-9;
 
-    // Per-problem tolerance overrides — pinned to what double-precision QR with column
-    // pivoting and decimal-residual mixed-precision refinement actually achieves. Each
-    // override cites the condition number and what published packages hit on the same
-    // problem (NIST v-Wampler*.shtml, c-Wampler*.shtml).
-    //
-    //   Condition       Package bar         Our bar
-    //   ──────────      ─────────────       ───────
-    //   ≤ 10⁸  (most)   SAS 11+, R 11+      1e-9 ✓
-    //   ≈ 10¹⁰ (Filip)  SAS 11, R 11        1e-7 — back-sub stalls on 9-decade β scale
-    //   ≈ 5·10¹⁰ (W4)   SAS 11, R 11        1e-8 — decimal residual lifts from κu ≈ 10⁻⁵
-    //   ≈ 5·10¹³ (W5)   SAS 13, R 10        1e-6 — κ²·u² regime; reaches double's floor
-    //
-    // SAS/R/Mathematica reach higher bars through end-to-end extended-precision arithmetic
-    // (double-double QR factorisation, not only the residual step). Mixed-precision
-    // refinement — our choice for consistency with the rest of Boutquin.Numerics, which
-    // uses decimal throughout its statistical surface — gets us within 1–2 digits of their
-    // bar on all eleven problems. See c-Wampler5.shtml for NIST's own methodology note.
-    private static double CoefficientToleranceFor(string name) => name switch
-    {
-        "Filip" => 1e-7,
-        "Wampler4" => 1e-8,
-        "Wampler5" => 1e-6,
-        _ => DefaultCoefficientTolerance,
-    };
+    // Filip (degree-10 polynomial, cond ≈ 10¹⁰) is the one exception: its tabulated design
+    // is the double-rounded powers x, x², …, x¹⁰, and the fit measures 2.4e-8 on
+    // coefficients and 8.7e-8 on standard errors against the certified values.
+    private static double CoefficientToleranceFor(string name) =>
+        NistLinearRegressionData.DoubleCoefficientToleranceFor(name);
 
     private static double StandardErrorToleranceFor(string name) => name switch
     {
-        "Filip" => 1e-5,
-        "Wampler4" => 1e-6,
-        "Wampler5" => 1e-3,
+        "Filip" => 1e-6,
         _ => StandardErrorTolerance,
     };
 
@@ -115,6 +88,19 @@ public sealed class NistLinearRegressionTests
 
         var result = OrdinaryLeastSquares.Fit(problem.X, problem.Y, problem.IncludeIntercept);
 
+        // NIST's certified observation/parameter counts give these residual degrees of freedom.
+        var certifiedDegrees = name switch
+        {
+            "Norris" => 34,
+            "Pontius" => 37,
+            "NoInt1" => 10,
+            "NoInt2" => 2,
+            "Filip" => 71,
+            "Longley" => 9,
+            _ => 15, // Wampler1–5:21observations,6parameters.
+        };
+        result.DegreesOfFreedom.Should().Be(certifiedDegrees);
+
         result.Coefficients.Should().HaveSameCount(problem.Coefficients,
             because: $"{problem.Name}: OLS coefficient vector must have the same length as the certified vector");
 
@@ -128,13 +114,14 @@ public sealed class NistLinearRegressionTests
                 $"{problem.Name}: coefficient b{i}");
         }
 
-        // Some no-intercept problems have certified SE = 0 (Wampler1 for the zero-noise
-        // polynomial exact fit, where the residuals vanish and every SE collapses to 0).
-        // Skip the SE assertion on any row whose certified value is exactly zero.
+        // Wampler1 and Wampler2 are exact polynomial fits with certified zero SE.
+        // Use an absolute numerical-zero bar rather than skipping those coefficients.
         for (var i = 0; i < problem.StandardErrors.Length; i++)
         {
             if (problem.StandardErrors[i] == 0.0)
             {
+                result.StandardErrors[i].Should().BeInRange(0.0, 1e-12,
+                    because: $"{problem.Name}: the certified zero standard error requires an absolute comparison");
                 continue;
             }
 
@@ -142,11 +129,13 @@ public sealed class NistLinearRegressionTests
                 $"{problem.Name}: SE(b{i})");
         }
 
-        // Residual SS: NIST publishes this at roughly 12 digits. For Wampler1–3 the residual
+        // Residual SS: NIST publishes this at roughly 12 digits. For Wampler1–2 the residual
         // SSE is exactly zero (polynomial exact fit); the test falls through to an absolute
         // upper bound there because any relative comparison against zero is ill-defined.
         if (problem.ResidualSumOfSquares == 0.0)
         {
+            result.ResidualStandardDeviation.Should().BeInRange(0.0, 1e-12,
+                because: $"{problem.Name}: certified residual standard deviation is zero");
             result.ResidualSumOfSquares.Should().BeLessThan(1e-18,
                 because: $"{problem.Name}: certified residual SS is 0 (exact polynomial fit); solver must also reach numerical zero");
         }
@@ -163,12 +152,11 @@ public sealed class NistLinearRegressionTests
     }
 
     /// <summary>
-    /// Extra: Longley is the canonical ill-conditioned problem; verify it passes the same
-    /// 10-digit coefficient bar as the well-conditioned Norris, not a relaxed one. This
-    /// is the test that separates QR from normal-equation implementations.
+    /// Supplemental Longley regression check at 1e-9 relative coefficient error.
+    /// The main certified-value theory applies the tighter 1e-12 bar to this fixture.
     /// </summary>
     [Fact]
-    public void Longley_AchievesTenDigitsDespiteConditionNumberFiveE7()
+    public void Longley_MeetsSupplementalCoefficientBar()
     {
         var problem = NistLinearRegressionData.Longley();
 
@@ -182,26 +170,24 @@ public sealed class NistLinearRegressionTests
     }
 
     /// <summary>
-    /// Wampler5 has condition ≈ 5·10¹³ — the regime where forming <c>XᵀX</c> loses every
-    /// digit of the response. QR with column pivoting and iterative refinement preserves
-    /// the original conditioning, so the estimator reaches the double-precision accuracy
-    /// floor set by the problem itself (≈ 6–7 digits at this condition, per Higham
-    /// §20.4). A normal-equation solver would deliver zero correct digits.
+    /// Wampler5 shares the degree-five design of Wampler1–4 (condition ≈ 6.4·10⁶),
+    /// with larger response noise. This supplemental test checks a 1e-6 relative
+    /// coefficient bar; <see cref="Fit_MatchesCertifiedValues"/> applies the tighter
+    /// 1e-12 bar. Neither tolerance is a condition-number-implied accuracy floor.
     /// </summary>
     [Fact]
-    public void Wampler5_AchievesDoublePrecisionFloorDespiteConditionNumberFiveE13()
+    public void Wampler5_MeetsSupplementalSixDigitCoefficientBar()
     {
         var problem = NistLinearRegressionData.Wampler5();
 
         var result = OrdinaryLeastSquares.Fit(problem.X, problem.Y, problem.IncludeIntercept);
 
-        // 6-digit relative accuracy is the practical bar for QR + refinement at cond ≈ 10¹³
-        // in double precision. This still demonstrates QR stability: a normal-equation
-        // approach (condition squared to 2.5·10²⁷) returns arbitrary garbage here.
+        // Preserve this supplemental regression bar; the main certified-value theory
+        // exercises the stronger coefficient tolerance on the same fixture.
         for (var i = 0; i < problem.Coefficients.Length; i++)
         {
             AssertRelative(result.Coefficients[i], problem.Coefficients[i], 1e-6,
-                $"Wampler5: b{i} (condition ≈ 5·10¹³)");
+                $"Wampler5: b{i} (supplemental 1e-6 relative bar)");
         }
     }
 

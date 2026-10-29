@@ -6,11 +6,14 @@ numpy / statsmodels reference:
 * ``newey_west`` — ``statsmodels.stats.sandwich_covariance`` HAC variance
   convention, rewritten in numpy to match the C# ``NeweyWestVariance``
   formula bit-for-bit (Bartlett kernel, 1/T normalisation for Var(mean)).
-* ``pbo`` — Bailey, López de Prado et al. 2014 CSCV Probability of
-  Backtest Overfitting. Hand-port of the paper's algorithm; exhaustive
-  C(S, S/2) combinatorial enumeration.
-* ``generalization_score`` — Sheppert 2026 GT-Score, the composite
-  anti-overfitting fitness function.
+* ``pbo`` — Bailey, Borwein, López de Prado & Zhu 2014 CSCV Probability of
+  Backtest Overfitting, written from §2 of the paper (Sharpe on the joined
+  training / test blocks, average rank for ties); exhaustive C(S, S/2)
+  combinatorial enumeration.
+* ``generalization_score`` — GT-inspired library variant (inspired by arXiv:2602.00080),
+  the parameter-free multiplicative composite µ·ln(z)·r²/σ_d with the
+  piecewise library loss. Uses sample SD, cumulative-return R², zero-target
+  downside RMS and additive epsilon; no author parity is claimed.
 * ``harrell_davis`` — Harrell-Davis 1982 percentile estimator via
   regularised incomplete beta weights.
 * ``psquare`` — Jain-Chlamtac 1985 P² streaming percentile estimator.
@@ -85,60 +88,61 @@ def reference_pbo(returns: np.ndarray, split_count: int = 16) -> dict:
     """Combinatorially-symmetric cross-validation (CSCV) PBO.
 
     Reference: Bailey, Borwein, López de Prado & Zhu (2014), "The
-    Probability of Backtest Overfitting", J. Computational Finance 20(4).
-    Exhaustive enumeration over C(S, S/2) splits; for each, IS winner's
-    OOS rank → logit; PBO = fraction of logits ≤ 0.
+    Probability of Backtest Overfitting", J. Computational Finance 20(4),
+    §2 steps (a)-(f). Written from the paper, not ported from the C#:
+
+    * (a)/(b) the training set J joins the S/2 selected blocks, in their
+      original order, into one T/2 × N matrix; the test set J̄ joins the rest;
+    * (c)/(d) the performance statistic (Sharpe = mean / sample sd) is
+      computed on each column of the joined J and J̄ — not averaged over
+      per-block Sharpe ratios;
+    * (e) the IS winner is the best column of J;
+    * (f) ω = rank / (N + 1) of the winner's OOS statistic, with
+      ``scipy.stats.rankdata(method="average")`` giving tied strategies
+      their average rank; logit λ = ln(ω / (1 − ω)).
+
+    PBO is the fraction of folds with λ ≤ 0; the logit median is the
+    ordinary sample median (``np.median``). A constant column has zero
+    standard deviation and Sharpe 0.
     """
 
     from itertools import combinations
+
+    from scipy.stats import rankdata
 
     n, t = returns.shape
     assert t % split_count == 0
     block_size = t // split_count
     half = split_count // 2
 
-    # Per-(strategy, block) Sharpe ratio using unbiased sample stdev.
-    block_sharpe = np.zeros((n, split_count))
-    for i in range(n):
-        for b in range(split_count):
-            seg = returns[i, b * block_size : (b + 1) * block_size]
-            mean = seg.mean()
-            sd = seg.std(ddof=1)
-            block_sharpe[i, b] = mean / sd if sd > 0 else 0.0
+    def sharpe(column: np.ndarray) -> float:
+        if np.all(column == column[0]):
+            return 0.0
+        sd = column.std(ddof=1)
+        return float(column.mean() / sd) if sd > 0 else 0.0
 
-    all_splits = list(combinations(range(split_count), half))
-    logits = np.zeros(len(all_splits))
-    for c, is_blocks in enumerate(all_splits):
-        is_blocks_arr = np.asarray(is_blocks)
-        oos_blocks_arr = np.asarray([b for b in range(split_count) if b not in is_blocks])
+    def joined_rows(blocks) -> np.ndarray:
+        return np.concatenate(
+            [np.arange(b * block_size, (b + 1) * block_size) for b in blocks]
+        )
 
-        is_avg = block_sharpe[:, is_blocks_arr].mean(axis=1)
-        oos_avg = block_sharpe[:, oos_blocks_arr].mean(axis=1)
-        is_winner = int(np.argmax(is_avg))
+    logits = []
+    for is_blocks in combinations(range(split_count), half):
+        oos_blocks = [b for b in range(split_count) if b not in is_blocks]
+        train = returns[:, joined_rows(is_blocks)]
+        test = returns[:, joined_rows(oos_blocks)]
 
-        # Rank: position of is_winner in sorted-ascending oos_avg, divided by (n+1).
-        # The C# uses OrderBy(i => oosSharpes[i]).ThenBy(...) with stable sort by index;
-        # np.argsort with default kind='quicksort' is NOT stable. Use 'stable'.
-        sorted_idx = np.argsort(oos_avg, kind="stable")
-        rank = int(np.where(sorted_idx == is_winner)[0][0]) + 1
-        omega = rank / (n + 1)
+        is_stat = np.array([sharpe(train[i]) for i in range(n)])
+        oos_stat = np.array([sharpe(test[i]) for i in range(n)])
+        is_winner = int(np.argmax(is_stat))
 
-        # Clamp ω for logit finiteness.
-        if omega <= 0.0:
-            omega = 1.0 / (2.0 * (n + 1))
-        elif omega >= 1.0:
-            omega = 1.0 - 1.0 / (2.0 * (n + 1))
+        omega = rankdata(oos_stat, method="average")[is_winner] / (n + 1)
+        logits.append(np.log(omega / (1.0 - omega)))
 
-        logits[c] = np.log(omega / (1.0 - omega))
-
-    pbo = float(np.mean(logits <= 0.0))
-    sorted_logits = np.sort(logits)
-    # Median: C# uses sortedLogits[len/2] (upper-middle for even length), not
-    # the numpy convention of (lower + upper) / 2.
-    median = float(sorted_logits[len(sorted_logits) // 2])
+    logits = np.asarray(logits)
     return {
-        "pbo": pbo,
-        "logit_median": median,
+        "pbo": float(np.mean(logits <= 0.0)),
+        "logit_median": float(np.median(logits)),
         "split_count": split_count,
     }
 
@@ -150,75 +154,65 @@ def reference_pbo(returns: np.ndarray, split_count: int = 16) -> dict:
 
 def reference_generalization_score(
     returns: np.ndarray,
-    sub_period_count: int = 12,
-    trading_days_per_year: float = 252.0,
-    performance_weight: float = 0.3,
-    significance_weight: float = 0.3,
-    consistency_weight: float = 0.2,
-    downside_weight: float = 0.2,
+    benchmark_mean: float = 0.0,
+    epsilon: float = 1e-6,
 ) -> dict:
-    """GT-Score — 4-component composite anti-overfitting fitness.
+    """GT-inspired library variant: sample SD, cumulative R², zero-target RMS, additive epsilon.
 
-    Verbatim port of the C# ``GeneralizationScore.Compute`` formula.
+    This independent oracle follows the declared library variant, not a C# port or author parity:
+
+      eq.(1): GTScore = mu * ln(z) * r2 / sigma_d         (composite utility)
+      eq.(2): z = (mu - mu_m) / (sigma / sqrt(N))         (significance Z-score)
+      Algorithm 1 (piecewise LOSS, eps = 1e-6):
+        if z <= 0:   score = 100 + 100*(1 - exp(-|z-1|))     # large penalty
+        elif z <= 1: score = 100*(1 - exp(-|z-1|))           # smooth transition
+        else:        score = -(mu*ln(z)*r2)/(sigma_d + eps)  # standard GT-Score
+
+    The explicitly chosen library components are:
+      r2      (Kestner 1996): R-squared of the cumulative-equity curve regressed
+              on the linear time trend 1..N.
+      sigma_d (Sortino & van der Meer 1991): downside deviation
+              sqrt(mean(min(0, r)^2)) with a zero minimum acceptable return.
     """
 
-    t = returns.size
-    mean = float(returns.mean())
-    sd = float(returns.std(ddof=1))
+    n = returns.size
+    mu = float(returns.mean())
+    sigma = float(returns.std(ddof=1))
 
-    sharpe = (mean / sd) * np.sqrt(trading_days_per_year) if sd > 0 else 0.0
-    performance_component = performance_weight * sharpe
+    # eq.(2) significance Z-score.
+    se = sigma / np.sqrt(n)
+    z = (mu - benchmark_mean) / se if se > 0 else 0.0
 
-    t_stat = mean / (sd / np.sqrt(t)) if sd > 0 else 0.0
-    normalized_t_stat = max(0.0, t_stat) / np.sqrt(t)
-    annualized_t_stat = normalized_t_stat * np.sqrt(trading_days_per_year)
-    significance_component = significance_weight * annualized_t_stat
+    # r2: R-squared of cumulative equity curve vs linear time trend (Kestner 1996).
+    equity = np.cumsum(returns)
+    xs = np.arange(1, n + 1, dtype=float)
+    xbar = xs.mean()
+    ebar = equity.mean()
+    sxx = float(((xs - xbar) ** 2).sum())
+    syy = float(((equity - ebar) ** 2).sum())
+    sxy = float(((xs - xbar) * (equity - ebar)).sum())
+    r2 = (sxy * sxy) / (sxx * syy) if sxx > 0 and syy > 0 else 0.0
 
-    # Consistency — fraction of equal-length sub-periods with positive sum.
-    period_size = t // sub_period_count
-    if period_size == 0 or sub_period_count <= 0:
-        consistency = 1.0 if returns.sum() > 0 else 0.0
+    # sigma_d: downside deviation, MAR = 0 (Sortino & van der Meer 1991).
+    downside = np.minimum(0.0, returns)
+    sigma_d = float(np.sqrt((downside ** 2).mean()))
+
+    # Algorithm 1 piecewise.
+    if z <= 0.0:
+        score = 100.0 + 100.0 * (1.0 - np.exp(-abs(z - 1.0)))
+    elif z <= 1.0:
+        score = 100.0 * (1.0 - np.exp(-abs(z - 1.0)))
     else:
-        positive = 0
-        for p in range(sub_period_count):
-            start = p * period_size
-            end = t if p == sub_period_count - 1 else start + period_size
-            if returns[start:end].sum() > 0:
-                positive += 1
-        consistency = positive / sub_period_count
-    consistency_component = consistency_weight * consistency
+        score = -(mu * np.log(z) * r2) / (sigma_d + epsilon)
 
-    # Max drawdown on (1 + r)-product compounding.
-    peak = 1.0
-    cumulative = 1.0
-    max_dd = 0.0
-    for r in returns:
-        cumulative *= 1.0 + r
-        if cumulative > peak:
-            peak = cumulative
-        dd = (peak - cumulative) / peak
-        if dd > max_dd:
-            max_dd = dd
-    downside_component = downside_weight * max_dd
-
-    score = (
-        performance_component
-        + significance_component
-        + consistency_component
-        - downside_component
-    )
     return {
-        "score": score,
-        "performance_component": performance_component,
-        "significance_component": significance_component,
-        "consistency_component": consistency_component,
-        "downside_risk_component": downside_component,
-        "sub_period_count": sub_period_count,
-        "trading_days_per_year": trading_days_per_year,
-        "performance_weight": performance_weight,
-        "significance_weight": significance_weight,
-        "consistency_weight": consistency_weight,
-        "downside_weight": downside_weight,
+        "score": float(score),
+        "mu": mu,
+        "z": float(z),
+        "r_squared": r2,
+        "downside_deviation": sigma_d,
+        "benchmark_mean": benchmark_mean,
+        "epsilon": epsilon,
     }
 
 
@@ -275,11 +269,15 @@ def reference_psquare(stream: np.ndarray, percentile: float) -> float:
     Calculation of Quantiles and Histograms Without Storing Observations",
     Communications of the ACM 28(10), 1076–1085.
 
-    Verbatim port of the C# ``PSquareEstimator.Add`` state transitions.
+    Desired-position decisions use exact rational arithmetic from Box 1,
+    with the exact binary-double percentile. Marker heights use independent
+    floating-point evaluation of the published parabolic/linear equations.
     """
+    from fractions import Fraction
 
     p = percentile
-    dn = [0.0, p / 2.0, p, (1.0 + p) / 2.0, 1.0]
+    exact_p = Fraction(p)
+    dn = [Fraction(0), exact_p / 2, exact_p, (1 + exact_p) / 2, Fraction(1)]
     q = [0.0] * 5
     nn = [0] * 5  # marker positions, 1-indexed per paper
     nprime = [0.0] * 5
@@ -333,7 +331,7 @@ def reference_psquare(stream: np.ndarray, percentile: float) -> float:
         for i in range(k + 1, 5):
             nn[i] += 1
         for i in range(5):
-            nprime[i] += dn[i]
+            nprime[i] = 1 + count * dn[i]
 
         for i in range(1, 4):
             d = nprime[i] - nn[i]

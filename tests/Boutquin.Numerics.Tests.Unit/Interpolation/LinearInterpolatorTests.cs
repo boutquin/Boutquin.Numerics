@@ -72,6 +72,43 @@ public sealed class LinearInterpolatorTests
     }
 
     [Fact]
+    public void Interpolate_WideFiniteInterval_PreservesFractionalPosition()
+    {
+        double[] xs = [-1e308, 1e308];
+        double[] ys = [0, 1];
+
+        LinearInterpolator<double>.Instance.Interpolate(0, xs, ys).Should().BeApproximately(0.5, 1e-15);
+        LinearInterpolator<double>.Instance.Interpolate(5e307, xs, ys).Should().BeApproximately(0.75, 1e-15);
+        LinearInterpolator<decimal>.Instance.Interpolate(
+            0m, [-decimal.MaxValue, decimal.MaxValue], [0m, 1m]).Should().Be(0.5m);
+    }
+
+    [Fact]
+    public void Interpolate_WideFiniteOrdinates_PreservesMidpoint()
+    {
+        double[] xs = [0, 1];
+        double[] ys = [-1e308, 1e308];
+
+        LinearInterpolator<double>.Instance.Interpolate(0.5, xs, ys).Should().Be(0);
+        LinearInterpolator<decimal>.Instance.Interpolate(
+            0.5m, [0m, 1m], [-decimal.MaxValue, decimal.MaxValue]).Should().Be(0m);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Interpolate_NonFiniteTarget_IsRejected(double target)
+    {
+        double[] xs = [0, 1, 2];
+        double[] ys = [0, 1, 2];
+
+        Action act = () => _sut.Interpolate(target, xs, ys);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("x");
+    }
+
+    [Fact]
     public void Name_ReturnsLinear()
     {
         _sut.Name.Should().Be("Linear");

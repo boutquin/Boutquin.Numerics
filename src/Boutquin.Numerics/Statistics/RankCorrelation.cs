@@ -49,12 +49,17 @@ namespace Boutquin.Numerics.Statistics;
 public static class RankCorrelation<T>
     where T : IFloatingPoint<T>
 {
-    private static readonly T s_two = T.CreateChecked(2);
-
     /// <summary>Spearman rank correlation coefficient rho in [-1, 1].</summary>
     public static T Spearman(ReadOnlySpan<T> x, ReadOnlySpan<T> y)
     {
-        var n = Math.Min(x.Length, y.Length);
+        ValidateFinite(x, nameof(x));
+        ValidateFinite(y, nameof(y));
+        if (x.Length != y.Length)
+        {
+            throw new ArgumentException("Series must have the same length.", nameof(y));
+        }
+
+        var n = x.Length;
         if (n < 3)
         {
             return T.Zero;
@@ -67,13 +72,20 @@ public static class RankCorrelation<T>
     }
 
     /// <summary>
-    /// Kendall tau-b (tie-corrected). Returns 0 for fewer than three
+    /// Kendall tau-b (tie-corrected). Returns 0 for fewer than two
     /// observations or when all pairs are tied in either coordinate.
     /// </summary>
     public static T KendallTauB(ReadOnlySpan<T> x, ReadOnlySpan<T> y)
     {
-        var n = Math.Min(x.Length, y.Length);
-        if (n < 3)
+        ValidateFinite(x, nameof(x));
+        ValidateFinite(y, nameof(y));
+        if (x.Length != y.Length)
+        {
+            throw new ArgumentException("Series must have the same length.", nameof(y));
+        }
+
+        var n = x.Length;
+        if (n < 2)
         {
             return T.Zero;
         }
@@ -87,23 +99,23 @@ public static class RankCorrelation<T>
         {
             for (var j = i + 1; j < n; j++)
             {
-                var dx = x[i] - x[j];
-                var dy = y[i] - y[j];
-                if (dx == T.Zero && dy == T.Zero)
+                var orderX = x[i].CompareTo(x[j]);
+                var orderY = y[i].CompareTo(y[j]);
+                if (orderX == 0 && orderY == 0)
                 {
                     // Mutual tie — counts as tied in both.
                     tiedX++;
                     tiedY++;
                 }
-                else if (dx == T.Zero)
+                else if (orderX == 0)
                 {
                     tiedX++;
                 }
-                else if (dy == T.Zero)
+                else if (orderY == 0)
                 {
                     tiedY++;
                 }
-                else if ((T.IsPositive(dx) && T.IsPositive(dy)) || (T.IsNegative(dx) && T.IsNegative(dy)))
+                else if ((orderX > 0 && orderY > 0) || (orderX < 0 && orderY < 0))
                 {
                     concordant++;
                 }
@@ -122,9 +134,28 @@ public static class RankCorrelation<T>
             return T.Zero;
         }
 
-        var denom = NumericPrecision<T>.Sqrt(T.CreateChecked(denomX) * T.CreateChecked(denomY));
-        var tau = T.CreateChecked(concordant - discordant) / denom;
+        // Counts fit the guaranteed working types throughout the supported length
+        // domain. Divide in T so a small double ratio never narrows through decimal.
+        var pairScale = T.CreateChecked(totalPairs);
+        var normalizedNumerator = T.CreateChecked(concordant - discordant) / pairScale;
+        var normalizedX = T.CreateChecked(denomX) / pairScale;
+        var normalizedY = T.CreateChecked(denomY) / pairScale;
+        var tau = normalizedNumerator
+            / NumericPrecision<T>.Sqrt(normalizedX)
+            / NumericPrecision<T>.Sqrt(normalizedY);
         return T.Clamp(tau, -T.One, T.One);
+    }
+
+    private static void ValidateFinite(ReadOnlySpan<T> values, string parameterName)
+    {
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (!T.IsFinite(values[i]))
+            {
+                throw new ArgumentOutOfRangeException(
+                    parameterName, values[i], "Rank-correlation observations must be finite.");
+            }
+        }
     }
 
     private static T[] AverageRanks(ReadOnlySpan<T> values, int n)
@@ -148,7 +179,10 @@ public static class RankCorrelation<T>
             }
 
             // Average rank for the tie group [i2, j].
-            var avgRank = T.CreateChecked(i2 + j + 2) / s_two; // 1-based ranks.
+            var rank = ((long)i2 + j + 2) / 2.0; // 1-based ranks.
+            // Pearson is invariant under positive scaling. Scale before converting
+            // to Half, whose finite range can be smaller than the observation count.
+            var avgRank = T.CreateChecked(typeof(T) == typeof(Half) ? rank / n : rank);
             for (var k = i2; k <= j; k++)
             {
                 ranks[indexed[k].Index] = avgRank;
@@ -180,6 +214,11 @@ public static class RankCorrelation<T>
 /// no ties exist.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use RankCorrelation<decimal> instead (the facade preserves the original decimal precision; use <double> deliberately if you want IEEE precision). This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class RankCorrelation
 {
     /// <summary>Spearman rank correlation coefficient rho in [-1, 1].</summary>
@@ -187,7 +226,7 @@ public static class RankCorrelation
         => RankCorrelation<decimal>.Spearman(x, y);
 
     /// <summary>
-    /// Kendall tau-b (tie-corrected). Returns 0 for fewer than three
+    /// Kendall tau-b (tie-corrected). Returns 0 for fewer than two
     /// observations or when all pairs are tied in either coordinate.
     /// </summary>
     public static decimal KendallTauB(ReadOnlySpan<decimal> x, ReadOnlySpan<decimal> y)

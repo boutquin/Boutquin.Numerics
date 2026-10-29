@@ -73,9 +73,26 @@ public abstract class CrossLanguageVerificationBase
             "Cannot find tests/Verification/vectors/. Run the Python generators first.");
     }
 
-    protected static JsonDocument LoadVector(string name)
+    protected static JsonDocument LoadVector(string name) => LoadVectorFrom(GetVectorsDir(), name);
+
+    /// <summary>
+    /// Loads <c>{name}.json</c> from an explicit vectors directory. <see cref="LoadVector"/>
+    /// delegates here with the runtime vectors directory; tests that need a mutated
+    /// copy of a vector pass their own directory.
+    /// </summary>
+    /// <remarks>
+    /// Every verification consumer bounds its comparison loop by the data it loads, so a
+    /// reference family that arrives empty, missing, or short of one of its required
+    /// identities would let the consumer pass on zero compared rows. The loader therefore
+    /// refuses, with an <see cref="InvalidDataException"/> naming the vector and the JSON
+    /// path: (1) any empty array or object in any vector, and (2) for the vectors whose
+    /// generators emit a fixed, unconditional family set, any deviation from that set
+    /// (<c>VectorContract</c> below mirrors the <c>generate_*.py</c> emissions).
+    /// </remarks>
+    /// <exception cref="InvalidDataException">The vector violates its required shape.</exception>
+    protected static JsonDocument LoadVectorFrom(string vectorsDirectory, string name)
     {
-        var path = Path.Combine(GetVectorsDir(), $"{name}.json");
+        var path = Path.Combine(vectorsDirectory, $"{name}.json");
         if (!File.Exists(path))
         {
             throw new FileNotFoundException(
@@ -84,7 +101,18 @@ public abstract class CrossLanguageVerificationBase
         }
 
         var json = File.ReadAllText(path);
-        return JsonDocument.Parse(json);
+        var document = JsonDocument.Parse(json);
+        try
+        {
+            VectorContract.Validate(name, document.RootElement);
+        }
+        catch
+        {
+            document.Dispose();
+            throw;
+        }
+
+        return document;
     }
 
     protected static double[] GetDoubleArray(JsonElement element)
@@ -100,6 +128,11 @@ public abstract class CrossLanguageVerificationBase
         var result = new double[n, m];
         for (var i = 0; i < n; i++)
         {
+            if (rows[i].Length != m)
+            {
+                throw new JsonException($"Matrix row {i} has {rows[i].Length} entries; expected {m}.");
+            }
+
             for (var j = 0; j < m; j++)
             {
                 result[i, j] = rows[i][j];
@@ -122,6 +155,11 @@ public abstract class CrossLanguageVerificationBase
         var result = new decimal[n, m];
         for (var i = 0; i < n; i++)
         {
+            if (rows[i].Length != m)
+            {
+                throw new JsonException($"Matrix row {i} has {rows[i].Length} entries; expected {m}.");
+            }
+
             for (var j = 0; j < m; j++)
             {
                 result[i, j] = rows[i][j];
@@ -168,6 +206,373 @@ public abstract class CrossLanguageVerificationBase
             {
                 AssertScalarWithin(actual[i, j], (decimal)expected[i, j], tolerance, $"{label}[{i},{j}]");
             }
+        }
+    }
+}
+
+/// <summary>
+/// Required-shape contract for the vector files whose consumers loop over the loaded
+/// data (verification-vector loop class, F-L8-03 and F-L8-05). The expectations
+/// mirror what the matching <c>tests/Verification/generate_*.py</c> emits
+/// unconditionally, restricted to the properties the consumers read; a vector with no
+/// entry in <see cref="Check"/> is held only to the empty-family rule.
+/// </summary>
+file sealed class VectorContract(string vector)
+{
+    private static readonly (string Name, int Samples)[] s_sampleMomentCases =
+    [
+        ("normal_n200", 200),
+        ("gamma_positive_skew_n300", 300),
+        ("neg_gamma_negative_skew_n300", 300),
+        ("uniform_n500", 500),
+        ("t3_heavy_tailed_n400", 400),
+        ("small_n12", 12),
+    ];
+
+    private static readonly int[] s_sobolExtendedIndices = [1, 2, 31, 32, 63, 64, 127, 128, 255, 256, 511, 512, 1023];
+
+    private static readonly double[] s_fisherForwardR = [-0.9, -0.5, 0.0, 0.3, 0.7, 0.95];
+
+    private static readonly double[] s_fisherInverseZ = [-2.0, -1.0, 0.0, 1.0, 2.0];
+
+    private static readonly (double R, int N, double ConfidenceLevel)[] s_fisherConfidenceIntervals =
+    [
+        (0.5, 50, 0.95),
+        (0.5, 50, 0.99),
+        (0.8, 30, 0.95),
+        (-0.4, 100, 0.95),
+        (0.0, 20, 0.95),
+        (0.9, 200, 0.99),
+    ];
+
+    private static readonly (double Phi, int Length)[] s_politisWhiteRows =
+    [
+        (0.7, 200),
+        (0.7, 800),
+        (0.1, 200),
+        (0.1, 800),
+        (-0.4, 200),
+        (-0.4, 800),
+    ];
+
+    private static readonly int[] s_politisWhiteCheckpointTrials = [0, 1, 499, 999];
+
+    private readonly record struct Node(JsonElement Element, string Path);
+
+    /// <summary>Throws when <paramref name="root"/> violates the contract of vector <paramref name="vector"/>.</summary>
+    public static void Validate(string vector, JsonElement root)
+    {
+        var empty = FindEmptyFamily(root);
+        if (empty is not null)
+        {
+            throw new InvalidDataException(
+                $"Vector '{vector}' violates its required shape at ${empty}: the family is empty, " +
+                "so a verification loop over it would compare zero rows.");
+        }
+
+        new VectorContract(vector).Check(new Node(root, "$"));
+    }
+
+    /// <summary>Returns the path suffix (below the root) of the first empty array or object, else null.</summary>
+    private static string? FindEmptyFamily(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Array:
+                if (element.GetArrayLength() == 0)
+                {
+                    return string.Empty;
+                }
+
+                var index = 0;
+                foreach (var item in element.EnumerateArray())
+                {
+                    var inner = FindEmptyFamily(item);
+                    if (inner is not null)
+                    {
+                        return $"[{index}]{inner}";
+                    }
+
+                    index++;
+                }
+
+                return null;
+
+            case JsonValueKind.Object:
+                var any = false;
+                foreach (var property in element.EnumerateObject())
+                {
+                    any = true;
+                    var inner = FindEmptyFamily(property.Value);
+                    if (inner is not null)
+                    {
+                        return $".{property.Name}{inner}";
+                    }
+                }
+
+                return any ? null : string.Empty;
+
+            default:
+                return null;
+        }
+    }
+
+    private void Check(Node root)
+    {
+        switch (vector)
+        {
+            case "sample_moments":
+                SampleMoments(root);
+                break;
+            case "qmc":
+                Qmc(root);
+                break;
+            case "qmc_sobol_extended":
+                QmcSobolExtended(root);
+                break;
+            case "haircut_fisher":
+                FisherZ(Child(root, "fisher_z"));
+                break;
+            case "welford_pca":
+                WelfordPca(Child(root, "pca"));
+                break;
+            case "graphical_lasso":
+                GraphicalLasso(root);
+                break;
+            case "ppw2009":
+                PolitisWhite(root);
+                break;
+        }
+    }
+
+    private void SampleMoments(Node root)
+    {
+        var cases = ArrayOf(Child(root, "cases"), s_sampleMomentCases.Length);
+        for (var i = 0; i < s_sampleMomentCases.Length; i++)
+        {
+            var (name, samples) = s_sampleMomentCases[i];
+            var item = Item(cases, i);
+            Label(item, "name", name);
+            NumbersOf(Child(item, "data"), samples);
+            Number(item, "skewness");
+            Number(item, "excess_kurtosis");
+        }
+    }
+
+    private void Qmc(Node root)
+    {
+        // generate_qmc_vectors.py: dim = 4, points = 16; both arrays include index zero.
+        Integer(root, "dimension", 4);
+        Integer(root, "num_points", 16);
+        Matrix(root, "sobol", 16, 4);
+        Matrix(root, "halton", 16, 4);
+    }
+
+    private void QmcSobolExtended(Node root)
+    {
+        Integer(root, "dimension", 32);
+        var indices = ArrayOf(Child(root, "indices"), s_sobolExtendedIndices.Length);
+        for (var i = 0; i < s_sobolExtendedIndices.Length; i++)
+        {
+            Integer(Item(indices, i), s_sobolExtendedIndices[i]);
+        }
+
+        Matrix(root, "sobol", s_sobolExtendedIndices.Length, 32);
+    }
+
+    private void FisherZ(Node fisher)
+    {
+        var forward = ArrayOf(Child(fisher, "forward_cases"), s_fisherForwardR.Length);
+        for (var i = 0; i < s_fisherForwardR.Length; i++)
+        {
+            var item = Item(forward, i);
+            Identity(item, "r", s_fisherForwardR[i]);
+            Number(item, "z");
+        }
+
+        var inverse = ArrayOf(Child(fisher, "inverse_cases"), s_fisherInverseZ.Length);
+        for (var i = 0; i < s_fisherInverseZ.Length; i++)
+        {
+            var item = Item(inverse, i);
+            Identity(item, "z", s_fisherInverseZ[i]);
+            Number(item, "r");
+        }
+
+        var intervals = ArrayOf(Child(fisher, "ci_cases"), s_fisherConfidenceIntervals.Length);
+        for (var i = 0; i < s_fisherConfidenceIntervals.Length; i++)
+        {
+            var (r, n, confidenceLevel) = s_fisherConfidenceIntervals[i];
+            var item = Item(intervals, i);
+            Identity(item, "r", r);
+            Integer(item, "n", n);
+            Identity(item, "confidence_level", confidenceLevel);
+            Number(item, "lower");
+            Number(item, "upper");
+        }
+    }
+
+    private void WelfordPca(Node pca)
+    {
+        var decompose = Child(pca, "decompose_3x3");
+        Matrix(decompose, "covariance_matrix", 3, 3);
+        Numbers(decompose, "eigenvalues", 3);
+        Matrix(decompose, "eigenvectors", 3, 3);
+        Numbers(decompose, "explained_variance_ratio", 3);
+        Numbers(decompose, "cumulative_explained_variance", 3);
+
+        var fromReturns = Child(pca, "from_returns_50x4");
+        Matrix(fromReturns, "returns", 50, 4);
+        Numbers(fromReturns, "eigenvalues", 4);
+        Numbers(fromReturns, "explained_variance_ratio", 4);
+        Numbers(fromReturns, "mean", 4);
+        Matrix(fromReturns, "scores_top2", 50, 2);
+    }
+
+    private void GraphicalLasso(Node root)
+    {
+        var sparse = Child(root, "case_3x3_sparse");
+        Matrix(sparse, "sample_covariance", 3, 3);
+        Matrix(sparse, "sklearn_precision", 3, 3);
+        Numbers(sparse, "bic_grid", 3);
+        Number(sparse, "lambda");
+        Number(sparse, "n_samples");
+        Number(sparse, "bic_selected_lambda");
+
+        var block = Child(root, "case_5x5_block_diagonal");
+        Matrix(block, "sample_covariance", 5, 5);
+        Matrix(block, "sklearn_precision", 5, 5);
+        Number(block, "lambda");
+
+        var large = Child(root, "case_3x3_large_lambda");
+        Matrix(large, "sample_covariance", 3, 3);
+        Matrix(large, "sklearn_precision", 3, 3);
+        Number(large, "lambda");
+    }
+
+    private void PolitisWhite(Node root)
+    {
+        var rows = ArrayOf(Child(root, "rows"), s_politisWhiteRows.Length);
+        for (var i = 0; i < s_politisWhiteRows.Length; i++)
+        {
+            var (phi, length) = s_politisWhiteRows[i];
+            var row = Item(rows, i);
+            Identity(row, "phi", phi);
+            Integer(row, "length", length);
+            Integer(row, "replications", 1000);
+
+            // Trials 0, 1, 499 and 999 are emitted for every row; the consumer looks
+            // them up by trial, so a missing trial would be skipped without a failure.
+            var checkpoints = ArrayOf(Child(row, "checkpoints"), s_politisWhiteCheckpointTrials.Length);
+            for (var k = 0; k < s_politisWhiteCheckpointTrials.Length; k++)
+            {
+                var checkpoint = Item(checkpoints, k);
+                Integer(checkpoint, "trial", s_politisWhiteCheckpointTrials[k]);
+                Number(checkpoint, "estimate");
+            }
+        }
+    }
+
+    private InvalidDataException Fail(string path, string expectation)
+    {
+        return new InvalidDataException($"Vector '{vector}' violates its required shape at {path}: {expectation}.");
+    }
+
+    private Node Child(Node parent, string name)
+    {
+        var path = $"{parent.Path}.{name}";
+        if (parent.Element.ValueKind != JsonValueKind.Object)
+        {
+            throw Fail(parent.Path, "expected an object");
+        }
+
+        if (!parent.Element.TryGetProperty(name, out var value))
+        {
+            throw Fail(path, "required property is missing");
+        }
+
+        return new Node(value, path);
+    }
+
+    private static Node Item(Node array, int index) => new(array.Element[index], $"{array.Path}[{index}]");
+
+    private Node ArrayOf(Node node, int count)
+    {
+        if (node.Element.ValueKind != JsonValueKind.Array)
+        {
+            throw Fail(node.Path, "expected an array");
+        }
+
+        var length = node.Element.GetArrayLength();
+        if (length != count)
+        {
+            throw Fail(node.Path, $"expected {count} element(s), found {length}");
+        }
+
+        return node;
+    }
+
+    private Node NumbersOf(Node node, int count)
+    {
+        ArrayOf(node, count);
+        for (var i = 0; i < count; i++)
+        {
+            var item = Item(node, i);
+            if (item.Element.ValueKind != JsonValueKind.Number)
+            {
+                throw Fail(item.Path, "expected a number");
+            }
+        }
+
+        return node;
+    }
+
+    private void Numbers(Node parent, string name, int count) => NumbersOf(Child(parent, name), count);
+
+    private void Matrix(Node parent, string name, int rows, int columns)
+    {
+        var matrix = ArrayOf(Child(parent, name), rows);
+        for (var i = 0; i < rows; i++)
+        {
+            NumbersOf(Item(matrix, i), columns);
+        }
+    }
+
+    private void Number(Node parent, string name)
+    {
+        var node = Child(parent, name);
+        if (node.Element.ValueKind != JsonValueKind.Number)
+        {
+            throw Fail(node.Path, "expected a number");
+        }
+    }
+
+    private void Integer(Node parent, string name, int expected) => Integer(Child(parent, name), expected);
+
+    private void Integer(Node node, int expected)
+    {
+        if (node.Element.ValueKind != JsonValueKind.Number
+            || !node.Element.TryGetInt32(out var actual)
+            || actual != expected)
+        {
+            throw Fail(node.Path, $"expected the integer {expected}, found {node.Element.GetRawText()}");
+        }
+    }
+
+    private void Identity(Node parent, string name, double expected)
+    {
+        var node = Child(parent, name);
+        if (node.Element.ValueKind != JsonValueKind.Number || node.Element.GetDouble() != expected)
+        {
+            throw Fail(node.Path, $"expected the identity {expected:R}, found {node.Element.GetRawText()}");
+        }
+    }
+
+    private void Label(Node parent, string name, string expected)
+    {
+        var node = Child(parent, name);
+        if (node.Element.ValueKind != JsonValueKind.String || node.Element.GetString() != expected)
+        {
+            throw Fail(node.Path, $"expected the identity \"{expected}\", found {node.Element.GetRawText()}");
         }
     }
 }

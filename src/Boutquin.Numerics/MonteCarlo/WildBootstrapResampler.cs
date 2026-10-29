@@ -38,8 +38,8 @@ public enum WildBootstrapWeights
 }
 
 /// <summary>
-/// Wild bootstrap (Wu 1986; Liu 1988; Mammen 1993) — heteroskedastic-consistent
-/// bootstrap that multiplies each residual by an IID weight with mean 0 and
+/// Wild-bootstrap multiplier primitive (Wu 1986; Liu 1988; Mammen 1993).
+/// Multiplies each supplied residual by an IID weight with mean 0 and
 /// variance 1 (and, in Mammen's variant, third moment 1 to match higher-order
 /// asymptotics).
 /// </summary>
@@ -53,8 +53,10 @@ public enum WildBootstrapWeights
 /// </list>
 /// </para>
 /// <para>
-/// Use the wild bootstrap when residuals are heteroskedastic — the IID
-/// pairs/block bootstraps assume homoskedasticity. The Rademacher variant
+/// For Wu's regression bootstrap (1986, equation 7.2), callers must supply
+/// leverage-adjusted residuals <c>r_i / sqrt(1 − h_ii)</c> and add the fitted
+/// responses to the output. This primitive estimates neither leverage nor fitted
+/// values. The Rademacher variant
 /// is the recommended default for robust inference per Davidson-Flachaire 2008;
 /// Mammen's two-point is preferred when third-moment matching matters.
 /// </para>
@@ -77,6 +79,12 @@ public sealed class WildBootstrapResampler<T>
     public WildBootstrapResampler(WildBootstrapWeights weights, IRandomSource random)
     {
         ArgumentNullException.ThrowIfNull(random);
+        if (!Enum.IsDefined(weights))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(weights), weights,
+                "WildBootstrapResampler<T> supports only Mammen, Rademacher, and Gaussian weight families.");
+        }
         _weights = weights;
         _rng = random;
         _gauss = weights == WildBootstrapWeights.Gaussian ? new GaussianSampler(random) : null;
@@ -99,9 +107,8 @@ public sealed class WildBootstrapResampler<T>
     /// <c>residuals[t] · w_t</c> with <c>w_t</c> drawn from the chosen
     /// weight family.
     /// </summary>
-    public T[] Resample(T[] residuals)
+    public T[] Resample(ReadOnlySpan<T> residuals)
     {
-        ArgumentNullException.ThrowIfNull(residuals);
         var n = residuals.Length;
         if (n == 0)
         {
@@ -123,13 +130,17 @@ public sealed class WildBootstrapResampler<T>
         WildBootstrapWeights.Mammen => _rng.NextDouble() < s_mammenP ? s_mammenLow : s_mammenHigh,
         WildBootstrapWeights.Rademacher => _rng.NextDouble() < 0.5 ? -1.0 : 1.0,
         WildBootstrapWeights.Gaussian => _gauss!.Next(),
-        _ => throw new InvalidOperationException($"Unknown weight family: {_weights}"),
+        _ => throw new InvalidOperationException(
+            $"WildBootstrapResampler<T> reached its WildBootstrapWeights dispatch default for _weights={_weights} (raw 0x{(byte)_weights:X2}). " +
+            "WildBootstrapResampler<T> supports only Mammen, Rademacher, and Gaussian; reaching this path indicates a drift " +
+            "between the WildBootstrapResampler<T> constructor's Enum.IsDefined check and this dispatch layer. " +
+            "Extend both in lockstep when a new WildBootstrapWeights value ships."),
     };
 }
 
 /// <summary>
-/// Wild bootstrap (Wu 1986; Liu 1988; Mammen 1993) — heteroskedastic-consistent
-/// bootstrap that multiplies each residual by an IID weight with mean 0 and
+/// Wild-bootstrap multiplier primitive (Wu 1986; Liu 1988; Mammen 1993).
+/// Multiplies each supplied residual by an IID weight with mean 0 and
 /// variance 1 (and, in Mammen's variant, third moment 1 to match higher-order
 /// asymptotics).
 /// </summary>
@@ -142,13 +153,19 @@ public sealed class WildBootstrapResampler<T>
 /// </list>
 /// </para>
 /// <para>
-/// Use the wild bootstrap when residuals are heteroskedastic — the IID
-/// pairs/block bootstraps assume homoskedasticity. The Rademacher variant
+/// For Wu's regression bootstrap (1986, equation 7.2), callers must supply
+/// leverage-adjusted residuals <c>r_i / sqrt(1 − h_ii)</c> and add the fitted
+/// responses to the output. This primitive estimates neither leverage nor fitted
+/// values. The Rademacher variant
 /// is the recommended default for robust inference per Davidson-Flachaire 2008;
 /// Mammen's two-point is preferred when third-moment matching matters.
 /// </para>
 /// <para>
-/// Tier A: Delegates to <see cref="WildBootstrapResampler{T}"/> with T = <see cref="decimal"/>.
+/// <b>Working type: <see cref="decimal"/>.</b> This non-generic facade delegates
+/// to <see cref="WildBootstrapResampler{T}"/> instantiated at <see cref="decimal"/>;
+/// inputs and outputs are <see cref="decimal"/>. For <see cref="double"/>-precision
+/// resampling, use the generic <see cref="WildBootstrapResampler{T}"/> with
+/// <c>T = double</c>. (Tier A.)
 /// </para>
 /// </remarks>
 public sealed class WildBootstrapResampler
@@ -178,5 +195,5 @@ public sealed class WildBootstrapResampler
     /// <c>residuals[t] · w_t</c> with <c>w_t</c> drawn from the chosen
     /// weight family.
     /// </summary>
-    public decimal[] Resample(decimal[] residuals) => _impl.Resample(residuals);
+    public decimal[] Resample(ReadOnlySpan<decimal> residuals) => _impl.Resample(residuals);
 }

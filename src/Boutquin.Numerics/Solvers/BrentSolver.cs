@@ -19,8 +19,8 @@ using System.Numerics;
 namespace Boutquin.Numerics.Solvers;
 
 /// <summary>
-/// Generic Brent's method root solver — superlinear convergence with bracketing safety
-/// and guaranteed halving interval.
+/// Generic Brent's method root solver — interpolation with bracketing safety
+/// and a forced-bisection safeguard that halves the bracket at least every two iterations.
 /// </summary>
 /// <remarks>
 /// <para><b>Generic-math tier:</b> B (IEEE 754 transcendental). Works for any <c>T</c>
@@ -28,15 +28,20 @@ namespace Boutquin.Numerics.Solvers;
 /// <c>Half</c>. The constraint ensures the caller can construct objective functions
 /// using transcendentals.</para>
 /// <para>
-/// Production default for curve bootstrap. Combines inverse quadratic interpolation
-/// (order ~1.84), the secant method (order φ ≈ 1.618), and bisection (linear) to
-/// obtain superlinear convergence on smooth functions while retaining bisection's
-/// guaranteed convergence on pathological ones. Typical cost is 5–15 iterations for
-/// well-behaved objectives.
+/// Combines inverse quadratic interpolation, secant steps, and bisection. Interpolation
+/// can accelerate smooth problems, but the forced-bisection safeguard can also increase
+/// their evaluation count compared with classic Brent. No universal superlinear rate
+/// or typical iteration count is promised; the bracket-reduction bound below applies.
 /// </para>
 /// <para>
-/// Incorporates the halving-interval guarantee from Oliveira, Della Pasqua &amp; Steffen
-/// (2024) — "Halving Interval Guaranteed for Dekker and Brent Root Finding Methods".
+/// Forced-bisection safeguard: when an iteration fails to shrink the bracket to at most half
+/// its previous width, the next step is a bisection. The bracket therefore halves at least
+/// every two iterations, bounding the worst case at <c>2⌈log₂((b − a) / tolerance)⌉ + 2</c>
+/// iterations, twice bisection's count. The safeguard is this library's own. Steffen,
+/// Della Pasqua, de Oliveira &amp; da Silva (2025), "Halving interval guaranteed for Dekker and
+/// Brent root finding methods" (Examples and Counterexamples 7, 100173), take a different
+/// route, modifying Brent's acceptance test; they demonstrate per-iteration halving on two
+/// examples and state no iteration bound.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">IEEE 754 floating-point type.</typeparam>
@@ -47,16 +52,55 @@ public sealed class BrentSolver<T> : IBracketedRootSolver<T>
     private static readonly T s_two = T.CreateChecked(2);
     private static readonly T s_three = T.CreateChecked(3);
 
+    // Machine epsilon for T: the smallest positive value eps such that
+    // (T.One + eps) != T.One. Brent's algorithm uses this (not T.Epsilon,
+    // which is the smallest positive denormal — ~5e-324 for double) to scale
+    // tolerance relative to |b|.
+    private static readonly T s_machineEpsilon = ComputeMachineEpsilon();
+
     private readonly T _tolerance;
     private readonly int _maxIterations;
+
+    private static T ComputeMachineEpsilon()
+    {
+        var eps = T.One;
+        while (T.One + eps / s_two != T.One)
+        {
+            eps /= s_two;
+        }
+
+        return eps;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BrentSolver{T}"/> type.
     /// </summary>
-    /// <param name="tolerance">Absolute tolerance for convergence.</param>
+    /// <remarks>
+    /// <para><b>Tolerance-API note.</b> Brent takes a <em>single</em> <c>tolerance</c>,
+    /// using Numerical Recipes (3rd edition), section 9.3's <c>zbrent</c> convention:
+    /// iteration stops when the bracket half-width is within
+    /// <c>2·ε·|b| + tolerance/2</c> or <c>f(b) = 0</c> exactly.
+    /// This corresponds to <c>t = tolerance/2</c> in Brent's (1973) <c>zero</c>.
+    /// A small residual alone never stops it, because on a flat function a point far from the
+    /// root can have <c>|f|</c> below any tolerance. The bracket-shrinking solvers
+    /// (<see cref="BisectionSolver{T}"/>, <see cref="NewtonRaphsonSolver{T}"/>) instead expose
+    /// separate <c>functionTolerance</c>/<c>bracketTolerance</c>(/<c>stepTolerance</c>)
+    /// controls.</para>
+    /// </remarks>
+    /// <param name="tolerance">Positive finite absolute tolerance in the <c>zbrent</c>
+    /// convention. Brent's rounded-arithmetic bound becomes approximately
+    /// <c>tolerance + 6·ε·|root|</c>, under his arithmetic and sign-bracket assumptions,
+    /// for a zero of the computed objective; inaccurate function evaluation can move that zero.</param>
     /// <param name="maxIterations">Maximum number of iterations.</param>
     public BrentSolver(T tolerance, int maxIterations = 100)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxIterations);
+        if (!T.IsFinite(tolerance) || tolerance <= T.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(tolerance), tolerance, "Tolerance must be a positive value.");
+        }
+
         _tolerance = tolerance;
         _maxIterations = maxIterations;
     }
@@ -64,17 +108,36 @@ public sealed class BrentSolver<T> : IBracketedRootSolver<T>
     /// <inheritdoc/>
     public RootSolverResult<T> Solve(Func<T, T> objective, T lowerBound, T upperBound)
     {
+        ArgumentNullException.ThrowIfNull(objective);
+
+        if (!T.IsFinite(lowerBound))
+        {
+            throw new ArgumentOutOfRangeException(nameof(lowerBound), lowerBound, "Bound must be finite.");
+        }
+
+        if (!T.IsFinite(upperBound))
+        {
+            throw new ArgumentOutOfRangeException(nameof(upperBound), upperBound, "Bound must be finite.");
+        }
+
+        if (lowerBound >= upperBound)
+        {
+            throw new ArgumentException("Lower bound must be less than upper bound.", nameof(lowerBound));
+        }
+
         var a = lowerBound;
         var b = upperBound;
-        var fa = objective(a);
-        var fb = objective(b);
+        var fa = EvaluateObjective(objective, a);
+        var fb = EvaluateObjective(objective, b);
 
-        if (T.Abs(fa) < _tolerance)
+        // Brent's `zero` accepts an endpoint only when f vanishes there exactly; a small
+        // residual on a flat function says nothing about the distance to the root.
+        if (T.IsZero(fa))
         {
             return new RootSolverResult<T>(a, true, 0, fa, EstimatedError: T.Zero);
         }
 
-        if (T.Abs(fb) < _tolerance)
+        if (T.IsZero(fb))
         {
             return new RootSolverResult<T>(b, true, 0, fb, EstimatedError: T.Zero);
         }
@@ -88,9 +151,14 @@ public sealed class BrentSolver<T> : IBracketedRootSolver<T>
         var c = a;
         var fc = fa;
         var d = b - a;
+        if (!T.IsFinite(d))
+        {
+            d = HalfDifference(a, b);
+        }
+
         var e = d;
 
-        var prevBracketWidth = T.Abs(b - a);
+        var prevHalfWidth = T.Abs(HalfDifference(a, b));
 
         for (var i = 0; i < _maxIterations; i++)
         {
@@ -99,6 +167,11 @@ public sealed class BrentSolver<T> : IBracketedRootSolver<T>
                 c = a;
                 fc = fa;
                 d = b - a;
+                if (!T.IsFinite(d))
+                {
+                    d = HalfDifference(a, b);
+                }
+
                 e = d;
             }
 
@@ -112,22 +185,25 @@ public sealed class BrentSolver<T> : IBracketedRootSolver<T>
                 fc = fa;
             }
 
-            var tol = s_two * T.Epsilon * T.Abs(b) + s_half * _tolerance;
-            var m = s_half * (c - b);
+            var tol = s_two * s_machineEpsilon * T.Abs(b) + s_half * _tolerance;
+            var m = HalfDifference(b, c);
 
-            if (T.Abs(m) <= tol || T.Abs(fb) < _tolerance)
+            // Brent (1973) `zero`: stop when the bracket half-width is within tol or f(b) = 0.
+            if (T.Abs(m) <= tol || T.IsZero(fb))
             {
                 return new RootSolverResult<T>(b, true, i + 1, fb, EstimatedError: T.Abs(m));
             }
 
-            var currentBracketWidth = T.Abs(c - b);
-            var forceHalving = currentBracketWidth > s_half * prevBracketWidth && i > 0;
-            prevBracketWidth = currentBracketWidth;
+            var currentHalfWidth = T.Abs(m);
+            var forceHalving = currentHalfWidth > s_half * prevHalfWidth && i > 0;
+            prevHalfWidth = currentHalfWidth;
 
-            if (!forceHalving && T.Abs(e) >= tol && T.Abs(fa) > T.Abs(fb))
+            // Interpolation uses full differences; bisect while any of them is unrepresentable.
+            if (!forceHalving && T.IsFinite(c - b) && T.IsFinite(b - a) && T.IsFinite(a - c)
+                && T.Abs(e) >= tol && T.Abs(fa) > T.Abs(fb))
             {
                 T s;
-                if (T.Abs(a - c) < T.Epsilon)
+                if (a == c)
                 {
                     // Secant method
                     s = fb / fa;
@@ -191,11 +267,42 @@ public sealed class BrentSolver<T> : IBracketedRootSolver<T>
             a = b;
             fa = fb;
 
-            b += T.Abs(d) > tol ? d : (m > T.Zero ? tol : -tol);
-            fb = objective(b);
+            var next = b + (T.Abs(d) > tol ? d : (m > T.Zero ? tol : -tol));
+            if (!T.IsFinite(next) || next < T.Min(b, c) || next > T.Max(b, c))
+            {
+                next = b + m;
+            }
+
+            b = next;
+            fb = EvaluateObjective(objective, b);
         }
 
-        return new RootSolverResult<T>(b, false, _maxIterations, fb, EstimatedError: T.Abs(s_half * (c - b)));
+        if (SameSign(fb, fc))
+        {
+            c = a;
+        }
+
+        var finalHalfWidth = T.Abs(HalfDifference(b, c));
+        var finalTolerance = s_two * s_machineEpsilon * T.Abs(b) + s_half * _tolerance;
+        return new RootSolverResult<T>(b, T.IsZero(fb) || finalHalfWidth <= finalTolerance,
+            _maxIterations, fb, EstimatedError: finalHalfWidth);
+    }
+
+    private static T HalfDifference(T from, T to)
+    {
+        var difference = to - from;
+        return T.IsFinite(difference) ? s_half * difference : s_half * to - s_half * from;
+    }
+
+    private static T EvaluateObjective(Func<T, T> objective, T point)
+    {
+        var value = objective(point);
+        if (!T.IsFinite(value))
+        {
+            throw new InvalidOperationException($"Objective returned a non-finite value at x = {point}.");
+        }
+
+        return value;
     }
 
     private static bool SameSign(T a, T b)
@@ -210,10 +317,15 @@ public sealed class BrentSolver<T> : IBracketedRootSolver<T>
 }
 
 /// <summary>
-/// Brent's method root solver — superlinear convergence with bracketing safety
-/// and guaranteed halving interval. Legacy concrete-typed facade forwarding to
+/// Brent's method root solver — interpolation with bracketing safety
+/// and a forced-bisection safeguard. Legacy concrete-typed facade forwarding to
 /// <see cref="BrentSolver{T}"/> at <c>T = double</c>.
 /// </summary>
+[Obsolete(
+    "Use BrentSolver<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class BrentSolver : IBracketedRootSolver
 {
     private readonly BrentSolver<double> _inner;

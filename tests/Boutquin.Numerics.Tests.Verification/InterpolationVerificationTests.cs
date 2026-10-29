@@ -22,6 +22,16 @@ namespace Boutquin.Numerics.Tests.Verification;
 public sealed class InterpolationVerificationTests : CrossLanguageVerificationBase
 {
     [Fact]
+    public void ReferenceCoverage_RejectsEmptyAndMismatchedVectors()
+    {
+        Action empty = () => AssertReferenceCoverage([], []);
+        Action mismatched = () => AssertReferenceCoverage([0.5], []);
+
+        empty.Should().Throw<Xunit.Sdk.XunitException>();
+        mismatched.Should().Throw<Xunit.Sdk.XunitException>();
+    }
+
+    [Fact]
     public void LinearInterpolator_MatchesScipy()
     {
         using var doc = LoadVector("interpolation");
@@ -29,6 +39,8 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
         var ys = GetDoubleArray(doc.RootElement.GetProperty("ys"));
         var queries = GetDoubleArray(doc.RootElement.GetProperty("queries"));
         var expected = GetDoubleArray(doc.RootElement.GetProperty("linear"));
+
+        AssertReferenceCoverage(queries, expected);
 
         for (var i = 0; i < queries.Length; i++)
         {
@@ -46,15 +58,15 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
         var queries = GetDoubleArray(doc.RootElement.GetProperty("queries"));
         var expected = GetDoubleArray(doc.RootElement.GetProperty("pchip"));
 
+        AssertReferenceCoverage(queries, expected);
+
         for (var i = 0; i < queries.Length; i++)
         {
             var actual = MonotoneCubicInterpolator.Instance.Interpolate(queries[i], xs, ys);
-            // SciPy PchipInterpolator uses a three-point endpoint derivative
-            // (SciPy's implementation of Fritsch-Butland 1984) while our
-            // Fritsch-Carlson 1980 variant uses a one-sided secant. The
-            // interior values match closely; endpoint segments diverge by
-            // ≤ 2% in shape-reasonable cases — acceptable for a shape-
-            // preserving monotone interpolator.
+            // Both methods initialize endpoints with three-point formulas.
+            // SciPy's interior harmonic-mean derivatives differ from our
+            // Fritsch-Carlson three-point derivatives and S2 circle limiter.
+            // This fixture checks a .05 absolute comparison, not method identity.
             var tolerance = 0.05;
             Math.Abs(actual - expected[i]).Should().BeLessThan(tolerance,
                 $"pchip @ {queries[i]}: actual={actual}, expected={expected[i]}");
@@ -69,6 +81,8 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
         var ys = GetDoubleArray(doc.RootElement.GetProperty("ys"));
         var queries = GetDoubleArray(doc.RootElement.GetProperty("queries"));
         var expected = GetDoubleArray(doc.RootElement.GetProperty("natural_cubic_spline"));
+
+        AssertReferenceCoverage(queries, expected);
 
         var spline = new CubicSplineInterpolator(xs, ys, SplineBoundary.Natural);
         for (var i = 0; i < queries.Length; i++)
@@ -99,6 +113,8 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
         var queries = GetDoubleArray(block.GetProperty("queries"));
         var expected = GetDoubleArray(block.GetProperty("values"));
 
+        AssertReferenceCoverage(queries, expected);
+
         for (var i = 0; i < queries.Length; i++)
         {
             var actual = LogLinearInterpolator.Instance.Interpolate(queries[i], xs, ys);
@@ -120,6 +136,8 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
         var ys = GetDoubleArray(block.GetProperty("ys"));
         var queries = GetDoubleArray(block.GetProperty("queries"));
         var expected = GetDoubleArray(block.GetProperty("values"));
+
+        AssertReferenceCoverage(queries, expected);
 
         for (var i = 0; i < queries.Length; i++)
         {
@@ -146,6 +164,8 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
         var queries = GetDoubleArray(block.GetProperty("queries"));
         var expected = GetDoubleArray(block.GetProperty("values"));
 
+        AssertReferenceCoverage(queries, expected);
+
         for (var i = 0; i < queries.Length; i++)
         {
             var actual = TwoPointLinearInterpolator.Interpolate(x0, y0, x1, y1, queries[i]);
@@ -170,6 +190,8 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
         var queries = GetDoubleArray(block.GetProperty("queries"));
         var expected = GetDoubleArray(block.GetProperty("values"));
 
+        AssertReferenceCoverage(queries, expected);
+
         var spline = new MonotoneCubicSpline(xs, ys);
         for (var i = 0; i < queries.Length; i++)
         {
@@ -181,14 +203,13 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
     /// <summary>
     /// Hagan-West (2006) monotone-convex interpolation — no library
     /// equivalent exists (finance-specific curve-construction method), so
-    /// the reference is a paper-faithful hand-port in
+    /// the reference is written from the paper in
     /// ``generate_interpolation_vectors.py::reference_monotone_convex``
-    /// with §2.3 / §2.4 / §2.6 equation citations. The Python port was
-    /// written from the paper's equations independently of the C# class;
-    /// it uses different loop structure, different variable names, and
-    /// different boundary-handling idioms, so a shared bug would require
-    /// a co-incident misreading of the paper. Both sides compute the same
-    /// IEEE arithmetic pipeline on ``double``, so 1e-10 absolute
+    /// (eqs. 30–32, 37, 45–56 and 60–62). It evaluates the paper's piecewise
+    /// forward pointwise and integrates it with ``scipy.integrate.quad``,
+    /// while the C# class uses closed-form integrals, so a shared bug would
+    /// require a co-incident misreading of the paper's sector table. The
+    /// quadrature is accurate to about 1e-14, so 1e-10 absolute
     /// (``PrecisionExact``) is the expected bar. Input is a yield-curve
     /// NCR node array spanning five orders of magnitude of time (0.25y
     /// through 30y) with a virtual origin at ``xs[0] = 0``.
@@ -203,10 +224,18 @@ public sealed class InterpolationVerificationTests : CrossLanguageVerificationBa
         var queries = GetDoubleArray(block.GetProperty("queries"));
         var expected = GetDoubleArray(block.GetProperty("values"));
 
+        AssertReferenceCoverage(queries, expected);
+
         for (var i = 0; i < queries.Length; i++)
         {
             var actual = MonotoneConvexInterpolator.Instance.Interpolate(queries[i], xs, ys);
             AssertScalarWithin(actual, expected[i], PrecisionExact, $"monotone_convex @ {queries[i]}");
         }
+    }
+
+    private static void AssertReferenceCoverage(double[] queries, double[] expected)
+    {
+        Assert.NotEmpty(queries);
+        Assert.Equal(queries.Length, expected.Length);
     }
 }

@@ -1,29 +1,32 @@
 """Covariance estimator reference vectors.
 
-Covers three data regimes (spec §2.2):
+Covers the three baseline data regimes plus a small-scale OAS guard:
 
 * ``small_well_conditioned`` — N=8, T=120, concentration c = N/T ≈ 0.067.
 * ``moderate`` — N=30, T=60, c = 0.5.
 * ``overconcentrated`` — N=50, T=40, c = 1.25 (more assets than
   observations; sample covariance is rank-deficient).
+* ``small_scale_oas`` — N=8, T=120 with small return units, guarding the
+  scale-relative OAS degeneracy branch.
 
 For each regime we emit reference vectors for thirteen estimators:
 
-* Legacy (unchanged from prior ship):
+* Baseline estimators:
   * ``sample`` — numpy.cov(ddof=1).
-  * ``ledoit_wolf_scaled_identity`` — own-formula Ledoit-Wolf-2004.
+  * ``ledoit_wolf_scaled_identity`` — Ledoit-Wolf 2004 JMVA eq. 14 (sklearn oracle).
   * ``ewma_lambda_0_94`` — RiskMetrics exponentially-weighted cov.
 
-* Phase 2 additions (paper-faithful numpy ports, spec §2.2):
+* Phase 2 additions (numpy ports of the stated methods):
   * ``oas`` — Chen et al. 2010, Theorem 3 (OAS shrinkage).
   * ``lw_constant_correlation`` — Ledoit & Wolf 2004, constant-correlation target.
   * ``lw_single_factor`` — Ledoit & Wolf 2003, one-factor (equal-weight market) target.
-  * ``denoised`` — López de Prado 2018, Marčenko-Pastur eigenvalue denoising.
-  * ``detoned`` — López de Prado 2020, MP-denoised + PC1 shrinkage (α=1).
-  * ``tracy_widom_denoised`` — Johnstone 2001 / Bun-Bouchaud-Potters 2017, TW finite-N correction.
+  * ``denoised`` — López de Prado 2020, Marčenko-Pastur eigenvalue denoising (snippet 2.5).
+  * ``detoned`` — López de Prado 2020, market-component removal and rescaling (section 2.6, α=1).
+  * ``tracy_widom_denoised`` — Johnstone 2001 / Bun-Bouchaud-Potters 2017, TW finite-N 99% threshold.
   * ``qis`` — Ledoit & Wolf 2022, Quadratic Inverse Shrinkage.
-  * ``nercome`` — Abadir-Distaso-Žikeš 2014, leave-one-split rotated eigenvalues.
-  * ``poet`` — Fan-Liao-Mincheva 2013, principal-orthogonal-complement thresholding.
+  * ``nercome`` — Lam (2016), replicated matrix averaging and seven-candidate split selection.
+  * ``poet`` — Fan-Liao-Mincheva 2013, principal-orthogonal-complement thresholding
+    (derived from the paper's eq. 3.2 adaptive threshold, not ported from the C#).
   * ``doubly_sparse`` — Doubly Sparse Eigenvector Hard-Thresholding.
 
 Library pins (documented so regression detection is decoupled from a
@@ -34,13 +37,17 @@ library update shifting the reference):
 
 Seed fixed per regime; regenerating produces bit-identical JSON.
 
-All formulas are verbatim numpy ports of the published reference. Each
-reference function is prefixed ``reference_`` so it is obvious the port
-is the test's source of truth; paper citations live in the comment above
+The functions port the stated procedures to numpy. Each function is prefixed ``reference_`` so the port
+is identifiable as the test's source of truth; source citations live above
 each function.
 """
 
 from __future__ import annotations
+
+import math
+import json
+import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -95,11 +102,11 @@ def marcenko_pastur_upper(t: int, n: int) -> float:
 
 def eigendecompose_sorted_ascending(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Symmetric eigendecomposition with eigenvalues sorted ascending —
-    the convention the C# estimators' JacobiEigenDecomposition follows.
+    C# Jacobi orders descending.
     Returns (values, vectors) where vectors[:, k] is the eigenvector for
     values[k].
 
-    Eigenvalue order is identical between implementations (sorted); sign
+    Consistent eigenpair permutation preserves reconstructed matrices; sign
     is not canonical but all downstream reconstructions ``V · diag(λ) · Vᵀ``
     and the eigenvector-magnitude operations used by the estimators that
     live here are sign-invariant."""
@@ -111,59 +118,39 @@ def eigendecompose_sorted_ascending(matrix: np.ndarray) -> tuple[np.ndarray, np.
 
 
 # =====================================================================
-#  Legacy references — unchanged so that the existing three C# tests
-#  (SampleCovariance, LedoitWolf, EWMA) keep passing.
+#  Baseline references for SampleCovariance, LedoitWolf, and EWMA.
+#  EWMA uses the production contract's exponentially weighted mean.
 # =====================================================================
 
 
 def reference_ledoit_wolf_scaled_identity(returns: np.ndarray) -> np.ndarray:
-    """Ledoit-Wolf (2004) with scaled-identity target, matching the C# one.
+    """Ledoit-Wolf (2004) linear shrinkage to the scaled identity.
 
     Reference: Ledoit & Wolf (2004), "A well-conditioned estimator for
-    large-dimensional covariance matrices", JMVA 88(2), 365–411.
+    large-dimensional covariance matrices", JMVA 88(2), 365–411, eq. 14 and
+    Lemma 3.4: the intensity is ``δ = min(b̄², d²)/d²`` — there is no ρ term.
+
+    Independent oracle: ``sklearn.covariance.ledoit_wolf`` implements that
+    intensity on the 1/T moment matrix of the demeaned data. The library
+    returns the same estimator on its Bessel (T−1) scale, so the oracle output
+    is multiplied by T/(T−1); the intensity itself is unchanged by that factor.
     """
 
-    t, n = returns.shape
-    means = returns.mean(axis=0)
-    centered = returns - means
+    from sklearn.covariance import ledoit_wolf
 
-    sample_cov = centered.T @ centered / (t - 1)
-    mu = np.trace(sample_cov) / n
-    target = mu * np.eye(n)
-
-    gamma = float(np.sum((sample_cov - target) ** 2))
-
-    pi_sum = 0.0
-    for i in range(n):
-        for j in range(n):
-            sigma_ij = sample_cov[i, j]
-            values = centered[:, i] * centered[:, j] - sigma_ij
-            pi_sum += float(np.sum(values ** 2) / t)
-
-    rho_sum = 0.0
-    for i in range(n):
-        sigma_ii = sample_cov[i, i]
-        values = centered[:, i] ** 2 - sigma_ii
-        rho_sum += float(np.sum(values ** 2) / t)
-
-    if gamma == 0.0:
-        delta = 1.0
-    else:
-        delta = (pi_sum - rho_sum) / (t * gamma)
-    delta = float(np.clip(delta, 0.0, 1.0))
-
-    return delta * target + (1 - delta) * sample_cov
+    t = returns.shape[0]
+    shrunk, _ = ledoit_wolf(returns)
+    return shrunk * t / (t - 1)
 
 
 def reference_ewma(returns: np.ndarray, lam: float) -> np.ndarray:
     """RiskMetrics EWMA (matches ``ExponentiallyWeightedCovarianceEstimator``)."""
 
     t, n = returns.shape
-    means = returns.mean(axis=0)
-    centered = returns - means
-
     weights = np.array([(1 - lam) * lam ** (t - 1 - k) for k in range(t)])
     weights = weights / weights.sum()
+    means = np.sum(weights[:, np.newaxis] * returns, axis=0)
+    centered = returns - means
 
     cov = np.zeros((n, n))
     for k in range(t):
@@ -174,8 +161,8 @@ def reference_ewma(returns: np.ndarray, lam: float) -> np.ndarray:
 
 
 # =====================================================================
-#  Phase 2 references — each is a paper-faithful numpy port of the C#
-#  implementation.
+#  Phase 2 references — numpy ports of the stated C# methods. Detoned is
+#  the repository variant, not the book's market-component removal recipe.
 # =====================================================================
 
 
@@ -189,143 +176,145 @@ def reference_oas(returns: np.ndarray) -> np.ndarray:
                     / ((n + 1 − 2/p)·(tr(S²) − tr(S)²/p)))
         Σ̂ = (1 − ρ*)·S + ρ*·(tr(S)/p)·I
 
-    Note: sklearn's ``OAS`` differs because it uses the biased sample
-    covariance (N divisor); Numerics uses the unbiased form (N-1), so a
-    direct sklearn call will NOT match — this hand-port is the test's
-    source of truth.
+    Known zero mean: S=X.T@X/n, without sample centering. The exact finite-p
+    terms follow equation23; sklearn's simplified OAS omits the 2/p terms.
+    This direct primary-equation oracle is separate from the NERCOME policy port.
     """
 
     t, p = returns.shape
-    s = sample_covariance_unbiased(returns)
+    s = returns.T @ returns / t
     trace_s = float(np.trace(s))
     trace_s2 = float(np.sum(s ** 2))
     mu = trace_s / p
     numerator = (1.0 - 2.0 / p) * trace_s2 + trace_s ** 2
-    denominator = (t + 1.0 - 2.0 / p) * (trace_s2 - trace_s ** 2 / p)
-    if denominator <= 1e-28:
+    dispersion = trace_s2 - trace_s ** 2 / p
+    if dispersion <= 1e-12 * trace_s2:
         rho = 1.0
     else:
+        denominator = (t + 1.0 - 2.0 / p) * dispersion
         rho = float(np.clip(numerator / denominator, 0.0, 1.0))
     target = mu * np.eye(p)
     return (1.0 - rho) * s + rho * target
 
 
 def reference_lw_constant_correlation(returns: np.ndarray) -> np.ndarray:
-    """Ledoit-Wolf (2004) with constant-correlation target.
+    """Ledoit-Wolf (2004) shrinkage to the constant-correlation target.
 
-    Reference: Ledoit & Wolf (2004), "Honey, I Shrunk the Sample
-    Covariance Matrix", Journal of Portfolio Management 30(4), 110–119.
-    Schäfer-Strimmer analytical shrinkage form, as implemented in the C#
-    class.
+    Reference: Ledoit & Wolf (2004), "Honey, I Shrunk the Sample Covariance
+    Matrix", Journal of Portfolio Management 30(4), 110–119. Target from
+    App. A eq. 3; intensity ``δ = max(0, min(κ̂/T, 1))`` with
+    ``κ̂ = (π̂ − ρ̂)/γ̂`` and the App. B ``ρ̂`` (diagonal π̂_ii plus the
+    r̄/2 · ϑ̂ cross terms). Written as a numpy port of the authors' published
+    ``covCor.m`` matrix formulation (1/T moments of the demeaned data), not of
+    the C# class. The library returns the estimator on its Bessel (T−1) scale,
+    so the output is multiplied by T/(T−1).
     """
 
     t, n = returns.shape
-    means = returns.mean(axis=0)
-    centered = returns - means
-    s = centered.T @ centered / (t - 1)
+    x = returns - returns.mean(axis=0)
+    sample = x.T @ x / t
+    var = np.diag(sample).copy()
+    sqrtvar = np.sqrt(var)
+    r_bar = (np.sum(sample / np.outer(sqrtvar, sqrtvar)) - n) / (n * (n - 1))
+    prior = r_bar * np.outer(sqrtvar, sqrtvar)
+    np.fill_diagonal(prior, var)
 
-    stds = np.sqrt(np.clip(np.diag(s), 0.0, np.inf))
+    # π̂: sum of asymptotic variances of the sample covariance entries.
+    y = x ** 2
+    phi_mat = y.T @ y / t - 2.0 * (x.T @ x) * sample / t + sample ** 2
+    phi = float(phi_mat.sum())
 
-    # Average pairwise sample correlation r̄ (zero-variance assets skipped).
-    r_sum = 0.0
-    pair_count = 0
-    for i in range(n):
-        for j in range(i + 1, n):
-            if stds[i] > 0.0 and stds[j] > 0.0:
-                r_sum += s[i, j] / (stds[i] * stds[j])
-                pair_count += 1
-    r_bar = r_sum / pair_count if pair_count > 0 else 0.0
+    # ρ̂: App. B — ϑ̂_ii,ij = (1/T) Σ_t (x_it² − s_ii)(x_it x_jt − s_ij).
+    term1 = (x ** 3).T @ x / t
+    help_mat = x.T @ x / t
+    help_diag = np.diag(help_mat)
+    term2 = help_diag[:, None] * sample
+    term3 = help_mat * var[:, None]
+    term4 = var[:, None] * sample
+    theta_mat = term1 - term2 - term3 + term4
+    np.fill_diagonal(theta_mat, 0.0)
+    rho = float(np.sum(np.diag(phi_mat))
+                + r_bar * np.sum(np.outer(1.0 / sqrtvar, sqrtvar) * theta_mat))
 
-    # Target F.
-    target = np.zeros((n, n))
-    for i in range(n):
-        target[i, i] = s[i, i]
-        for j in range(i + 1, n):
-            off = r_bar * stds[i] * stds[j]
-            target[i, j] = off
-            target[j, i] = off
-
-    # π = Σᵢⱼ (1/T) · Σₖ (centered_ki · centered_kj − sᵢⱼ)².
-    pi_sum = 0.0
-    for i in range(n):
-        for j in range(n):
-            zij = centered[:, i] * centered[:, j]
-            dev = zij - s[i, j]
-            pi_sum += float(np.sum(dev ** 2) / t)
-
-    gamma = float(np.sum((s - target) ** 2))
-    delta = 1.0 if gamma == 0.0 else pi_sum / (t * gamma)
-    delta = float(np.clip(delta, 0.0, 1.0))
-    return delta * target + (1.0 - delta) * s
+    gamma = float(np.linalg.norm(sample - prior, "fro") ** 2)
+    kappa = (phi - rho) / gamma
+    shrinkage = max(0.0, min(1.0, kappa / t))
+    sigma = shrinkage * prior + (1.0 - shrinkage) * sample
+    return sigma * t / (t - 1)
 
 
 def reference_lw_single_factor(returns: np.ndarray) -> np.ndarray:
-    """Ledoit-Wolf (2003) with one-factor (equal-weight market) target.
+    """Ledoit-Wolf (2003) shrinkage to the single-factor (market) target.
 
-    Reference: Ledoit & Wolf (2003), "Improved Estimation of the
-    Covariance Matrix of Stock Returns with an Application to Portfolio
-    Selection", Journal of Empirical Finance 10(5), 603–621.
+    Reference: Ledoit & Wolf (2003), "Improved Estimation of the Covariance
+    Matrix of Stock Returns with an Application to Portfolio Selection",
+    Journal of Empirical Finance 10(5), 603–621. Target ``f_ij = s_i0 s_j0/s_00``
+    off the diagonal and ``f_ii = s_ii`` on it; intensity
+    ``δ = max(0, min(1, (p − r)/(c·T)))`` [Theorem 2] with ``r`` from Lemma 2
+    (``r_ii = p_ii``; off-diagonal eq. 8). Written as a numpy port of the
+    authors' published ``covMarket.m`` matrix formulation (equal-weighted
+    market of the demeaned returns, 1/T moments), not of the C# class. The
+    library returns the estimator on its Bessel (T−1) scale, so the output is
+    multiplied by T/(T−1).
     """
 
     t, n = returns.shape
-    means = returns.mean(axis=0)
-    centered = returns - means
-    s = centered.T @ centered / (t - 1)
+    x = returns - returns.mean(axis=0)
+    xmkt = x.mean(axis=1)
 
-    # Equal-weight market factor.
-    market = returns.mean(axis=1)
-    market_mean = market.mean()
-    market_var = float(((market - market_mean) ** 2).sum() / (t - 1))
+    full = np.cov(np.column_stack([x, xmkt]), rowvar=False) * (t - 1) / t
+    covmkt = full[:n, n]
+    varmkt = full[n, n]
+    sample = full[:n, :n]
+    prior = np.outer(covmkt, covmkt) / varmkt
+    np.fill_diagonal(prior, np.diag(sample))
 
-    # β_i = Cov(r_i, market) / Var(market) — sample cov with N-1 divisor.
-    beta = np.zeros(n)
-    for j in range(n):
-        cov_j_m = float(((returns[:, j] - means[j]) * (market - market_mean)).sum() / (t - 1))
-        beta[j] = cov_j_m / market_var if market_var != 0.0 else 0.0
+    c = float(np.linalg.norm(sample - prior, "fro") ** 2)
+    y = x ** 2
+    p = float(np.sum(y.T @ y) / t - np.sum(sample ** 2))
+    rdiag = float(np.sum(y ** 2) / t - np.sum(np.diag(sample) ** 2))
+    z = x * xmkt[:, None]
+    v1 = y.T @ z / t - covmkt[:, None] * sample
+    roff1 = float(np.sum(v1 * covmkt[None, :]) / varmkt
+                  - np.sum(np.diag(v1) * covmkt) / varmkt)
+    v3 = z.T @ z / t - varmkt * sample
+    roff3 = float(np.sum(v3 * np.outer(covmkt, covmkt)) / varmkt ** 2
+                  - np.sum(np.diag(v3) * covmkt ** 2) / varmkt ** 2)
+    r = rdiag + 2.0 * roff1 - roff3
+    k = (p - r) / c
+    shrinkage = max(0.0, min(1.0, k / t))
+    sigma = shrinkage * prior + (1.0 - shrinkage) * sample
+    return sigma * t / (t - 1)
 
-    # Target F.
-    target = np.zeros((n, n))
-    for i in range(n):
-        target[i, i] = s[i, i]
-        for j in range(i + 1, n):
-            off = beta[i] * beta[j] * market_var
-            target[i, j] = off
-            target[j, i] = off
 
-    # Schäfer-Strimmer π and γ, same form as LW-CC.
-    pi_sum = 0.0
-    for i in range(n):
-        for j in range(n):
-            zij = centered[:, i] * centered[:, j]
-            dev = zij - s[i, j]
-            pi_sum += float(np.sum(dev ** 2) / t)
+def cov2corr(cov: np.ndarray) -> np.ndarray:
+    """Rescale to a unit diagonal and clip to [-1, 1] — López de Prado 2020,
+    snippets 2.5/2.6 as implemented by emoen, *Machine-Learning-for-Asset-Managers*
+    (``ch2_marcenko_pastur_pdf.py``, commit b9fd86b), ``cov2corr``."""
 
-    gamma = float(np.sum((s - target) ** 2))
-    delta = 1.0 if gamma == 0.0 else pi_sum / (t * gamma)
-    delta = float(np.clip(delta, 0.0, 1.0))
-    return delta * target + (1.0 - delta) * s
+    std = np.sqrt(np.diag(cov))
+    corr = cov / np.outer(std, std)
+    corr[corr < -1], corr[corr > 1] = -1, 1
+    return corr
 
 
 def _denoise_core(
-    returns: np.ndarray, threshold: float, detoning_alpha: float | None = None
+    returns: np.ndarray, threshold: float, detoning_alpha: float | None = None,
+    clean_all_noise: bool = True
 ) -> np.ndarray:
     """Shared denoising kernel. ``threshold`` sets the noise/signal
-    partition (MP edge, or MP + Tracy-Widom finite-N correction). When
-    ``detoning_alpha`` is not None, additionally shrinks the PC1 (largest-
-    eigenvalue) component toward the signal-eigenvalue mean.
+    partition (MP edge, or the Tracy-Widom threshold). When ``detoning_alpha``
+    is not None, additionally removes that fraction of the market component.
 
-    Mirrors the C# pipeline exactly: sample covariance → correlation →
-    eigen → partition → replace noise with mean (iff 0 < |noise| < n)
-    → detoning fallback logic (iff detoning requested) → reconstruct →
-    force unit diagonal → covariance.
-
-    Detoning semantics must match the C# ``DetonedCovarianceEstimator``:
-    the detoning step runs whenever detoning is requested and there is at
-    least one noise or signal eigenvalue to anchor the shrinkage — NOT
-    guarded by the denoising guard. When all eigenvalues are noise, PC1
-    is shrunk toward the noise mean; when at least one signal eigenvalue
-    exists beyond PC1, PC1 is shrunk toward the mean of those signal
-    eigenvalues.
+    Follows López de Prado 2020, snippet 2.5 (``denoisedCorr``) and section 2.6
+    (``detoned_corr``) as implemented by emoen (commit b9fd86b): eigenvalues
+    at or below the threshold are replaced by their mean, including all-noise
+    spectra. The separate TW convention preserves its all-noise spectrum. The
+    reconstruction is rescaled with ``cov2corr``, and detoning subtracts the
+    first eigenpair of the *denoised* correlation before a second ``cov2corr``.
+    ``detoning_alpha = 1`` is the book's recipe; removing a market component
+    leaves a singular matrix when the residual diagonal remains positive. With
+    no signal eigenvalue there is no market component and nothing is removed.
     """
 
     t, n = returns.shape
@@ -339,228 +328,297 @@ def _denoise_core(
 
     noise_mask = values <= threshold
     noise_count = int(np.sum(noise_mask))
-    noise_avg = float(values[noise_mask].mean()) if noise_count > 0 else 0.0
 
-    # Denoising: replace noise eigenvalues with their mean, but only when
-    # there is a mixed noise/signal split — if the spectrum is entirely
-    # noise or entirely signal, the replacement would collapse information
-    # with no statistical justification.
-    if 0 < noise_count < n:
-        new_values = np.where(noise_mask, noise_avg, values)
+    if noise_count > 0 and (clean_all_noise or noise_count < n):
+        new_values = np.where(noise_mask, float(values[noise_mask].mean()), values)
     else:
         new_values = values.copy()
 
-    # Detoning: matches the C# Detoned pipeline's if / else-if branches.
-    # Eigenvalues are ascending → PC1 (the largest) lives at index n − 1.
-    if detoning_alpha is not None:
-        pc1_idx = n - 1
-        # Count signal eigenvalues EXCLUDING PC1, measured against the ORIGINAL
-        # (not noise-replaced) eigenvalue array — equivalent to checking
-        # values[i > 0 in descending] > threshold. Noise-replaced values are by
-        # construction ≤ threshold, so the ``> threshold`` check on new_values
-        # would also work; use original values for semantic clarity.
-        signal_indices = [i for i in range(n) if i != pc1_idx and values[i] > threshold]
-        if len(signal_indices) > 0:
-            signal_mean = float(np.mean(new_values[signal_indices]))
-            new_values[pc1_idx] = (
-                (1.0 - detoning_alpha) * new_values[pc1_idx] + detoning_alpha * signal_mean
-            )
-        elif noise_count > 0:
-            # Only PC1 qualifies as signal OR the spectrum is entirely noise —
-            # shrink toward the noise mean.
-            new_values[pc1_idx] = (
-                (1.0 - detoning_alpha) * new_values[pc1_idx] + detoning_alpha * noise_avg
-            )
+    cleaned_corr = cov2corr(vectors @ np.diag(new_values) @ vectors.T)
 
-    cleaned_corr = vectors @ np.diag(new_values) @ vectors.T
-    np.fill_diagonal(cleaned_corr, 1.0)
+    if detoning_alpha is not None and noise_count < n:
+        # Eigenvalues are ascending, so the market component is the last eigenpair.
+        d_values, d_vectors = eigendecompose_sorted_ascending(cleaned_corr)
+        v1 = d_vectors[:, -1:]
+        market = v1 @ np.diag(d_values[-1:]) @ v1.T
+        cleaned_corr = cov2corr(cleaned_corr - detoning_alpha * market)
+
     return correlation_to_covariance(cleaned_corr, stds)
 
 
-def reference_denoised(returns: np.ndarray) -> np.ndarray:
-    """López de Prado 2018, ch. 2 — MP-edge denoising, no detoning.
+def fitted_mp_upper(returns: np.ndarray) -> float:
+    """Book snippets 2.1/2.4: 1000 MP ordinates vs Gaussian KDE, h=.01.
 
-    Reference: López de Prado, M. (2018), *Advances in Financial Machine
-    Learning*, chapter 2.
+    SciPy differential evolution locates the global fit independently of the
+    library's grid/golden-section implementation. Include endpoints explicitly.
+    """
+    from scipy.optimize import differential_evolution
+
+    t, n = returns.shape
+    q = t / n
+    edge = (1 + np.sqrt(1 / q)) ** 2
+    if q == 1:
+        return edge
+    eigenvalues = np.linalg.eigvalsh(covariance_to_correlation(sample_covariance_unbiased(returns))[0])
+    z = np.linspace((1 - np.sqrt(1 / q)) ** 2, edge, 1000)
+
+    def objective(parameter):
+        variance = float(parameter[0])
+        x = variance * z
+        pdf = q / (2 * np.pi * variance * x) * np.sqrt(np.maximum(0, (x[-1] - x) * (x - x[0])))
+        kde = np.exp(-0.5 * ((x[:, None] - eigenvalues) / .01) ** 2).mean(axis=1) / (.01 * np.sqrt(2 * np.pi))
+        return float(np.sum((pdf - kde) ** 2))
+
+    fit = differential_evolution(objective, [(1e-5, 1 - 1e-5)], seed=731, tol=1e-10, popsize=30)
+    candidates = [1e-5, 1 - 1e-5, float(fit.x[0])]
+    variance = min(candidates, key=lambda x: objective([x])) if fit.success else 1.0
+    return variance * edge
+
+
+def reference_denoised(returns: np.ndarray) -> np.ndarray:
+    """López de Prado 2020, §§2.4–2.5 — fitted MP-edge denoising, no detoning.
+
+    Reference: López de Prado, M. (2020), *Machine Learning for Asset
+    Managers*, snippet 2.5.
     """
 
     t, n = returns.shape
-    threshold = marcenko_pastur_upper(t, n)
+    threshold = fitted_mp_upper(returns)
     return _denoise_core(returns, threshold, detoning_alpha=None)
 
 
 def reference_detoned(returns: np.ndarray, detoning_alpha: float = 1.0) -> np.ndarray:
-    """López de Prado 2020 — MP-denoised + PC1 shrinkage at intensity α.
+    """MP-denoised correlation with the market component removed (α = 1 is the book's recipe).
 
     Reference: López de Prado, M. (2020), *Machine Learning for Asset
-    Managers*, chapter 2.
+    Managers*, section 2.6.
     """
 
     t, n = returns.shape
-    threshold = marcenko_pastur_upper(t, n)
+    threshold = fitted_mp_upper(returns)
     return _denoise_core(returns, threshold, detoning_alpha=detoning_alpha)
 
 
 def reference_tracy_widom_denoised(returns: np.ndarray) -> np.ndarray:
-    """Tracy-Widom finite-N corrected MP denoising.
+    """Tracy-Widom finite-N corrected denoising at the 99% level.
 
     Reference: Johnstone (2001), "On the Distribution of the Largest
     Eigenvalue in Principal Components Analysis", Annals of Statistics
-    29(2), 295–327. Bun-Bouchaud-Potters 2017 constants (c_α = 2.02,
-    μ_TW = 1.21 for 95% threshold), matching the C# implementation.
+    29(2), 295–327, eqs. (1.3)–(1.4) and Theorem 1.1:
+
+        mu_np    = (sqrt(n_obs - 1) + sqrt(p))**2
+        sigma_np = (sqrt(n_obs - 1) + sqrt(p))
+                   * (1/sqrt(n_obs - 1) + 1/sqrt(p))**(1/3)
+
+    where n_obs is the observation count and p the variable count. For n_obs < p,
+    reverse their roles in mu and sigma (p.300 after Theorem 1.1). Dividing
+    by n_obs maps the relation onto the correlation-eigenvalue scale:
+
+        threshold = mu_np / n_obs + (sigma_np / n_obs) * s_99
+
+    with s_99 = F1^-1(0.99) = 2.0234 (Johnstone Table 1: 2.02). The TW mean
+    is carried by mu_np, so no |E[TW1]| factor enters. This is an
+    INDEPENDENT NumPy derivation from the paper formula, not a port of C# output.
     """
 
-    t, n = returns.shape
-    mp = marcenko_pastur_upper(t, n)
-    c_alpha = 2.02
-    mu_tw = 1.21
-    tw = mp + (n ** (-2.0 / 3.0)) * c_alpha * mu_tw
-    return _denoise_core(returns, tw, detoning_alpha=None)
+    t, n = returns.shape  # t = observations (Johnstone n_obs), n = variables (p)
+    s_99 = 2.0234
+    sqrt_nm1 = math.sqrt(max(t, n) - 1)
+    sqrt_p = math.sqrt(min(t, n))
+    mu_np = (sqrt_nm1 + sqrt_p) ** 2
+    sigma_np = (sqrt_nm1 + sqrt_p) * (1.0 / sqrt_nm1 + 1.0 / sqrt_p) ** (1.0 / 3.0)
+    tw = mu_np / t + (sigma_np / t) * s_99
+    return _denoise_core(returns, tw, detoning_alpha=None, clean_all_noise=False)
 
 
 def reference_qis(returns: np.ndarray) -> np.ndarray:
-    """Quadratic Inverse Shrinkage — Ledoit & Wolf (2022), "Quadratic
-    shrinkage for large covariance matrices", Bernoulli 28(3), 1519–1547
-    (arXiv:1909.12522). Faithful port of the C# implementation.
+    """Quadratic-Inverse Shrinkage — Ledoit & Wolf (2022), "Quadratic
+    shrinkage for large covariance matrices", Bernoulli 28(3), 1519–1547.
 
-    Pipeline (verbatim from the C# class):
-      1. sample cov → correlation → eigen (ascending)
-      2. effective_rank = min(n, t − 1) — the kernel is evaluated only
-         over the top ``effective_rank`` eigenvalues; the bottom ``n −
-         effective_rank`` are treated as noise and dropped, critical for
-         the overconcentrated regime (t < n) where the bottom eigenvalues
-         are numerically zero.
-      3. For each eigenvalue λᵢ, density and Hilbert transform are
-         estimated with bandwidth ``h·λᵢ`` (NOT ``h·λⱼ`` — the bandwidth
-         is fixed per outer iteration).
-      4. Shrunk eigenvalue: λᵢ / ((πc·λᵢ·f)² + (1 − c − πc·λᵢ·Hf)²).
-      5. Reconstruct → force unit diagonal → covariance.
+    Numpy port of the paper's own Appendix A code (``QIS(Y)`` with the default
+    ``k = 1``), not of the C# class: demean, ``n = N − 1``, ``c = p/n``,
+    ``sample = YᵀY/n``; ascending eigenvalues; bandwidth
+    ``h = min(c², 1/c²)^0.35 / p^0.35``; smoothed Stein shrinker ``theta`` and
+    its conjugate ``Htheta`` over the non-null inverse eigenvalues; null
+    eigenvalues (p > n) receive ``δ₀ = 1/((c − 1)·mean(1/λ))``; trace rescale.
     """
 
-    t, n = returns.shape
-    s = sample_covariance_unbiased(returns)
-    if n < 2:
-        return s
+    big_n, p = returns.shape
+    y = returns - returns.mean(axis=0)
+    n = big_n - 1
+    c = p / n
+    sample = y.T @ y / n
+    sample = (sample + sample.T) / 2.0
+    lam, u = np.linalg.eigh(sample)
+    order = np.argsort(lam)
+    lam = lam[order]
+    u = u[:, order]
 
-    corr, stds = covariance_to_correlation(s)
-    values, vectors = eigendecompose_sorted_ascending(corr)
-    lam = np.asarray(values, dtype=float)
+    h = min(c ** 2, 1.0 / c ** 2) ** 0.35 / p ** 0.35
+    invlambda = 1.0 / lam[max(1, p - n + 1) - 1 : p]
+    m = min(p, n)
+    lj = np.tile(invlambda, (m, 1))        # lj[i, j] = 1/λ_j
+    lj_i = lj - lj.T                       # 1/λ_j − 1/λ_i
+    denom = lj_i ** 2 + h ** 2 * lj ** 2
+    theta = np.mean(lj * lj_i / denom, axis=1)
+    htheta = np.mean(lj * (h * lj) / denom, axis=1)
+    atheta2 = theta ** 2 + htheta ** 2
 
-    c = n / t
-    h = t ** (-0.35)
-    effective_rank = min(n, t - 1)
+    if p <= n:
+        delta = 1.0 / ((1.0 - c) ** 2 * invlambda
+                       + 2.0 * c * (1.0 - c) * invlambda * theta
+                       + c ** 2 * invlambda * atheta2)
+    else:
+        delta0 = 1.0 / ((c - 1.0) * np.mean(invlambda))
+        delta = np.concatenate([np.repeat(delta0, p - n), 1.0 / (invlambda * atheta2)])
 
-    # Top-effective_rank eigenvalues (the trailing `effective_rank` in
-    # ascending order). The bottom `n − effective_rank` noise eigenvalues
-    # are excluded from both the density and Hilbert-transform sums.
-    top_start = n - effective_rank
+    delta_qis = delta * (np.sum(lam) / np.sum(delta))
+    return u @ np.diag(delta_qis) @ u.T
 
-    shrunk = np.zeros(n, dtype=float)
-    for i in range(n):
-        ell = lam[i]
-        density = 0.0
-        hilbert = 0.0
-        for j in range(effective_rank):
-            ej = lam[top_start + j]
-            if h * ell <= 0.0:
+
+class _NercomePermutationStream:
+    """Xoshiro256** with SplitMix64 expansion; reproducible library seed policy.
+
+    The integer generator is a cross-language policy implementation, not a paper oracle.
+    """
+
+    _MASK = (1 << 64) - 1
+
+    def __init__(self, seed: int):
+        self.state = []
+        for _ in range(4):
+            seed = (seed + 0x9E3779B97F4A7C15) & self._MASK
+            z = seed
+            z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & self._MASK
+            z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & self._MASK
+            self.state.append(z ^ (z >> 31))
+
+    @classmethod
+    def _rotate(cls, value: int, shift: int) -> int:
+        return ((value << shift) | (value >> (64 - shift))) & cls._MASK
+
+    def next_u64(self) -> int:
+        a, b, c, d = self.state
+        result = self._rotate((b * 5) & self._MASK, 7) * 9 & self._MASK
+        temporary = (b << 17) & self._MASK
+        c ^= a
+        d ^= b
+        b ^= c
+        a ^= d
+        c ^= temporary
+        d = self._rotate(d, 45)
+        self.state = [a, b, c, d]
+        return result
+
+    def next_int(self, upper: int) -> int:
+        threshold = (1 << 32) % upper
+        while True:
+            product = (self.next_u64() >> 32) * upper
+            if (product & 0xFFFFFFFF) >= threshold:
+                return product >> 32
+
+
+def reference_nercome(returns: np.ndarray, split_fraction: float | None = None,
+                      replications: int = 50, seed: int = 0) -> np.ndarray:
+    """Cross-language benchmark of Lam eq4.5–4.9 with declared finite policies.
+
+    Zero-mean /n subset moments; distinct Fisher-Yates first subsets; full matrix
+    averaging in each own basis; squared averaged residual; seven-candidate argmin.
+    Floor/clamp/dedup and fixed Xoshiro seed are library policies. This numerical
+    port is not independent paper-fidelity evidence: exact rational 2x2 projector
+    tests separately establish the estimator and selector on exhaustive subsets.
+    """
+    count, dimension = returns.shape
+    scale = float(np.max(np.abs(returns)))
+    if scale == 0:
+        return np.zeros((dimension, dimension))
+    observations = returns / scale
+    root = math.sqrt(count)
+    locations = ([2 * root, .2 * count, .4 * count, .6 * count, .8 * count,
+                  count - 2.5 * root, count - 1.5 * root]
+                 if split_fraction is None else [split_fraction * count])
+    candidates = list(dict.fromkeys(max(1, min(math.floor(x), count - 1)) for x in locations))
+    stream = _NercomePermutationStream(seed)
+    best = None
+    best_score = math.inf
+    for size in candidates:
+        repetitions = min(replications, math.comb(count, size))
+        seen = set()
+        total = np.zeros((dimension, dimension))
+        residual = np.zeros_like(total)
+        while len(seen) < repetitions:
+            order = list(range(count))
+            for index in range(count - 1, 0, -1):
+                other = stream.next_int(index + 1)
+                order[index], order[other] = order[other], order[index]
+            key = tuple(sorted(order[:size]))
+            if key in seen:
                 continue
-            u = (ell - ej) / (h * ell)
-            # Quadratic-inverse kernel K(u) = √max(4 − u², 0) / (2π·u²).
-            if abs(u) > 1e-12:
-                disc = 4.0 - u * u
-                if disc > 0.0:
-                    density += np.sqrt(disc) / (2.0 * np.pi * u * u)
-            # Hilbert transform (piecewise closed form, LW-2022 §3).
-            if abs(u) >= 2.0:
-                hilbert += (
-                    np.sign(u) / (np.pi * u * u)
-                    * (abs(u) * 0.5 * np.sqrt(u * u - 4.0) - 1.0)
-                )
-            elif abs(u) > 1e-12:
-                hilbert += -1.0 / (np.pi * u * u)
-
-        # Normalise: 1/(n · h · λᵢ). Note the divisor is ``n``, not
-        # ``effective_rank``; matches the C# implementation.
-        if h * ell > 0.0:
-            density /= n * h * ell
-            hilbert /= n * h * ell
-        else:
-            density = 0.0
-            hilbert = 0.0
-
-        a = np.pi * c * ell * density
-        b = 1.0 - c - np.pi * c * ell * hilbert
-        denom = a * a + b * b
-        shrunk[i] = ell / denom if denom > 1e-18 else ell
-
-    cleaned_corr = vectors @ np.diag(shrunk) @ vectors.T
-    np.fill_diagonal(cleaned_corr, 1.0)
-    return correlation_to_covariance(cleaned_corr, stds)
-
-
-def reference_nercome(returns: np.ndarray, split_fraction: float = 0.5) -> np.ndarray:
-    """Non-parametric eigenvalue regularized covariance matrix estimator
-    (NERCOME) — Abadir, Distaso & Žikeš (2014), "Design-free estimation
-    of variance matrices", Journal of Econometrics 181(2), 165–180.
-
-    Pipeline: split rows into S₁ (first ⌊f·T⌋) and S₂ (remaining). Compute
-    both sample covariances. Extract S₁'s eigenvectors V. Return
-    V · diag(Vᵀ·S₂·V) · Vᵀ, flooring negatives at 0.
-    """
-
-    t, n = returns.shape
-    # C# clamps split to [2, T-2] so both halves have ≥2 observations.
-    split = int(np.floor(split_fraction * t))
-    split = max(2, min(split, t - 2))
-
-    s1 = sample_covariance_unbiased(returns[:split])
-    s2 = sample_covariance_unbiased(returns[split:])
-
-    _, v = eigendecompose_sorted_ascending(s1)
-    # Rotated diag: d_k = v_k · S₂ · v_k (with v_k the k-th eigenvector column).
-    d = np.diag(v.T @ s2 @ v)
-    d = np.maximum(d, 0.0)
-    return v @ np.diag(d) @ v.T
+            seen.add(key)
+            first = observations[order[:size]]
+            second = observations[order[size:]]
+            a = first.T @ first / size
+            b = second.T @ second / (count - size)
+            _, vectors = np.linalg.eigh(a)
+            diagonal = np.maximum(np.diag(vectors.T @ b @ vectors), 0)
+            reconstructed = (vectors * diagonal) @ vectors.T
+            total += reconstructed / repetitions
+            residual += (reconstructed - b) / repetitions
+        score = float(np.sum(residual * residual))
+        if best is None or score < best_score:
+            best, best_score = total, score
+    return (best * scale) * scale
 
 
 def reference_poet(returns: np.ndarray, num_factors: int = 1, threshold_multiplier: float = 0.5) -> np.ndarray:
-    """Principal Orthogonal complEment Thresholding (POET).
+    """Principal Orthogonal complEment Thresholding (POET), derived directly
+    from the paper — not ported from the C#.
 
     Reference: Fan, Liao & Mincheva (2013), "Large Covariance Estimation
     by Thresholding Principal Orthogonal Complements", JRSS-B 75(4),
     603–680 (arXiv:1201.0175).
 
-    Pipeline: sample cov → eigen → keep top-K factors → soft-threshold
-    off-diagonals of the residual at τ = c·√(log N / T).
+    * Factors by the paper's §2.3 PCA on the T×T matrix ``Y Yᵀ``: ``F̂`` is
+      √T times its top-K eigenvectors, ``Λ̂ = Yᵀ F̂ / T`` and the residuals are
+      ``û = Y − F̂ Λ̂ᵀ`` (this is a different computational route from
+      eigendecomposing the N×N covariance, which the library does).
+    * Adaptive entry-specific threshold, eq. (3.2):
+      ``τ_ij = C · √θ̂_ij · ω_T`` with ``ω_T = 1/√p + √(log p / T)``,
+      ``θ̂_ij = (1/T) Σ_t (û_it û_jt − σ̂_ij)²`` and
+      ``σ̂_ij = (1/T) Σ_t û_it û_jt``; ``C = 0.5`` as in the paper's §5.
+    * Soft thresholding of the residual off-diagonal (one of the paper's
+      permitted generalized thresholding rules), diagonal kept (eq. 2.5).
+
+    Library convention: covariances use the Bessel ``T − 1`` divisor, so the
+    factor part is ``Yᵀ P_F Y / (T − 1)`` and the thresholded residual is
+    ``û ᵀ û / (T − 1)``; ``θ̂`` keeps the paper's ``1/T`` averages,
+    and the threshold is multiplied by T/(T−1) to use the same covariance scale.
     """
 
     t, n = returns.shape
-    s = sample_covariance_unbiased(returns)
-    values, vectors = eigendecompose_sorted_ascending(s)
-
-    # Top-K eigenvalues are the LAST K in ascending order.
+    y = returns - returns.mean(axis=0)
     k = num_factors
-    top_values = values[n - k :]
-    top_vectors = vectors[:, n - k :]
 
-    factor_cov = top_vectors @ np.diag(top_values) @ top_vectors.T
-    residual = s - factor_cov
+    gram_values, gram_vectors = np.linalg.eigh(y @ y.T)
+    order = np.argsort(gram_values)[::-1]
+    f_hat = math.sqrt(t) * gram_vectors[:, order[:k]]  # T×K, F̂ᵀF̂ / T = I
+    lam_hat = y.T @ f_hat / t  # N×K
+    u_hat = y - f_hat @ lam_hat.T  # T×N residuals
 
-    tau = threshold_multiplier * np.sqrt(np.log(n) / t)
+    factor_cov = (lam_hat @ lam_hat.T) * t / (t - 1)
+    residual = u_hat.T @ u_hat / (t - 1)
 
-    # Soft-threshold OFF-diagonals only (diagonal preserved).
-    thresholded = residual.copy()
-    for i in range(n):
-        for j in range(n):
-            if i == j:
-                continue
-            x = residual[i, j]
-            thresholded[i, j] = np.sign(x) * max(0.0, abs(x) - tau)
+    omega = 1.0 / math.sqrt(n) + math.sqrt(math.log(n) / t)
+    products = u_hat[:, :, None] * u_hat[:, None, :]  # T×N×N of û_it û_jt
+    sigma_hat = products.mean(axis=0)
+    theta_hat = ((products - sigma_hat) ** 2).mean(axis=0)
+    tau = threshold_multiplier * np.sqrt(theta_hat) * omega * t / (t - 1)
+
+    thresholded = np.sign(residual) * np.maximum(np.abs(residual) - tau, 0.0)
+    np.fill_diagonal(thresholded, np.diag(residual))
 
     result = factor_cov + thresholded
-    # Enforce symmetry (the C# implementation symmetrises at the end).
-    result = 0.5 * (result + result.T)
-    return result
+    return 0.5 * (result + result.T)
 
 
 def reference_doubly_sparse(returns: np.ndarray, eigenvector_threshold: float = 0.1) -> np.ndarray:
@@ -612,9 +670,9 @@ def reference_doubly_sparse(returns: np.ndarray, eigenvector_threshold: float = 
         norm = np.linalg.norm(thresholded)
         if norm > 0.0:
             new_vectors[:, k] = thresholded / norm
-        # else: C# leaves the column zero (sum of squares is 0; no renormalise).
+        # Preserve the original signal direction if thresholding removes every entry.
         else:
-            new_vectors[:, k] = thresholded
+            new_vectors[:, k] = col
 
     # Clip tiny-negative eigenvalues that can arise from rank-deficient samples.
     new_values = np.maximum(new_values, 0.0)
@@ -636,8 +694,12 @@ def _build_returns(seed: int, t: int, n: int) -> np.ndarray:
     return rng.normal(scale=0.01, size=(t, n))
 
 
-def _build_regime(name: str, seed: int, t: int, n: int, extra: dict | None = None) -> dict:
-    returns = _build_returns(seed, t, n)
+def _build_regime_from_returns(
+    seed: int,
+    returns: np.ndarray,
+    extra: dict | None = None,
+) -> dict:
+    t, n = returns.shape
     sample = sample_covariance_unbiased(returns)
     lw = reference_ledoit_wolf_scaled_identity(returns)
     ewma = reference_ewma(returns, lam=0.94)
@@ -657,7 +719,7 @@ def _build_regime(name: str, seed: int, t: int, n: int, extra: dict | None = Non
         "detoned": reference_detoned(returns, detoning_alpha=1.0).tolist(),
         "tracy_widom_denoised": reference_tracy_widom_denoised(returns).tolist(),
         "qis": reference_qis(returns).tolist(),
-        "nercome": reference_nercome(returns, split_fraction=0.5).tolist(),
+        "nercome": reference_nercome(returns).tolist(),
         "poet": reference_poet(returns, num_factors=1, threshold_multiplier=0.5).tolist(),
         "doubly_sparse": reference_doubly_sparse(returns, eigenvector_threshold=0.1).tolist(),
     }
@@ -666,16 +728,38 @@ def _build_regime(name: str, seed: int, t: int, n: int, extra: dict | None = Non
     return block
 
 
+def _build_regime(name: str, seed: int, t: int, n: int, extra: dict | None = None) -> dict:
+    return _build_regime_from_returns(seed, _build_returns(seed, t, n), extra)
+
+
+def _build_small_scale_oas_regime() -> dict:
+    base = _build_returns(seed=20260919, t=120, n=8)
+    returns = base * 1e-7
+    sample = sample_covariance_unbiased(returns)
+    oas = reference_oas(returns)
+    ratio = oas[0, 1] / sample[0, 0]
+    if ratio == 0.0:
+        raise AssertionError("small-scale OAS oracle collapsed a non-zero covariance ratio")
+
+    return _build_regime_from_returns(
+        seed=20260919,
+        returns=returns,
+        extra={"oas_scale_ratio_0_1": float(ratio)},
+    )
+
+
 def generate() -> None:
     regimes = {
         "small_well_conditioned": _build_regime("small_well_conditioned", seed=123, t=120, n=8),
+        "small_scale_oas": _build_small_scale_oas_regime(),
         "moderate": _build_regime("moderate", seed=20260415, t=60, n=30),
         "overconcentrated": _build_regime("overconcentrated", seed=20260416, t=40, n=50),
     }
 
-    # Keep the top-level legacy keys that the existing three tests still read
+    # Keep the top-level compatibility keys that the existing three tests read
     # (SampleCovariance, LedoitWolf, EWMA), backed by the original (T=120, N=5)
-    # block for strict bit-for-bit continuity.
+    # input block. Sample/Ledoit-Wolf retain their values; EWMA is regenerated
+    # with the corrected exponentially weighted mean.
     rng = np.random.default_rng(seed=123)
     legacy_returns = rng.normal(scale=0.01, size=(120, 5))
     legacy_sample = np.cov(legacy_returns, rowvar=False, ddof=1)
@@ -686,7 +770,7 @@ def generate() -> None:
         "covariance",
         {
             "library_pins": {"numpy": "2", "scipy": "1.13+"},
-            # Legacy top-level keys — unchanged from prior ship.
+            # Compatibility top-level keys retained for the original tests.
             "returns": legacy_returns.tolist(),
             "sample_covariance": legacy_sample.tolist(),
             "ledoit_wolf_scaled_identity": legacy_lw.tolist(),
@@ -697,6 +781,29 @@ def generate() -> None:
     )
 
 
+def refresh_selected_contract_vectors() -> None:
+    """Refresh only OAS/NERCOME fields, preserving original panels and all other vectors."""
+    path = Path(__file__).parent / "vectors" / "covariance.json"
+    vectors = json.loads(path.read_text())
+    for name, regime in vectors["regimes"].items():
+        observations = np.asarray(regime["returns"], dtype=float)
+        regime["oas"] = reference_oas(observations).tolist()
+        regime["nercome"] = reference_nercome(observations).tolist()
+        if "oas_scale_ratio_0_1" in regime:
+            regime["oas_scale_ratio_0_1"] = regime["oas"][0][1] / regime["sample_covariance"][0][0]
+    vectors["covariance_contract_provenance"] = {
+        "numpy": np.__version__,
+        "oas": "Chen2010 eq2 and23: known-zero-mean raw moment/n; exact2/p terms",
+        "nercome": "Lam2016 eq4.5-4.9 cross-language policy benchmark; independent fidelity is tested separately by rational exhaustive projectors",
+        "nercome_policy": "M50 capped at C(n,m); Xoshiro256** seed0 reset; distinct Fisher-Yates subsets; floor/clamp[1,n-1]/dedup in published order; first score tie",
+        "unchanged_inputs": "Original checked-in returns panels and all unrelated estimator vectors retained"
+    }
+    save_vector("covariance", vectors)
+
+
 if __name__ == "__main__":
-    generate()
+    if "--refresh-selected-contracts" in sys.argv:
+        refresh_selected_contract_vectors()
+    else:
+        generate()
     print("Wrote covariance.json")

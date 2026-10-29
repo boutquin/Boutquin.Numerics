@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Boutquin.Numerics.StressRunner</RootNamespace>
+    <AssemblyName>Boutquin.Numerics.StressRunner</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <!-- Console entry point + helpers are internal; no public XML-doc surface to enforce. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Reuse the NIST datasets that live (internal) in the unit-test assembly rather than
+         duplicating them. The stress harness itself lives in that assembly for same-assembly
+         data access; this console only drives its public Run entry point. -->
+    <ProjectReference Include="../../tests/Boutquin.Numerics.Tests.Unit/Boutquin.Numerics.Tests.Unit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- These roots already enter through Tests.Unit. Declare them directly so
+         dependency updaters also refresh this executable's lock file. Test SDK
+         build assets stay excluded: this executable keeps its own entry point. -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" ExcludeAssets="build;buildTransitive;analyzers" PrivateAssets="all" />
+    <PackageReference Include="xunit" ExcludeAssets="build;buildTransitive;analyzers" PrivateAssets="all" />
+    <PackageReference Include="xunit.runner.visualstudio" ExcludeAssets="build;buildTransitive;analyzers" PrivateAssets="all" />
+    <PackageReference Include="coverlet.collector" ExcludeAssets="build;buildTransitive;analyzers" PrivateAssets="all" />
+    <PackageReference Include="FluentAssertions" ExcludeAssets="build;buildTransitive;analyzers" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

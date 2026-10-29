@@ -1,4 +1,4 @@
-"""Higham nearest-PSD vectors.
+"""Eigen-clip PSD and Higham nearest-correlation vectors.
 
 The Higham 1988 alternating-projection nearest correlation matrix is
 implemented here to produce a reference against which the C# version can
@@ -54,11 +54,13 @@ def generate() -> None:
         dtype=float,
     )
     nearest = higham_nearest_correlation(a)
+    eigen_clip = project_spd(a)
 
     save_vector(
         "psd",
         {
             "input": a.tolist(),
+            "eigen_clip": eigen_clip.tolist(),
             "nearest_correlation": nearest.tolist(),
         },
     )

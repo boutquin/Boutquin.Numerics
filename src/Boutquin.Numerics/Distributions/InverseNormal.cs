@@ -32,7 +32,10 @@ namespace Boutquin.Numerics.Distributions;
 /// <para>
 /// Uses Acklam's (2000) rational approximation as an initial estimate, followed
 /// by two Newton-Raphson polishing iterations using <see cref="CumulativeNormal{T}"/>
-/// and <see cref="NormalDistribution{T}.Pdf"/> for full double precision.
+/// and <see cref="NormalDistribution{T}.Pdf"/>. A centered CDF residual preserves
+/// corrections close to the median; upper-tail probabilities use symmetry.
+/// Accuracy depends on the CDF and floating-point rounding; correctly rounded
+/// quantiles are not guaranteed. This differs from Acklam's optional Halley refinement.
 /// </para>
 /// <para>
 /// Reference: Peter J. Acklam, "An algorithm for computing the inverse normal
@@ -86,8 +89,7 @@ public static class InverseNormal<T>
     /// </exception>
     public static T Evaluate(T p)
     {
-        var pd = double.CreateChecked(p);
-        if (pd <= 0.0 || pd >= 1.0)
+        if (!T.IsFinite(p) || p <= T.Zero || p >= T.One)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(p),
@@ -95,10 +97,16 @@ public static class InverseNormal<T>
                 "Probability must be in the open interval (0, 1).");
         }
 
-        return T.CreateChecked(EvaluateCore(pd));
+        var half = T.CreateChecked(0.5);
+        var upper = p > half;
+        // Form both the tail and the distance from the median in T before a
+        // decimal input can round to 1 or 1/2 on conversion to double.
+        var lower = upper ? T.One - p : p;
+        var result = EvaluateCore(double.CreateChecked(lower), double.CreateChecked(lower - half));
+        return T.CreateChecked(upper ? -result : result);
     }
 
-    private static double EvaluateCore(double p)
+    private static double EvaluateCore(double p, double centeredProbability)
     {
         double x;
 
@@ -109,23 +117,20 @@ public static class InverseNormal<T>
             x = (((((C1 * q + C2) * q + C3) * q + C4) * q + C5) * q + C6)
                 / ((((D1 * q + D2) * q + D3) * q + D4) * q + 1.0);
         }
-        else if (p <= 1.0 - PLow)
+        else
         {
             // Central region
-            var q = p - 0.5;
+            var q = centeredProbability;
             var r = q * q;
             x = q * (((((A1 * r + A2) * r + A3) * r + A4) * r + A5) * r + A6)
                 / (((((B1 * r + B2) * r + B3) * r + B4) * r + B5) * r + 1.0);
         }
-        else
-        {
-            // Upper tail — use symmetry
-            return -EvaluateCore(1.0 - p);
-        }
-
         for (var i = 0; i < 2; i++)
         {
-            x -= (CumulativeNormal<double>.Evaluate(x) - p) / NormalDistribution<double>.Pdf(x);
+            var residual = Math.Abs(x) < 1.0
+                ? CumulativeNormal<double>.CenteredProbability(x) - centeredProbability
+                : CumulativeNormal<double>.Evaluate(x) - p;
+            x -= residual / NormalDistribution<double>.Pdf(x);
         }
 
         return x;
@@ -136,6 +141,11 @@ public static class InverseNormal<T>
 /// Legacy concrete-typed facade forwarding to <see cref="InverseNormal{T}"/>
 /// instantiated at <c>double</c>. Preserves the pre-migration public API.
 /// </summary>
+[Obsolete(
+    "Use InverseNormal<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class InverseNormal
 {
     /// <inheritdoc cref="InverseNormal{T}.Evaluate"/>

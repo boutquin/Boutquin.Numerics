@@ -53,6 +53,34 @@ public sealed class MullerSolverTests
     }
 
     [Fact]
+    public void MullerSolver_SingleGuess_MaxFiniteExactRoot_Converges()
+    {
+        var solver = new MullerSolver<double>(1e-12);
+        RootSolverResult<double>? result = null;
+
+        Action solve = () => result = solver.Solve(
+            x => x == double.MaxValue ? 0.0 : throw new InvalidOperationException("Exact root needs no neighbor"),
+            double.MaxValue);
+
+        solve.Should().NotThrow("a finite exact root must not produce a non-finite generated seed");
+        result!.Converged.Should().BeTrue();
+        result.Root.Should().Be(double.MaxValue);
+        result.Iterations.Should().Be(0);
+    }
+
+    [Fact]
+    public void MullerSolver_SingleGuess_HalfMax_GeneratesThreeDistinctFiniteSeeds()
+    {
+        var solver = new MullerSolver<Half>((Half)0.0001);
+        var points = new List<Half>();
+
+        _ = solver.Solve(x => { points.Add(x); return (Half)1; }, Half.MaxValue);
+
+        points.Distinct().Count().Should().BeGreaterThanOrEqualTo(3);
+        points.Should().OnlyContain(x => Half.IsFinite(x));
+    }
+
+    [Fact]
     public void MullerSolver_FindsDiscountFactor_ForOisPv()
     {
         var solver = new MullerSolver();

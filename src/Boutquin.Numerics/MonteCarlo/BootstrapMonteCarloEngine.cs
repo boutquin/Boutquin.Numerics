@@ -40,7 +40,17 @@ public sealed record BootstrapMonteCarloResult<T>(
     T Percentile5,
     T Percentile95,
     T Mean)
-    where T : IFloatingPoint<T>;
+    where T : IFloatingPoint<T>
+{
+    private IReadOnlyList<T> _statistics = BootstrapResultSnapshots.Snapshot(Statistics);
+
+    /// <summary>Sorted simulation statistics, isolated from caller-owned storage.</summary>
+    public IReadOnlyList<T> Statistics
+    {
+        get => _statistics;
+        init => _statistics = BootstrapResultSnapshots.Snapshot(value);
+    }
+}
 
 /// <summary>
 /// Summary of a bootstrap Monte Carlo run over a vector of statistics.
@@ -66,7 +76,96 @@ public sealed record MultiStatisticBootstrapResult<T>(
     IReadOnlyList<T> Medians,
     IReadOnlyList<T> Percentile5s,
     IReadOnlyList<T> Percentile95s)
-    where T : IFloatingPoint<T>;
+    where T : IFloatingPoint<T>
+{
+    private IReadOnlyList<string> _names = BootstrapResultSnapshots.Snapshot(Names);
+    private IReadOnlyList<T[]> _statistics = new DefensiveArrayList<T>(Statistics);
+    private IReadOnlyList<T> _means = BootstrapResultSnapshots.Snapshot(Means);
+    private IReadOnlyList<T> _medians = BootstrapResultSnapshots.Snapshot(Medians);
+    private IReadOnlyList<T> _percentile5s = BootstrapResultSnapshots.Snapshot(Percentile5s);
+    private IReadOnlyList<T> _percentile95s = BootstrapResultSnapshots.Snapshot(Percentile95s);
+
+    /// <summary>Statistic names isolated from caller-owned storage.</summary>
+    public IReadOnlyList<string> Names
+    {
+        get => _names;
+        init => _names = BootstrapResultSnapshots.Snapshot(value);
+    }
+
+    /// <summary>Distributions whose rows are copied on each access.</summary>
+    public IReadOnlyList<T[]> Statistics
+    {
+        get => _statistics;
+        init => _statistics = new DefensiveArrayList<T>(value);
+    }
+
+    /// <summary>Mean values isolated from caller-owned storage.</summary>
+    public IReadOnlyList<T> Means
+    {
+        get => _means;
+        init => _means = BootstrapResultSnapshots.Snapshot(value);
+    }
+
+    /// <summary>Median values isolated from caller-owned storage.</summary>
+    public IReadOnlyList<T> Medians
+    {
+        get => _medians;
+        init => _medians = BootstrapResultSnapshots.Snapshot(value);
+    }
+
+    /// <summary>Fifth percentiles isolated from caller-owned storage.</summary>
+    public IReadOnlyList<T> Percentile5s
+    {
+        get => _percentile5s;
+        init => _percentile5s = BootstrapResultSnapshots.Snapshot(value);
+    }
+
+    /// <summary>Ninety-fifth percentiles isolated from caller-owned storage.</summary>
+    public IReadOnlyList<T> Percentile95s
+    {
+        get => _percentile95s;
+        init => _percentile95s = BootstrapResultSnapshots.Snapshot(value);
+    }
+}
+
+internal static class BootstrapResultSnapshots
+{
+    internal static IReadOnlyList<TValue> Snapshot<TValue>(IReadOnlyList<TValue> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        return Array.AsReadOnly(values.ToArray());
+    }
+}
+
+internal sealed class DefensiveArrayList<T> : IReadOnlyList<T[]>
+{
+    private readonly T[][] _rows;
+
+    public DefensiveArrayList(IReadOnlyList<T[]> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        _rows = new T[rows.Count][];
+        for (var i = 0; i < rows.Count; i++)
+        {
+            ArgumentNullException.ThrowIfNull(rows[i]);
+            _rows[i] = (T[])rows[i].Clone();
+        }
+    }
+
+    public int Count => _rows.Length;
+
+    public T[] this[int index] => (T[])_rows[index].Clone();
+
+    public IEnumerator<T[]> GetEnumerator()
+    {
+        for (var i = 0; i < _rows.Length; i++)
+        {
+            yield return (T[])_rows[i].Clone();
+        }
+    }
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+}
 
 /// <summary>
 /// IID bootstrap Monte Carlo engine (Efron 1979). Resamples with replacement
@@ -94,6 +193,11 @@ public sealed record MultiStatisticBootstrapResult<T>(
 /// Uses an <see cref="IRandomSource"/> for deterministic reproducibility.
 /// Callers that need non-deterministic runs should construct the engine
 /// with a system-entropy-seeded source.
+/// </para>
+/// <para>
+/// The supplied <see cref="IRandomSource"/> is consumed sequentially; do not
+/// share a single source instance across engine instances or threads. See
+/// <see cref="IRandomSource"/> for thread-safety semantics.
 /// </para>
 /// <para>
 /// Tier A: Arithmetic resampling and statistic computation on floating-point types.
@@ -130,15 +234,14 @@ public sealed class BootstrapMonteCarloEngine<T>
                 ? new Pcg64RandomSource((ulong)seed.Value)
                 : new Pcg64RandomSource(BootstrapResampler<T>.GetEntropySeed()));
 
-    /// <summary>Gets the number of bootstrap iterations.</summary>
+    /// <summary>Number of bootstrap iterations.</summary>
     public int SimulationCount => _simulationCount;
 
     /// <summary>
     /// Runs the bootstrap over a scalar statistic.
     /// </summary>
-    public BootstrapMonteCarloResult<T> Run(T[] observations, Func<T[], T> statistic)
+    public BootstrapMonteCarloResult<T> Run(ReadOnlySpan<T> observations, Func<ReadOnlySpan<T>, T> statistic)
     {
-        ArgumentNullException.ThrowIfNull(observations);
         ArgumentNullException.ThrowIfNull(statistic);
         if (observations.Length == 0)
         {
@@ -154,25 +257,19 @@ public sealed class BootstrapMonteCarloEngine<T>
                 buffer[i] = observations[_rng.NextInt(observations.Length)];
             }
 
-            statistics[sim] = statistic(buffer);
+            statistics[sim] = statistic(buffer.AsSpan());
         }
 
         Array.Sort(statistics);
 
-        var mean = T.Zero;
-        for (var i = 0; i < statistics.Length; i++)
-        {
-            mean += statistics[i];
-        }
-
-        mean /= T.CreateChecked(statistics.Length);
+        var mean = ComputeMean(statistics);
 
         return new BootstrapMonteCarloResult<T>(
             SimulationCount: _simulationCount,
             Statistics: Array.AsReadOnly(statistics),
-            Median: Percentile.Compute(statistics, T.CreateChecked(0.50)),
-            Percentile5: Percentile.Compute(statistics, T.CreateChecked(0.05)),
-            Percentile95: Percentile.Compute(statistics, T.CreateChecked(0.95)),
+            Median: Percentile.Compute(statistics, 0.50),
+            Percentile5: Percentile.Compute(statistics, 0.05),
+            Percentile95: Percentile.Compute(statistics, 0.95),
             Mean: mean);
     }
 
@@ -187,12 +284,11 @@ public sealed class BootstrapMonteCarloEngine<T>
     /// <param name="statisticWriter">Delegate that fills a length-<paramref name="statisticCount"/> buffer given the resampled path.</param>
     /// <param name="names">Optional statistic names (length must match <paramref name="statisticCount"/>). Defaults to "stat_0", "stat_1", …</param>
     public MultiStatisticBootstrapResult<T> RunMulti(
-        T[] observations,
+        ReadOnlySpan<T> observations,
         int statisticCount,
-        Action<T[], T[]> statisticWriter,
+        Action<ReadOnlySpan<T>, Span<T>> statisticWriter,
         IReadOnlyList<string>? names = null)
     {
-        ArgumentNullException.ThrowIfNull(observations);
         ArgumentNullException.ThrowIfNull(statisticWriter);
         if (observations.Length == 0)
         {
@@ -225,7 +321,7 @@ public sealed class BootstrapMonteCarloEngine<T>
             }
 
             Array.Clear(statBuffer, 0, statisticCount);
-            statisticWriter(buffer, statBuffer);
+            statisticWriter(buffer.AsSpan(), statBuffer.AsSpan());
             for (var k = 0; k < statisticCount; k++)
             {
                 statistics[k][sim] = statBuffer[k];
@@ -240,28 +336,125 @@ public sealed class BootstrapMonteCarloEngine<T>
         for (var k = 0; k < statisticCount; k++)
         {
             Array.Sort(statistics[k]);
-            T sum = T.Zero;
-            for (var i = 0; i < _simulationCount; i++)
-            {
-                sum += statistics[k][i];
-            }
-
-            means[k] = sum / T.CreateChecked(_simulationCount);
-            medians[k] = Percentile.Compute(statistics[k], T.CreateChecked(0.50));
-            p5s[k] = Percentile.Compute(statistics[k], T.CreateChecked(0.05));
-            p95s[k] = Percentile.Compute(statistics[k], T.CreateChecked(0.95));
+            means[k] = ComputeMean(statistics[k]);
+            medians[k] = Percentile.Compute(statistics[k], 0.50);
+            p5s[k] = Percentile.Compute(statistics[k], 0.05);
+            p95s[k] = Percentile.Compute(statistics[k], 0.95);
         }
 
-        var finalNames = names ?? Enumerable.Range(0, statisticCount).Select(i => $"stat_{i}").ToArray();
+        IReadOnlyList<string> finalNames;
+        if (names is not null)
+        {
+            finalNames = Array.AsReadOnly(names.ToArray());
+        }
+        else
+        {
+            var generated = new string[statisticCount];
+            for (var i = 0; i < statisticCount; i++)
+            {
+                generated[i] = $"stat_{i}";
+            }
 
+            finalNames = Array.AsReadOnly(generated);
+        }
+
+        // The result constructor owns the defensive snapshot of these working rows.
         return new MultiStatisticBootstrapResult<T>(
             SimulationCount: _simulationCount,
             Names: finalNames,
             Statistics: statistics,
-            Means: means,
-            Medians: medians,
-            Percentile5s: p5s,
-            Percentile95s: p95s);
+            Means: Array.AsReadOnly(means),
+            Medians: Array.AsReadOnly(medians),
+            Percentile5s: Array.AsReadOnly(p5s),
+            Percentile95s: Array.AsReadOnly(p95s));
+    }
+
+    private static T ComputeMean(ReadOnlySpan<T> statistics)
+    {
+        if (typeof(T) == typeof(decimal))
+        {
+            BigInteger sum = BigInteger.Zero;
+            var decimalScale = 0;
+            for (var i = 0; i < statistics.Length; i++)
+            {
+                var bits = decimal.GetBits(decimal.CreateChecked(statistics[i]));
+                var itemScale = (bits[3] >> 16) & 0xff;
+                if (itemScale > decimalScale)
+                {
+                    sum *= BigInteger.Pow(10, itemScale - decimalScale);
+                    decimalScale = itemScale;
+                }
+
+                var mantissa = (BigInteger)(uint)bits[0]
+                    | ((BigInteger)(uint)bits[1] << 32)
+                    | ((BigInteger)(uint)bits[2] << 64);
+                if ((bits[3] & int.MinValue) != 0)
+                {
+                    mantissa = -mantissa;
+                }
+
+                sum += mantissa * BigInteger.Pow(10, decimalScale - itemScale);
+            }
+
+            var denominator = statistics.Length * BigInteger.Pow(10, decimalScale);
+            var magnitude = BigInteger.Abs(sum);
+            var maximum = (BigInteger.One << 96) - BigInteger.One;
+            for (var outputScale = 28; outputScale >= 0; outputScale--)
+            {
+                var quotient = BigInteger.DivRem(magnitude * BigInteger.Pow(10, outputScale), denominator, out var remainder);
+                var twiceRemainder = remainder * 2;
+                if (twiceRemainder > denominator || (twiceRemainder == denominator && !quotient.IsEven))
+                {
+                    quotient++;
+                }
+
+                if (quotient <= maximum)
+                {
+                    var result = new decimal(
+                        (int)(uint)(quotient & uint.MaxValue),
+                        (int)(uint)((quotient >> 32) & uint.MaxValue),
+                        (int)(uint)((quotient >> 64) & uint.MaxValue),
+                        sum.Sign < 0,
+                        (byte)outputScale);
+                    return T.CreateChecked(result);
+                }
+            }
+
+            throw new OverflowException("Bootstrap mean exceeds the Decimal range.");
+        }
+
+        var scale = T.Zero;
+        for (var i = 0; i < statistics.Length; i++)
+        {
+            scale = T.Max(scale, T.Abs(statistics[i]));
+        }
+
+        if (scale == T.Zero)
+        {
+            return T.Zero;
+        }
+
+        if (typeof(T) == typeof(Half))
+        {
+            var scaleDouble = double.CreateChecked(scale);
+            var normalizedSum = 0.0;
+            for (var i = 0; i < statistics.Length; i++)
+            {
+                normalizedSum += double.CreateChecked(statistics[i]) / scaleDouble;
+            }
+
+            return T.CreateChecked(normalizedSum / statistics.Length * scaleDouble);
+        }
+
+        // Normalize before accumulating so a finite mean does not require a
+        // potentially unrepresentable sum (notably for Half).
+        var mean = T.Zero;
+        for (var i = 0; i < statistics.Length; i++)
+        {
+            mean += (statistics[i] / scale - mean) / T.CreateSaturating(i + 1);
+        }
+
+        return mean * scale;
     }
 }
 
@@ -283,7 +476,17 @@ public sealed record BootstrapMonteCarloResult(
     decimal Median,
     decimal Percentile5,
     decimal Percentile95,
-    decimal Mean);
+    decimal Mean)
+{
+    private IReadOnlyList<decimal> _statistics = BootstrapResultSnapshots.Snapshot(Statistics);
+
+    /// <summary>Sorted simulation statistics, isolated from caller-owned storage.</summary>
+    public IReadOnlyList<decimal> Statistics
+    {
+        get => _statistics;
+        init => _statistics = BootstrapResultSnapshots.Snapshot(value);
+    }
+}
 
 /// <summary>
 /// Summary of a bootstrap Monte Carlo run over a vector of statistics.
@@ -307,7 +510,57 @@ public sealed record MultiStatisticBootstrapResult(
     IReadOnlyList<decimal> Means,
     IReadOnlyList<decimal> Medians,
     IReadOnlyList<decimal> Percentile5s,
-    IReadOnlyList<decimal> Percentile95s);
+    IReadOnlyList<decimal> Percentile95s)
+{
+    private IReadOnlyList<string> _names = BootstrapResultSnapshots.Snapshot(Names);
+    private IReadOnlyList<decimal[]> _statistics = new DefensiveArrayList<decimal>(Statistics);
+    private IReadOnlyList<decimal> _means = BootstrapResultSnapshots.Snapshot(Means);
+    private IReadOnlyList<decimal> _medians = BootstrapResultSnapshots.Snapshot(Medians);
+    private IReadOnlyList<decimal> _percentile5s = BootstrapResultSnapshots.Snapshot(Percentile5s);
+    private IReadOnlyList<decimal> _percentile95s = BootstrapResultSnapshots.Snapshot(Percentile95s);
+
+    /// <summary>Statistic names isolated from caller-owned storage.</summary>
+    public IReadOnlyList<string> Names
+    {
+        get => _names;
+        init => _names = BootstrapResultSnapshots.Snapshot(value);
+    }
+
+    /// <summary>Distributions whose rows are copied on each access.</summary>
+    public IReadOnlyList<decimal[]> Statistics
+    {
+        get => _statistics;
+        init => _statistics = new DefensiveArrayList<decimal>(value);
+    }
+
+    /// <summary>Mean values isolated from caller-owned storage.</summary>
+    public IReadOnlyList<decimal> Means
+    {
+        get => _means;
+        init => _means = BootstrapResultSnapshots.Snapshot(value);
+    }
+
+    /// <summary>Median values isolated from caller-owned storage.</summary>
+    public IReadOnlyList<decimal> Medians
+    {
+        get => _medians;
+        init => _medians = BootstrapResultSnapshots.Snapshot(value);
+    }
+
+    /// <summary>Fifth percentiles isolated from caller-owned storage.</summary>
+    public IReadOnlyList<decimal> Percentile5s
+    {
+        get => _percentile5s;
+        init => _percentile5s = BootstrapResultSnapshots.Snapshot(value);
+    }
+
+    /// <summary>Ninety-fifth percentiles isolated from caller-owned storage.</summary>
+    public IReadOnlyList<decimal> Percentile95s
+    {
+        get => _percentile95s;
+        init => _percentile95s = BootstrapResultSnapshots.Snapshot(value);
+    }
+}
 
 /// <summary>
 /// IID bootstrap Monte Carlo engine (Efron 1979). Resamples with replacement
@@ -323,8 +576,8 @@ public sealed record MultiStatisticBootstrapResult(
 /// <para>
 /// Supports two statistic APIs:
 /// <list type="bullet">
-/// <item><description><see cref="Run(decimal[], Func{decimal[], decimal})"/> — scalar statistic.</description></item>
-/// <item><description><see cref="RunMulti(decimal[], int, Action{decimal[], decimal[]}, IReadOnlyList{string})"/> — vector of statistics computed in a single pass over each resampled path.</description></item>
+/// <item><description><see cref="Run(ReadOnlySpan{decimal}, Func{ReadOnlySpan{decimal}, decimal})"/> — scalar statistic.</description></item>
+/// <item><description><see cref="RunMulti(ReadOnlySpan{decimal}, int, Action{ReadOnlySpan{decimal}, Span{decimal}}, IReadOnlyList{string})"/> — vector of statistics computed in a single pass over each resampled path.</description></item>
 /// </list>
 /// The multi-statistic overload avoids the O(K) passes required to compute K separate
 /// statistics on the same resampled data — useful for bundles like
@@ -336,7 +589,16 @@ public sealed record MultiStatisticBootstrapResult(
 /// with a system-entropy-seeded source.
 /// </para>
 /// <para>
-/// Tier A: Delegates to <see cref="BootstrapMonteCarloEngine{T}"/> with T = <see cref="decimal"/>.
+/// The supplied <see cref="IRandomSource"/> is consumed sequentially; do not
+/// share a single source instance across engine instances or threads. See
+/// <see cref="IRandomSource"/> for thread-safety semantics.
+/// </para>
+/// <para>
+/// <b>Working type: <see cref="decimal"/>.</b> This non-generic facade delegates
+/// to <see cref="BootstrapMonteCarloEngine{T}"/> instantiated at
+/// <see cref="decimal"/>; observations, statistics, and summaries are all
+/// <see cref="decimal"/>. For <see cref="double"/>-precision runs, use the generic
+/// <see cref="BootstrapMonteCarloEngine{T}"/> with <c>T = double</c>. (Tier A.)
 /// </para>
 /// </remarks>
 public sealed class BootstrapMonteCarloEngine
@@ -360,13 +622,13 @@ public sealed class BootstrapMonteCarloEngine
                 ? new Pcg64RandomSource((ulong)seed.Value)
                 : new Pcg64RandomSource(BootstrapResampler<decimal>.GetEntropySeed()));
 
-    /// <summary>Gets the number of bootstrap iterations.</summary>
+    /// <summary>Number of bootstrap iterations.</summary>
     public int SimulationCount => _impl.SimulationCount;
 
     /// <summary>
     /// Runs the bootstrap over a scalar statistic.
     /// </summary>
-    public BootstrapMonteCarloResult Run(decimal[] observations, Func<decimal[], decimal> statistic)
+    public BootstrapMonteCarloResult Run(ReadOnlySpan<decimal> observations, Func<ReadOnlySpan<decimal>, decimal> statistic)
     {
         var result = _impl.Run(observations, statistic);
         return new BootstrapMonteCarloResult(
@@ -389,9 +651,9 @@ public sealed class BootstrapMonteCarloEngine
     /// <param name="statisticWriter">Delegate that fills a length-<paramref name="statisticCount"/> buffer given the resampled path.</param>
     /// <param name="names">Optional statistic names (length must match <paramref name="statisticCount"/>). Defaults to "stat_0", "stat_1", …</param>
     public MultiStatisticBootstrapResult RunMulti(
-        decimal[] observations,
+        ReadOnlySpan<decimal> observations,
         int statisticCount,
-        Action<decimal[], decimal[]> statisticWriter,
+        Action<ReadOnlySpan<decimal>, Span<decimal>> statisticWriter,
         IReadOnlyList<string>? names = null)
     {
         var result = _impl.RunMulti(observations, statisticCount, statisticWriter, names);

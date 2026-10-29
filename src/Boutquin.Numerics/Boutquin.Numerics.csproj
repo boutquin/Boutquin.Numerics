@@ -3,10 +3,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Boutquin.Numerics</RootNamespace>
     <AssemblyName>Boutquin.Numerics</AssemblyName>
+    <Title>Boutquin.Numerics</Title>
+    <Description>Generic-math numerical methods for .NET 10, including solvers, interpolation, linear algebra, statistics, Monte Carlo, quasi-random sequences, and deterministic random sources.</Description>
+    <PackageTags>numerics;generic-math;linear-algebra;statistics;monte-carlo;optimization;interpolation;root-finding</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="../../THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" />
+    <!-- The analyzer brings in PublicAPI.Shipped.txt and PublicAPI.Unshipped.txt itself. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="All" />
     <!-- Allow unit tests to invoke Solvers.Internal helpers directly so the allocation
          micro-test can measure only the inner FD + damped-linear-solve pipeline. -->
     <InternalsVisibleTo Include="Boutquin.Numerics.Tests.Unit" />

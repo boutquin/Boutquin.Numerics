@@ -21,8 +21,10 @@ namespace Boutquin.Numerics.Statistics;
 /// <summary>
 /// Distance correlation (Székely, Rizzo &amp; Bakirov 2007). Detects
 /// arbitrary nonlinear dependence — including dependencies that yield
-/// zero Pearson correlation. dCor(X, Y) = 0 if and only if X and Y are
-/// independent (under finite first-moment assumptions).
+/// zero Pearson correlation. The population distance correlation is zero if
+/// and only if the random variables are independent under finite first-moment
+/// assumptions. The returned finite-sample statistic does not establish
+/// independence of the underlying population.
 /// </summary>
 /// <typeparam name="T">Floating-point type.</typeparam>
 /// <remarks>
@@ -38,32 +40,73 @@ namespace Boutquin.Numerics.Statistics;
 /// of Huo &amp; Székely (2016) — not currently exposed.
 /// </para>
 /// <para>
-/// Tier B: Fully transcendental computation.
+/// Tier B: Fully transcendental computation. Half inputs use double working arithmetic
+/// for distance centering and accumulation; the final correlation is rounded to Half.
 /// </para>
 /// </remarks>
 public static class DistanceCorrelation<T>
     where T : IFloatingPointIeee754<T>
 {
     /// <summary>Sample distance correlation in [0, 1].</summary>
+    /// <exception cref="ArgumentException"><paramref name="x"/> and <paramref name="y"/> have different lengths.</exception>
     public static T Compute(ReadOnlySpan<T> x, ReadOnlySpan<T> y)
     {
-        var n = Math.Min(x.Length, y.Length);
-        if (n < 2)
+        if (x.Length != y.Length)
+        {
+            throw new ArgumentException(
+                $"Spans must have equal length (x.Length = {x.Length}, y.Length = {y.Length}).",
+                nameof(y));
+        }
+
+        ValidateFinite(x, nameof(x));
+        ValidateFinite(y, nameof(y));
+
+        var n = x.Length;
+        if (n < 3)
+        {
+            // Library minimum-sample convention: return zero for n < 3, matching
+            // PearsonCorrelation and RankCorrelation. The paper's biased statistic
+            // is defined and equals one for two nonconstant paired observations.
+            return T.Zero;
+        }
+
+        // Half cannot reliably accumulate n² distances or products: even unit terms
+        // stop changing the sum at 2048. Promote before normalization and centering,
+        // and round only the final correlation back to the caller's type.
+        if (typeof(T) == typeof(Half))
+        {
+            var promotedX = new double[n];
+            var promotedY = new double[n];
+            for (var i = 0; i < n; i++)
+            {
+                promotedX[i] = double.CreateChecked(x[i]);
+                promotedY[i] = double.CreateChecked(y[i]);
+            }
+
+            return T.CreateChecked(DistanceCorrelation<double>.Compute(promotedX, promotedY));
+        }
+
+        // Doubly-center each variable once and reuse; the covariance and both variances are
+        // inner products over the same two centered matrices (was 4 centerings, now 2).
+        var aBarX = DoublyCenter(Normalize(x), n);
+        var aBarY = DoublyCenter(Normalize(y), n);
+        var dCovXY = MeanProduct(aBarX, aBarY, n);
+        var dVarX = MeanProduct(aBarX, aBarX, n);
+        var dVarY = MeanProduct(aBarY, aBarY, n);
+        if (dVarX == T.Zero || dVarY == T.Zero)
         {
             return T.Zero;
         }
 
-        var dCovXY = DistanceCovariance(x, y, n);
-        var dVarX = DistanceVariance(x, n);
-        var dVarY = DistanceVariance(y, n);
-        var denom = T.Sqrt(dVarX * dVarY);
-        var epsilon = T.CreateChecked(1e-18);
-        if (denom <= epsilon)
+        // dCov² is a V-statistic that is exactly zero when the empirical joint law factorises
+        // (e.g. a product design); rounding in the doubly-centred sums can leave it a tiny
+        // negative, whose square root would be NaN. Map it to the documented lower bound.
+        if (dCovXY <= T.Zero)
         {
             return T.Zero;
         }
 
-        var corr = T.Sqrt(dCovXY / denom);
+        var corr = T.Sqrt(dCovXY / T.Sqrt(dVarX) / T.Sqrt(dVarY));
         if (corr > T.One)
         {
             return T.One;
@@ -72,36 +115,67 @@ public static class DistanceCorrelation<T>
         return corr;
     }
 
-    private static T DistanceCovariance(ReadOnlySpan<T> x, ReadOnlySpan<T> y, int n)
+    private static T[] Normalize(ReadOnlySpan<T> values)
     {
-        var aBar = DoublyCenter(x, n);
-        var bBar = DoublyCenter(y, n);
-
-        var sum = T.Zero;
-        for (var i = 0; i < n; i++)
+        var minimum = values[0];
+        var maximum = values[0];
+        for (var i = 1; i < values.Length; i++)
         {
-            for (var j = 0; j < n; j++)
+            minimum = T.Min(minimum, values[i]);
+            maximum = T.Max(maximum, values[i]);
+        }
+
+        // Remove the common offset before scaling so representable differences survive.
+        // Halving each endpoint first keeps the midpoint finite even at opposite extremes.
+        var two = T.One + T.One;
+        var center = minimum / two + maximum / two;
+        var normalized = new T[values.Length];
+        var scale = T.Zero;
+        for (var i = 0; i < values.Length; i++)
+        {
+            normalized[i] = values[i] - center;
+            scale = T.Max(scale, T.Abs(normalized[i]));
+        }
+
+        if (scale != T.Zero)
+        {
+            for (var i = 0; i < values.Length; i++)
             {
-                sum += aBar[i, j] * bBar[i, j];
+                normalized[i] /= scale;
             }
         }
 
-        return sum / T.CreateChecked(n * n);
+        return normalized;
     }
 
-    private static T DistanceVariance(ReadOnlySpan<T> x, int n)
+    private static void ValidateFinite(ReadOnlySpan<T> values, string parameterName)
     {
-        var aBar = DoublyCenter(x, n);
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (!T.IsFinite(values[i]))
+            {
+                throw new ArgumentOutOfRangeException(
+                    parameterName, values[i], "Distance-correlation observations must be finite.");
+            }
+        }
+    }
+
+    // Mean of the element-wise product of two doubly-centered distance matrices:
+    // the distance covariance (a == x-centered, b == y-centered) or a distance variance
+    // (a == b). Identical arithmetic and summation order to the previous separate methods.
+    private static T MeanProduct(T[,] a, T[,] b, int n)
+    {
         var sum = T.Zero;
         for (var i = 0; i < n; i++)
         {
             for (var j = 0; j < n; j++)
             {
-                sum += aBar[i, j] * aBar[i, j];
+                sum += a[i, j] * b[i, j];
             }
         }
 
-        return sum / T.CreateChecked(n * n);
+        var nVal = T.CreateChecked(n);
+        return sum / nVal / nVal;
     }
 
     private static T[,] DoublyCenter(ReadOnlySpan<T> x, int n)
@@ -137,7 +211,8 @@ public static class DistanceCorrelation<T>
             colMean[i] /= nVal;
         }
 
-        grand /= T.CreateChecked(n * n);
+        grand /= nVal;
+        grand /= nVal;
 
         var aBar = new T[n, n];
         for (var i = 0; i < n; i++)
@@ -155,8 +230,10 @@ public static class DistanceCorrelation<T>
 /// <summary>
 /// Distance correlation (Székely, Rizzo &amp; Bakirov 2007). Detects
 /// arbitrary nonlinear dependence — including dependencies that yield
-/// zero Pearson correlation. dCor(X, Y) = 0 if and only if X and Y are
-/// independent (under finite first-moment assumptions).
+/// zero Pearson correlation. The population distance correlation is zero if
+/// and only if the random variables are independent under finite first-moment
+/// assumptions. The returned finite-sample statistic does not establish
+/// independence of the underlying population.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -174,6 +251,11 @@ public static class DistanceCorrelation<T>
 /// Legacy facade: delegates to <see cref="DistanceCorrelation{T}"/> at <c>T = double</c>.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use DistanceCorrelation<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class DistanceCorrelation
 {
     /// <summary>Sample distance correlation in [0, 1].</summary>

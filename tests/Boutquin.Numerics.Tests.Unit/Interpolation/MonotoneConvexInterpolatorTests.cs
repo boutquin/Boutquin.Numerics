@@ -80,20 +80,13 @@ public sealed class MonotoneConvexInterpolatorTests
         result.Should().BeApproximately(0.0, 1e-10);
     }
 
-    [Fact]
-    public void Interpolate_BelowFirstNode_ExtrapolatesFlat()
+    [Theory]
+    [InlineData(-0.5, -0.375)]
+    [InlineData(3.0, 5.25)]
+    public void Interpolate_Exterior_ContinuesEndpointForward(double x, double expected)
     {
-        // x < xs[0]: flat extrapolation returns ys[0]
-        var result = _sut.Interpolate(-0.5, s_xs, s_ys);
-        result.Should().BeApproximately(s_ys[0], 1e-10);
-    }
-
-    [Fact]
-    public void Interpolate_AboveLastNode_ExtrapolatesFlat()
-    {
-        // x > xs[^1]: flat extrapolation returns ys[^1]
-        var result = _sut.Interpolate(50.0, s_xs, s_ys);
-        result.Should().BeApproximately(s_ys[^1], 1e-10);
+        // F1=1, F2=2; interior forward=1.5, endpoints=.75 and2.25.
+        _sut.Interpolate(x, [0, 1, 2], [0, 1, 3]).Should().BeApproximately(expected, 1e-12);
     }
 
     [Fact]
@@ -148,6 +141,55 @@ public sealed class MonotoneConvexInterpolatorTests
         }
     }
 
+    // Discrete forwards F = [1.0%, 1.1%, 3.0%] on unit intervals. Hagan & West (2006) eq. 30 gives
+    // f₁ = 1.05%, f₂ = 2.05%, so on [1, 2] g₁ = f₁ − F₂ = −0.05% and g₂ = f₂ − F₂ = 0.95%. Since
+    // g₂ > −2g₁ this is sector (ii): eqs. 49–50 hold g at g₁ up to η = (g₂ + 2g₁)/(g₂ − g₁) = 0.85,
+    // so at u = 0.315 the NCR is 0.01 + 0.011·0.315 − 0.0005·0.315 = 0.0133075 (eq. 37).
+    private static readonly double[] s_increasingForwardXs = [0.0, 1.0, 2.0, 3.0];
+    private static readonly double[] s_increasingForwardYs = [0.0, 0.01, 0.021, 0.051];
+
+    [Fact]
+    public void Interpolate_IncreasingForwards_UsesSectorTwoFlatSegment()
+    {
+        MonotoneConvexInterpolator<double>.Instance
+            .Interpolate(1.315, s_increasingForwardXs, s_increasingForwardYs)
+            .Should().BeApproximately(0.0133075, 1e-14);
+    }
+
+    // Hand-derived from Hagan & West (2006) on unit intervals, evaluated at t = 1.5 (u = 0.5).
+    // Sector (iii): F = [3%, 1%, 0.8%] gives f₁ = 2%, f₂ = 0.9%, so g₁ = 1%, g₂ = −0.1% and
+    // η = 3g₂/(g₂ − g₁) = 3/11 < u (eq. 52): NCR = 0.03 + 0.005 − 0.0005 + 0.011·η/3 = 0.0355.
+    // Sector (iv): F = [1%, 3%, 2%] gives f₁ = 2%, f₂ = 2.5%, so g₁ = −1%, g₂ = −0.5%, η = 1/3 and
+    // A = 1/300 (eqs. 55-56): NCR = 0.025 + 1/600 − 1/675 − 1/34560 = 0.025 + 1/6400.
+    [Theory]
+    [InlineData(0.03, 0.04, 0.048, 0.0355)]
+    [InlineData(0.01, 0.04, 0.06, 0.02515625)]
+    public void Interpolate_SectorThreeAndFour_MatchPaperFormulas(double y1, double y2, double y3, double expected)
+    {
+        MonotoneConvexInterpolator<double>.Instance
+            .Interpolate(1.5, [0.0, 1.0, 2.0, 3.0], [0.0, y1, y2, y3])
+            .Should().BeApproximately(expected, 1e-14);
+    }
+
+    [Fact]
+    public void Interpolate_IncreasingForwards_ForwardCurveIsNonDecreasing()
+    {
+        // Hagan & West: with strictly increasing inputs every interval lies in sector (i) or (ii),
+        // where the interpolated forward is non-decreasing. The basic quadratic alone dips inside
+        // [1, 2] (to about 0.78%, below every input), which this sweep would expose.
+        const double epsilon = 1e-6;
+        var previous = double.NegativeInfinity;
+        for (var step = 1; step < 300; step++)
+        {
+            var t = step / 100.0;
+            var forward = (MonotoneConvexInterpolator<double>.Instance.Interpolate(t + epsilon, s_increasingForwardXs, s_increasingForwardYs)
+                - MonotoneConvexInterpolator<double>.Instance.Interpolate(t - epsilon, s_increasingForwardXs, s_increasingForwardYs))
+                / (2 * epsilon);
+            forward.Should().BeGreaterThanOrEqualTo(previous - 1e-8, $"forward at t = {t}");
+            previous = forward;
+        }
+    }
+
     [Fact]
     public void Interpolate_TwoActualNodes_ProducesReasonableResult()
     {
@@ -178,6 +220,39 @@ public sealed class MonotoneConvexInterpolatorTests
     }
 
     [Fact]
+    public void Interpolate_VirtualOriginWithoutActualNode_IsRejected()
+    {
+        Action act = () => MonotoneConvexInterpolator<double>.Instance.Interpolate(0.5, [0], [0]);
+
+        act.Should().Throw<ArgumentException>().WithParameterName("xs");
+    }
+
+    [Fact]
+    public void Interpolate_WideFiniteNcr_StaysWithinNodes()
+    {
+        var result = MonotoneConvexInterpolator<double>.Instance.Interpolate(
+            0.5, [0, 1, 2], [0, 1e308, 1e308]);
+
+        double.IsFinite(result).Should().BeTrue();
+        result.Should().BeInRange(0, 1e308);
+
+        // Normalized: F = [1, 0], f₀ = 1.25, f₁ → 0 (eq. 61), so g₀ = 0.25, g₁ = −1 < −2g₀:
+        // sector (ii) with η = 0.4 (eq. 50). At u = 0.5 the NCR is
+        // 0.5 + 0.25·0.5 − 1.25·0.6·(1/6)³/3 = 539/864 (eq. 37).
+        (result / 1e308).Should().BeApproximately(539.0 / 864.0, 1e-12);
+    }
+
+    [Fact]
+    public void Interpolate_WideNcrAndNarrowIntervals_StaysFinite()
+    {
+        var result = MonotoneConvexInterpolator<double>.Instance.Interpolate(
+            0.5e-10, [0, 1e-10, 2e-10], [0, 1e300, 1e300]);
+
+        double.IsFinite(result).Should().BeTrue();
+        result.Should().BeInRange(0, 1e300);
+    }
+
+    [Fact]
     public void Interpolate_ThrowsOnMismatchedLengths()
     {
         double[] xs = [0.0, 1.0];
@@ -191,5 +266,57 @@ public sealed class MonotoneConvexInterpolatorTests
     {
         var act = () => _sut.Interpolate(0.5, [], []);
         act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Interpolate_DecreasingNcr_RejectsCurveBeforeEvaluation()
+    {
+        double[] xs = [0.0, 1.0, 2.0];
+        double[] ys = [0.0, 0.1, 0.05];
+
+        Action interior = () => _sut.Interpolate(1.5, xs, ys);
+        Action extrapolated = () => MonotoneConvexInterpolator<double>.Instance.Interpolate(3.0, xs, ys);
+
+        interior.Should().Throw<ArgumentException>().WithParameterName("ys");
+        extrapolated.Should().Throw<ArgumentException>().WithParameterName("ys");
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Interpolate_NonFiniteNcr_RejectsCurve(double ncr)
+    {
+        double[] xs = [0.0, 1.0, 2.0];
+        double[] ys = [0.0, 0.1, ncr];
+
+        Action act = () => _sut.Interpolate(1.5, xs, ys);
+
+        act.Should().Throw<ArgumentException>().WithParameterName("ys");
+    }
+
+    [Fact]
+    public void Interpolate_NonFiniteVirtualOriginNcr_RejectsCurve()
+    {
+        double[] xs = [0.0, 1.0];
+        double[] ys = [double.NaN, 0.1];
+
+        Action act = () => _sut.Interpolate(0.5, xs, ys);
+
+        act.Should().Throw<ArgumentException>().WithParameterName("ys");
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Interpolate_NonFiniteTarget_IsRejected(double target)
+    {
+        double[] xs = [0, 1, 2];
+        double[] ys = [0, 0.1, 0.2];
+
+        Action act = () => _sut.Interpolate(target, xs, ys);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("x");
     }
 }

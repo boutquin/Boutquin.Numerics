@@ -14,6 +14,7 @@
 //   limitations under the License.
 //
 
+using System.Reflection;
 using Boutquin.Numerics.Interpolation;
 using FluentAssertions;
 
@@ -21,6 +22,39 @@ namespace Boutquin.Numerics.Tests.Unit.Interpolation;
 
 public sealed class CubicSplineInterpolatorTests
 {
+    [Fact]
+    public void Interpolate_NaNTarget_IsRejected()
+    {
+        var spline = new CubicSplineInterpolator<double>([0, 1, 2], [0, 1, 4]);
+
+        Action act = () => spline.Interpolate(double.NaN);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("x");
+    }
+
+    // Natural spline through (0,0), (1,b), (2,−b), (3,b), (4,0): by symmetry σ₁ = σ₃, and the
+    // interior equations 4σ₁ + σ₂ = −18b, 2σ₁ + 4σ₂ = 24b give σ₁ = −48b/7, σ₂ = 66b/7. At the
+    // midpoint of [1, 2], S = (y₁ + y₂)/2 − (σ₁ + σ₂)/16 = −9b/56. The spline is linear in the
+    // ordinates, so this holds for every representable b.
+    [Fact]
+    public void Natural_LargeFiniteOrdinates_DoubleMatchesClosedForm()
+    {
+        const double b = 1e307;
+        var spline = new CubicSplineInterpolator<double>([0, 1, 2, 3, 4], [0, b, -b, b, 0]);
+
+        spline.Interpolate(1.5).Should().BeApproximately(-9.0 / 56.0 * b, 1e-12 * b);
+    }
+
+    [Fact]
+    public void Natural_LargeFiniteOrdinates_DecimalMatchesClosedForm()
+    {
+        const decimal b = 1e28m;
+        var build = () => new CubicSplineInterpolator<decimal>([0m, 1m, 2m, 3m, 4m], [0m, b, -b, b, 0m]);
+
+        build.Should().NotThrow<OverflowException>();
+        build().Interpolate(1.5m).Should().BeApproximately(-9m / 56m * b, 1e6m);
+    }
+
     [Fact]
     public void Natural_Interpolate_AtNodes_ReturnsExactValues()
     {
@@ -35,15 +69,36 @@ public sealed class CubicSplineInterpolatorTests
     }
 
     [Fact]
-    public void Natural_Interpolate_BetweenNodes_ReturnsSmooth()
+    public void Clamped_Interpolate_BetweenNodes_ReproducesCubicExactly()
     {
+        // A clamped cubic spline reproduces ANY cubic polynomial exactly (interior and along the
+        // end segments) when the end slopes are supplied. f(x) = x³ on [0,3] has f'(0)=0, f'(3)=27.
+        double[] xs = [0.0, 1.0, 2.0, 3.0];
+        double[] ys = [0.0, 1.0, 8.0, 27.0];
+        var spline = new CubicSplineInterpolator(xs, ys, SplineBoundary.CreateClamped(0.0, 27.0));
+
+        // Closed-form expected values: f(x) = x³ at each between-node sample.
+        spline.Interpolate(0.5).Should().BeApproximately(0.125, 1e-9);
+        spline.Interpolate(1.5).Should().BeApproximately(3.375, 1e-9);
+        spline.Interpolate(2.5).Should().BeApproximately(15.625, 1e-9);
+    }
+
+    [Fact]
+    public void Natural_Interpolate_AtNodes_ReproducesExactly()
+    {
+        // Natural spline passes through every node exactly (closed-form: ys[i]).
         double[] xs = [0.0, 1.0, 2.0, 3.0];
         double[] ys = [0.0, 1.0, 4.0, 9.0];
         var spline = new CubicSplineInterpolator(xs, ys);
 
-        var result = spline.Interpolate(1.5);
-        result.Should().BeGreaterThan(1.0);
-        result.Should().BeLessThan(4.0);
+        for (var i = 0; i < xs.Length; i++)
+        {
+            spline.Interpolate(xs[i]).Should().BeApproximately(ys[i], 1e-12);
+        }
+
+        // Between-node value stays within the bracketing node values for this monotone data.
+        var mid = spline.Interpolate(1.5);
+        mid.Should().BeInRange(1.0, 4.0);
     }
 
     [Fact]
@@ -77,25 +132,28 @@ public sealed class CubicSplineInterpolatorTests
     }
 
     [Fact]
-    public void Natural_Interpolate_BelowRange_ExtrapolatesUsingFirstSegment()
+    public void Clamped_Interpolate_BelowRange_ExtrapolatesAlongCubicExactly()
     {
-        double[] xs = [1.0, 2.0, 3.0];
-        double[] ys = [1.0, 4.0, 9.0];
-        var spline = new CubicSplineInterpolator(xs, ys);
+        // A clamped cubic spline of f(x) = x³ reproduces the cubic exactly, including the
+        // extrapolation region: it continues along the first segment's cubic, which equals x³.
+        double[] xs = [0.0, 1.0, 2.0, 3.0];
+        double[] ys = [0.0, 1.0, 8.0, 27.0];
+        var spline = new CubicSplineInterpolator(xs, ys, SplineBoundary.CreateClamped(0.0, 27.0));
 
-        var result = spline.Interpolate(0.0);
-        double.IsFinite(result).Should().BeTrue();
+        // Closed-form: f(-1) = (-1)³ = -1.
+        spline.Interpolate(-1.0).Should().BeApproximately(-1.0, 1e-9);
     }
 
     [Fact]
-    public void Natural_Interpolate_AboveRange_ExtrapolatesUsingLastSegment()
+    public void Clamped_Interpolate_AboveRange_ExtrapolatesAlongCubicExactly()
     {
-        double[] xs = [1.0, 2.0, 3.0];
-        double[] ys = [1.0, 4.0, 9.0];
-        var spline = new CubicSplineInterpolator(xs, ys);
+        double[] xs = [0.0, 1.0, 2.0, 3.0];
+        double[] ys = [0.0, 1.0, 8.0, 27.0];
+        var spline = new CubicSplineInterpolator(xs, ys, SplineBoundary.CreateClamped(0.0, 27.0));
 
-        var result = spline.Interpolate(5.0);
-        double.IsFinite(result).Should().BeTrue();
+        // Closed-form: f(4) = 4³ = 64.
+        var result = spline.Interpolate(4.0);
+        result.Should().BeApproximately(64.0, 1e-9);
     }
 
     [Fact]
@@ -111,6 +169,23 @@ public sealed class CubicSplineInterpolatorTests
         {
             spline.Interpolate(xs[i]).Should().BeApproximately(ys[i], 1e-10);
         }
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Clamped_NonFiniteSlope_IsRejectedAtBoundaryCreation(double slope)
+    {
+        Action genericLeft = () => SplineBoundary<double>.CreateClamped(slope, 0.0);
+        Action genericRight = () => SplineBoundary<double>.CreateClamped(0.0, slope);
+        Action legacyLeft = () => SplineBoundary.CreateClamped(slope, 0.0);
+        Action legacyRight = () => SplineBoundary.CreateClamped(0.0, slope);
+
+        genericLeft.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("leftSlope");
+        genericRight.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("rightSlope");
+        legacyLeft.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("leftSlope");
+        legacyRight.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("rightSlope");
     }
 
     [Fact]
@@ -228,19 +303,103 @@ public sealed class CubicSplineInterpolatorTests
         }
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ModifiedNotAKnot_TinyPositiveBoundaryRatio_PreservesCurvatureCorrection(bool tinyOnLeft)
+    {
+        // The reference recurrence applies for every positive spacing ratio, even below 1e-15.
+        double[] xs = tinyOnLeft
+            ? [0.0, 1e-16, 1.0, 2.0]
+            : [-2.0, -1.0, -1e-16, 0.0];
+        double[] ys = xs.Select(x => x * x).ToArray();
+        double[] h = [xs[1] - xs[0], xs[2] - xs[1], xs[3] - xs[2]];
+
+        var solver = typeof(CubicSplineInterpolator<double>).GetMethod(
+            "SolveModifiedNotAKnot", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var sigma = (double[])solver.Invoke(null, [xs.Length, h, ys])!;
+
+        double ratio = tinyOnLeft
+            ? Math.Min(h[0], h[1]) / Math.Max(h[0], h[1])
+            : Math.Min(h[1], h[2]) / Math.Max(h[1], h[2]);
+        double expected = tinyOnLeft
+            ? ratio * ((h[0] + h[1]) * sigma[1] - h[0] * sigma[2]) / h[1]
+            : ratio * ((h[1] + h[2]) * sigma[2] - h[2] * sigma[1]) / h[1];
+        double actual = tinyOnLeft ? sigma[0] : sigma[3];
+
+        expected.Should().BeGreaterThan(1e-17);
+        actual.Should().BeApproximately(expected, 1e-20);
+    }
+
     // ── Q-Spline (Jarre 2025) ──────────────────────────────────
 
     [Fact]
     public void QSpline_AtNodes_ReturnsExactValues()
     {
-        double[] xs = [0.0, 1.0, 2.0, 3.0, 4.0];
-        double[] ys = [0.0, 1.0, 4.0, 9.0, 16.0];
+        double[] xs = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        double[] ys = [0.0, 1.0, 4.0, 9.0, 16.0, 25.0];
         var spline = new CubicSplineInterpolator(xs, ys, SplineBoundary.QSpline);
 
         for (int i = 0; i < xs.Length; i++)
         {
             spline.Interpolate(xs[i]).Should().BeApproximately(ys[i], 1e-10);
         }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void QSpline_BetweenNodes_ReproducesQuadraticAndCubicExactly(bool irregular, bool cubic)
+    {
+        double[] xs = irregular
+            ? [0.0, 0.2, 1.1, 2.3, 4.5, 5.7]
+            : [0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        double[] ys = new double[xs.Length];
+        for (int i = 0; i < xs.Length; i++)
+        {
+            ys[i] = Polynomial(xs[i], cubic);
+        }
+
+        var spline = new CubicSplineInterpolator(xs, ys, SplineBoundary.QSpline);
+        double[] fractions = [0.25, 0.5, 0.75];
+        for (int i = 0; i < xs.Length - 1; i++)
+        {
+            foreach (double fraction in fractions)
+            {
+                double x = xs[i] + fraction * (xs[i + 1] - xs[i]);
+                spline.Interpolate(x).Should().BeApproximately(Polynomial(x, cubic), 1e-10);
+            }
+        }
+
+        static double Polynomial(double x, bool useCubic) => useCubic
+            ? x * x * x - 2 * x * x + 3 * x - 1
+            : 2 * x * x - 3 * x + 1;
+    }
+
+    [Theory]
+    [InlineData(false, 0.5, -7.0 / 76.0)]
+    [InlineData(false, 3.5, 5701.0 / 38.0)]
+    [InlineData(true, 0.1, 6844729.0 / 1819220000.0)]
+    [InlineData(true, 3.4, 1194051751.0 / 9096100.0)]
+    public void QSpline_Quartic_UndampedOnZeroFifthDifference(bool irregular, double x, double expected)
+    {
+        // For f(x) = x^4, the five-point endpoint estimates equal f''(x) = 12x^2.
+        // The fifth difference vanishes. Independent rational moment equations on six
+        // knots give these values with exact second-derivative boundary data.
+        double[] xs = irregular
+            ? [0.0, 0.2, 1.1, 2.3, 4.5, 5.7]
+            : [0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        double[] ys = new double[xs.Length];
+        for (int i = 0; i < xs.Length; i++)
+        {
+            ys[i] = xs[i] * xs[i] * xs[i] * xs[i];
+        }
+
+        var spline = new CubicSplineInterpolator(xs, ys, SplineBoundary.QSpline);
+
+        spline.Interpolate(x).Should().BeApproximately(expected, 1e-10);
     }
 
     [Fact]
@@ -271,10 +430,10 @@ public sealed class CubicSplineInterpolatorTests
     }
 
     [Fact]
-    public void QSpline_RequiresFourPoints()
+    public void QSpline_RequiresSixPoints()
     {
-        double[] xs = [1.0, 2.0, 3.0];
-        double[] ys = [1.0, 4.0, 9.0];
+        double[] xs = [0.0, 1.0, 2.0, 3.0];
+        double[] ys = [0.0, 1.0, 4.0, 9.0];
 
         var act = () => new CubicSplineInterpolator(xs, ys, SplineBoundary.QSpline);
         act.Should().Throw<ArgumentException>();

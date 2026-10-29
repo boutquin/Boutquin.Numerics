@@ -87,7 +87,7 @@ Open an issue describing:
 
 ### C# Style Guide
 
-- Follow the conventions documented in `CLAUDE.md` and `.editorconfig` at the repository root.
+- Follow the conventions in [`docs/tier-constraints.md`](docs/tier-constraints.md) and `.editorconfig` at the repository root.
 - Public types are `sealed` unless they are interfaces or records (enforced by architecture tests).
 - Numerics has **zero** `Boutquin.*` dependencies — this is enforced by `Boutquin.Numerics.ArchitectureTests`. Do not add a reference to MarketData, Analytics, Trading, OptionPricing, or any other Boutquin package.
 - Litmus test for any new type: "Would this code make sense in a non-financial application?" If not, it does not belong in Numerics.
@@ -129,7 +129,7 @@ rg -n "/// Gets the " src --glob '*.cs'
 1. **Ensure the full gate passes**: build (warnings-as-errors), unit tests, verification tests, architecture tests, `dotnet format --verify-no-changes`.
 2. **Describe your changes** in the PR body: reference the issue, summarize the algorithm or fix, link the primary reference, and note any `PublicAPI.Unshipped.txt` entries added.
 3. **Review process**: maintainers will review for correctness, style, and architectural fit. You may be asked to tighten tolerances, add reference vectors, or rename symbols.
-4. **Merge**: once approved, a maintainer merges the PR. Releases are cut separately via the dual-repo squash workflow on the public repository.
+4. **Merge**: once approved, a maintainer merges the PR. Release preparation follows the project's versioning and verification checks.
 
 ## License
 
@@ -137,7 +137,7 @@ By contributing to Boutquin.Numerics, you agree that your contributions are lice
 
 ## Community
 
-Join the [GitHub Discussions](https://github.com/boutquin/Boutquin.Numerics/discussions) to ask questions, propose algorithms, and share usage patterns.
+Use [GitHub Issues](https://github.com/boutquin/Boutquin.Numerics/issues) to ask questions, propose algorithms, or share usage feedback.
 
 ---
 

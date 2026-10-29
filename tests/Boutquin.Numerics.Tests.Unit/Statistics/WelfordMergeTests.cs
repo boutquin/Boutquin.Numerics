@@ -22,6 +22,64 @@ namespace Boutquin.Numerics.Tests.Unit.Statistics;
 public sealed class WelfordMergeTests
 {
     [Fact]
+    public void Add_LargeFiniteSecondMoment_PreservesRepresentableVariance()
+    {
+        var moments = new WelfordMoments<double>();
+        moments.Add(1e155);
+        for (var i = 1; i < 1000; i++)
+        {
+            moments.Add(0);
+        }
+
+        moments.Variance.Should().BeApproximately(1e307, 1e293);
+        moments.PopulationVariance.Should().BeApproximately(9.99e306, 1e293);
+    }
+
+    [Fact]
+    public void Merge_LargeDecimalPartitions_KeepsRepresentableVariance()
+    {
+        var left = new WelfordMoments<decimal>();
+        left.Add(0m);
+        left.Add(0m);
+        var right = new WelfordMoments<decimal>();
+        right.Add(200_000_000_000_000m);
+        right.Add(200_000_000_000_000m);
+
+        FluentActions.Invoking(() => left.Merge(right)).Should().NotThrow();
+
+        left.Count.Should().Be(4);
+        left.Mean.Should().Be(100_000_000_000_000m);
+        left.Variance.Should().Be(13_333_333_333_333_333_333_333_333_333m);
+    }
+
+    [Fact]
+    public void Add_LongAlternatingHalfSeries_PreservesSampleVariance()
+    {
+        var moments = new WelfordMoments<Half>();
+        for (var i = 0; i < 4096; i++)
+        {
+            moments.Add((Half)(i % 2));
+        }
+
+        moments.Count.Should().Be(4096);
+        ((float)moments.Variance).Should().BeApproximately(0.25f, 0.001f);
+    }
+
+    [Fact]
+    public void Pearson_LongAlternatingHalfSeries_PreservesCovariance()
+    {
+        var moments = new WelfordMoments<Half>.Pearson();
+        for (var i = 0; i < 4096; i++)
+        {
+            var value = (Half)(i % 2);
+            moments.Add(value, value);
+        }
+
+        ((float)moments.Covariance).Should().BeApproximately(0.25f, 0.001f);
+        ((float)moments.Correlation).Should().BeApproximately(1f, 0.001f);
+    }
+
+    [Fact]
     public void Merge_MatchesSequentialAccumulation()
     {
         var rng = new System.Random(88);

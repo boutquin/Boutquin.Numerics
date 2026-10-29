@@ -5,6 +5,7 @@
     <AssemblyName>Boutquin.Numerics.Tests.Verification</AssemblyName>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CS1591;CA2007;BNU0001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Boutquin.Numerics/Boutquin.Numerics.csproj" />

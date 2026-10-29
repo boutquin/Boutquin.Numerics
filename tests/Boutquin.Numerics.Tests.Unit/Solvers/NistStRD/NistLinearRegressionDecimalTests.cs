@@ -24,41 +24,31 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers.NistStRD;
 /// NIST Statistical Reference Datasets — linear-regression benchmark suite for
 /// <see cref="OrdinaryLeastSquares{T}"/> at <c>T = decimal</c>. Runs the same 11
 /// problems as <see cref="NistLinearRegressionTests"/> but instantiates the generic
-/// OLS at decimal precision. Well-conditioned problems achieve the uniform 1e-9 bar.
-/// Ill-conditioned problems use per-problem tolerances matching what decimal QR
-/// without extended-precision arithmetic achieves.
+/// OLS at decimal precision. Every problem except <c>Filip</c> is held to the uniform
+/// 1e-13 coefficient bar.
 /// </summary>
 /// <remarks>
 /// <para>
-/// This test file closes the deferred roadmap entry
-/// <b>"`OrdinaryLeastSquares` decimal-precision QR path for cond &gt; 10¹⁰ problems"</b>
-/// (see <c>specs/feature-generic-math-migration.md §2.6</c>). The uniform 1e-9 bar
-/// is the evidence: the decimal instantiation recovers digits the double instantiation
-/// drops on ill-conditioned designs.
+/// The data enter through <c>(decimal)double</c>, which rounds each value to 15
+/// significant digits. <c>Filip</c>'s design is the double-rounded powers
+/// <c>x, x², …, x¹⁰</c> of a degree-10 polynomial (cond ≈ 10¹⁰), so its certified
+/// coefficients are recovered to about 6 digits; its bars are 1e-6.
 /// </para>
 /// </remarks>
 public sealed class NistLinearRegressionDecimalTests
 {
-    // Default uniform bar for well-conditioned problems. Decimal QR achieves this
-    // easily where double QR already hits 1e-9 (Norris, Longley, NoInt, Wampler2).
-    private const decimal DefaultCoefficientTolerance = 1e-9m;
+    // Default coefficient bar: the certified values carry 15 significant digits and the
+    // decimal fit reproduces them to within 4.5e-15 on every problem but Filip. This is
+    // the bar the OlsResult<T> remarks document.
     private const decimal StandardErrorTolerance = 1e-7m;
     private const decimal RssTolerance = 1e-7m;
     private const decimal RSquaredTolerance = 1e-9m;
 
-    // Per-problem tolerance overrides for decimal QR. Unlike the double path (which uses
-    // mixed-precision decimal residuals to lift accuracy beyond the double QR floor), the
-    // decimal QR operates entirely in one precision. For extremely ill-conditioned designs,
-    // the QR back-substitution's achievable accuracy is κ·u ≈ cond(X)·1e-28, which binds
-    // the decimal path at a higher floor than the double mixed-precision path on some problems.
-    private static decimal CoefficientToleranceFor(string name) => name switch
-    {
-        "Pontius" => 5e-2m,    // cond ~1e7; decimal QR without extended precision stalls at ~2%
-        "Filip" => 5e-4m,      // cond ~1e10; decimal QR achieves ~3.3 digits (double+decimal achieves 7)
-        "Wampler4" => 1e-8m,   // cond ~5e10; decimal improves on double's 1e-8 bar
-        "Wampler5" => 1e-6m,   // cond ~5e13; matches double's bar
-        _ => DefaultCoefficientTolerance,
-    };
+    // Per-problem tolerance overrides for decimal QR. With every reflector normalised the
+    // decimal factorisation reduces loss from column scaling within its representable
+    // range. Filip uses double-rounded polynomial inputs and needs a looser measured bar.
+    private static decimal CoefficientToleranceFor(string name) =>
+        NistLinearRegressionData.DecimalCoefficientToleranceFor(name);
 
     public static TheoryData<string> ProblemNames => new()
     {
@@ -78,6 +68,19 @@ public sealed class NistLinearRegressionDecimalTests
 
         var result = OrdinaryLeastSquares<decimal>.Fit(xDecimal, yDecimal, problem.IncludeIntercept);
 
+        // NIST's certified observation/parameter counts give these residual degrees of freedom.
+        var certifiedDegrees = name switch
+        {
+            "Norris" => 34,
+            "Pontius" => 37,
+            "NoInt1" => 10,
+            "NoInt2" => 2,
+            "Filip" => 71,
+            "Longley" => 9,
+            _ => 15, // Wampler1–5:21observations,6parameters.
+        };
+        result.DegreesOfFreedom.Should().Be(certifiedDegrees);
+
         result.Coefficients.Should().HaveSameCount(problem.Coefficients,
             because: $"{problem.Name}: OLS<decimal> coefficient vector length must match certified vector");
 
@@ -90,19 +93,26 @@ public sealed class NistLinearRegressionDecimalTests
 
         var seTol = name switch
         {
-            "Pontius" => 5e-2m,
-            "Filip" => 5e-3m,
-            "Wampler5" => 1e-3m,
+            "Filip" => 1e-6m,
             _ => StandardErrorTolerance,
         };
         for (var i = 0; i < problem.StandardErrors.Length; i++)
         {
-            // Skip when the certified SE is zero, truncates to zero in decimal, or the
-            // actual SE is zero (the covariance diagonal entry can underflow to 0 in decimal
-            // for ill-conditioned problems — e.g., Pontius SE(b2) = 4.87e-17).
+            // Only the reference value decides whether a relative comparison applies.
             var certSe = (decimal)problem.StandardErrors[i];
-            if (problem.StandardErrors[i] == 0.0 || certSe == 0m || result.StandardErrors[i] == 0m)
+            if (problem.StandardErrors[i] == 0.0 || certSe == 0m)
             {
+                result.StandardErrors[i].Should().BeInRange(0m, 1e-18m,
+                    because: $"{problem.Name}: the certified zero standard error requires an absolute comparison");
+                continue;
+            }
+
+            if (name == "Pontius" && i == 2)
+            {
+                // Its certified variance is about 2.37e-33, below decimal's 1e-28
+                // quantum. Bound the absolute SE error explicitly for this one case.
+                result.StandardErrors[i].Should().BeGreaterThanOrEqualTo(0m);
+                Math.Abs(result.StandardErrors[i] - certSe).Should().BeLessThan(5e-17m);
                 continue;
             }
 
@@ -112,13 +122,13 @@ public sealed class NistLinearRegressionDecimalTests
 
         var rssTol = name switch
         {
-            "Pontius" => 5e-2m,
-            "Filip" => 5e-3m,
-            "Wampler5" => 1e-3m,
+            "Filip" => 1e-6m,
             _ => RssTolerance,
         };
         if (problem.ResidualSumOfSquares == 0.0)
         {
+            result.ResidualStandardDeviation.Should().BeInRange(0m, 1e-18m,
+                because: $"{problem.Name}: certified residual standard deviation is zero");
             result.ResidualSumOfSquares.Should().BeLessThan(1e-18m,
                 because: $"{problem.Name}: certified residual SS is 0 (exact polynomial fit)");
         }

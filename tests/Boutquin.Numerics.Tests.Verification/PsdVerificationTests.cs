@@ -28,6 +28,11 @@ public sealed class PsdVerificationTests : CrossLanguageVerificationBase
         var input = GetDecimal2D(doc.RootElement.GetProperty("input"));
         var expected = GetDouble2D(doc.RootElement.GetProperty("nearest_correlation"));
 
+        Assert.True(input.GetLength(0) > 0, "PSD reference input must not be empty.");
+        Assert.Equal(input.GetLength(0), input.GetLength(1));
+        Assert.Equal(input.GetLength(0), expected.GetLength(0));
+        Assert.Equal(input.GetLength(1), expected.GetLength(1));
+
         var nearest = NearestPsdProjection.Higham(input);
 
         // Alternating-projection iteration convergence depends on tolerance
@@ -36,14 +41,22 @@ public sealed class PsdVerificationTests : CrossLanguageVerificationBase
     }
 
     [Fact]
-    public void EigenClip_IsPsd()
+    public void EigenClip_MatchesReferenceNearestPsdMatrix()
     {
         using var doc = LoadVector("psd");
         var input = GetDecimal2D(doc.RootElement.GetProperty("input"));
+        var expected = GetDouble2D(doc.RootElement.GetProperty("eigen_clip"));
+
+        Assert.True(input.GetLength(0) > 0, "PSD reference input must not be empty.");
+        Assert.Equal(input.GetLength(0), input.GetLength(1));
+        Assert.Equal(input.GetLength(0), expected.GetLength(0));
+        Assert.Equal(input.GetLength(1), expected.GetLength(1));
 
         var projected = NearestPsdProjection.EigenClip(input);
 
-        // Eigen-clip projection is PSD but not necessarily a correlation matrix.
+        // NumPy eigh + eigenvalue clipping supplies an independent matrix oracle.
+        // A PSD-only check would also accept the zero matrix for this indefinite input.
+        AssertMatrixWithin(projected, expected, (decimal)PrecisionNumeric, "eigen clip");
         NearestPsdProjection.IsPsd(projected).Should().BeTrue();
     }
 }

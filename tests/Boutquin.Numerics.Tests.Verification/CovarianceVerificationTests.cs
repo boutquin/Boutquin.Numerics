@@ -58,7 +58,8 @@ public sealed class CovarianceVerificationTests : CrossLanguageVerificationBase
 
         var actual = new ExponentiallyWeightedCovarianceEstimator(0.94m).Estimate(returns);
 
-        AssertMatrixWithin(actual, expected, (decimal)PrecisionStatistical, "ewma");
+        AssertMatrixScaleRelative(
+            actual, expected, relativeTolerance: 1e-10m, absoluteFloor: 1e-16m, label: "ewma");
     }
 
     // ---------------------------------------------------------------------
@@ -81,19 +82,20 @@ public sealed class CovarianceVerificationTests : CrossLanguageVerificationBase
         "overconcentrated",
     };
 
-    // Nercome excludes the `moderate` and `overconcentrated` regimes because
-    // both split into halves that are rank-near-deficient or rank-deficient on
-    // the first-half sample covariance. ``moderate`` (T=60, N=30) splits into
-    // 30 observations for 30 assets (rank ≤ 29), and ``overconcentrated``
-    // (T=40, N=50) splits into 20 observations for 50 assets (rank ≤ 19). The
-    // null-space eigenvectors of cov1 are not uniquely determined in either
-    // regime, and the Nercome formula V · diag(Vᵀ·cov2·V) · Vᵀ is NOT
-    // basis-invariant in a null space where cov2 is non-zero. LAPACK and
-    // Jacobi pick different null-space bases, so the reconstructed covariance
-    // legitimately differs between implementations (by up to ~1% relative).
-    // Document the limitation rather than asserting against a spec-incompatible
-    // tolerance; the well-conditioned regime (T=120, N=8, split 60/60, rank 8)
-    // is sufficient to validate the port against the Python reference.
+    public static TheoryData<string> OasRegimes => new()
+    {
+        "small_well_conditioned",
+        "small_scale_oas",
+        "moderate",
+        "overconcentrated",
+    };
+
+    // The full candidate grid includes rank-deficient first subsets in the larger
+    // regimes. Their null-space eigenvectors are non-unique, and reconstructed
+    // NERCOME matrices can depend on that basis. The well-conditioned panel keeps
+    // every candidate subset full rank. This NumPy comparison checks translation
+    // and deterministic sampling policy; exact projector unit tests independently
+    // check the estimator equations on exhaustive small panels.
     public static TheoryData<string> NercomeRegimes => new()
     {
         "small_well_conditioned",
@@ -143,7 +145,7 @@ public sealed class CovarianceVerificationTests : CrossLanguageVerificationBase
     private const decimal NercomeTolerance = 1e-1m;
 
     [Theory]
-    [MemberData(nameof(Regimes))]
+    [MemberData(nameof(OasRegimes))]
     public void Oas_MatchesPaperReference(string regime)
     {
         RunRegime(regime, "oas", new OracleApproximatingShrinkageEstimator(), ShrinkageTolerance);
@@ -163,30 +165,54 @@ public sealed class CovarianceVerificationTests : CrossLanguageVerificationBase
         RunRegime(regime, "lw_single_factor", new LedoitWolfSingleFactorEstimator(), ShrinkageTolerance);
     }
 
+    /// <summary>
+    /// Translation-parity check, not paper fidelity: the Denoised golden in
+    /// <c>generate_covariance_vectors.py</c> is a numpy port of this library's own
+    /// pipeline, so agreement shows the C# and the port compute the same thing — it
+    /// cannot show that either matches the cited paper.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Regimes))]
-    public void Denoised_MatchesPaperReference(string regime)
+    public void Denoised_MatchesPortedPipeline(string regime)
     {
         RunRegime(regime, "denoised", new DenoisedCovarianceEstimator(), EigenDecompTolerance);
     }
 
+    /// <summary>
+    /// Translation-parity check, not paper fidelity: the Detoned golden in
+    /// <c>generate_covariance_vectors.py</c> is a numpy port of this library's own
+    /// pipeline, so agreement shows the C# and the port compute the same thing — it
+    /// cannot show that either matches the cited paper.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Regimes))]
-    public void Detoned_MatchesPaperReference(string regime)
+    public void Detoned_MatchesPortedPipeline(string regime)
     {
         RunRegime(regime, "detoned", new DetonedCovarianceEstimator(detoningAlpha: 1.0m), EigenDecompTolerance);
     }
 
+    /// <summary>
+    /// Translation-parity check, not paper fidelity: the Tracy-Widom denoised golden in
+    /// <c>generate_covariance_vectors.py</c> is a numpy port of this library's own
+    /// pipeline, so agreement shows the C# and the port compute the same thing — it
+    /// cannot show that either matches the cited paper.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Regimes))]
-    public void TracyWidomDenoised_MatchesPaperReference(string regime)
+    public void TracyWidomDenoised_MatchesPortedPipeline(string regime)
     {
         RunRegime(regime, "tracy_widom_denoised", new TracyWidomDenoisedCovarianceEstimator(), EigenDecompTolerance);
     }
 
+    /// <summary>
+    /// Translation-parity check, not paper fidelity: the QIS golden in
+    /// <c>generate_covariance_vectors.py</c> is a numpy port of this library's own
+    /// pipeline, so agreement shows the C# and the port compute the same thing — it
+    /// cannot show that either matches the cited paper.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Regimes))]
-    public void QuadraticInverseShrinkage_MatchesPaperReference(string regime)
+    public void QuadraticInverseShrinkage_MatchesPortedPipeline(string regime)
     {
         RunRegime(regime, "qis", new QuadraticInverseShrinkageEstimator(), EigenDecompTolerance);
     }
@@ -195,9 +221,14 @@ public sealed class CovarianceVerificationTests : CrossLanguageVerificationBase
     [MemberData(nameof(NercomeRegimes))]
     public void Nercome_MatchesPaperReference(string regime)
     {
-        RunRegime(regime, "nercome", new NercomeCovarianceEstimator(splitFraction: 0.5m), NercomeTolerance);
+        RunRegime(regime, "nercome", new NercomeCovarianceEstimator(), NercomeTolerance);
     }
 
+    /// <summary>
+    /// Paper fidelity: the POET golden is derived directly from Fan, Liao &amp; Mincheva
+    /// (2013) — factors by PCA on the T×T matrix and the eq. 3.2 adaptive threshold —
+    /// by a different computational route from the C# implementation.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Regimes))]
     public void Poet_MatchesPaperReference(string regime)
@@ -205,9 +236,15 @@ public sealed class CovarianceVerificationTests : CrossLanguageVerificationBase
         RunRegime(regime, "poet", new PoetCovarianceEstimator(numFactors: 1, thresholdMultiplier: 0.5), PoetTolerance);
     }
 
+    /// <summary>
+    /// Translation-parity check, not paper fidelity: the doubly sparse golden in
+    /// <c>generate_covariance_vectors.py</c> is a numpy port of this library's own
+    /// pipeline, so agreement shows the C# and the port compute the same thing — it
+    /// cannot show that either matches the cited paper.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Regimes))]
-    public void DoublySparse_MatchesPaperReference(string regime)
+    public void DoublySparse_MatchesPortedPipeline(string regime)
     {
         RunRegime(regime, "doubly_sparse", new DoublySparseEstimator(eigenvectorThreshold: 0.1m), EigenDecompTolerance);
     }
@@ -254,6 +291,27 @@ public sealed class CovarianceVerificationTests : CrossLanguageVerificationBase
                     relError <= tolerance,
                     $"{label}[{i},{j}]: expected {expectedEntry}, got {actual[i, j]}, " +
                     $"|Δ|/max(|expected|,{absoluteFloor}) = {relError} > tol = {tolerance}");
+            }
+        }
+    }
+
+    private static void AssertMatrixScaleRelative(
+        decimal[,] actual,
+        double[,] expected,
+        decimal relativeTolerance,
+        decimal absoluteFloor,
+        string label)
+    {
+        Assert.Equal(expected.GetLength(0), actual.GetLength(0));
+        Assert.Equal(expected.GetLength(1), actual.GetLength(1));
+        for (var i = 0; i < expected.GetLength(0); i++)
+        {
+            for (var j = 0; j < expected.GetLength(1); j++)
+            {
+                var expectedValue = (decimal)expected[i, j];
+                var scale = Math.Max(Math.Abs(actual[i, j]), Math.Abs(expectedValue));
+                var tolerance = Math.Max(absoluteFloor, relativeTolerance * scale);
+                AssertScalarWithin(actual[i, j], expectedValue, tolerance, $"{label}[{i},{j}]");
             }
         }
     }

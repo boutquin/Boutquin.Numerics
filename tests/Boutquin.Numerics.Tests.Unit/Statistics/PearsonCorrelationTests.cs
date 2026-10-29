@@ -22,6 +22,40 @@ namespace Boutquin.Numerics.Tests.Unit.Statistics;
 public sealed class PearsonCorrelationTests
 {
     [Fact]
+    public void GenericDouble_LargeFiniteSelfCorrelationRemainsOne()
+    {
+        double[] x = [0.0, 1e100, 2e100, 3e100];
+
+        PearsonCorrelation<double>.Compute(x, x).Should().BeApproximately(1.0, 1e-12);
+        PearsonCorrelation<double>.Rolling(x, x, 3).Should().OnlyContain(value => Math.Abs(value - 1.0) < 1e-12);
+    }
+
+    [Fact]
+    public void GenericDouble_LargeFiniteConstantSeriesReturnsZero()
+    {
+        double[] x = [1e308, 1e308, 1e308];
+
+        PearsonCorrelation<double>.Compute(x, x).Should().Be(0.0);
+        PearsonCorrelation<double>.Rolling(x, x, 3).Should().Equal(0.0);
+    }
+
+    [Fact]
+    public void GenericHalf_LongConstantSeriesReturnsZero()
+    {
+        var values = Enumerable.Repeat((Half)1, 65_520).ToArray();
+
+        PearsonCorrelation<Half>.Compute(values, values).Should().Be((Half)0);
+    }
+
+    [Fact]
+    public void GenericHalf_LongConstantRollingWindowReturnsZero()
+    {
+        var values = Enumerable.Repeat((Half)1, 65_520).ToArray();
+
+        PearsonCorrelation<Half>.Rolling(values, values, values.Length).Should().Equal((Half)0);
+    }
+
+    [Fact]
     public void Compute_PerfectPositiveCorrelation_EqualsOne()
     {
         decimal[] x = [1m, 2m, 3m, 4m, 5m];
@@ -58,7 +92,7 @@ public sealed class PearsonCorrelationTests
     {
         decimal[] x = [100m, 1m, 2m, 3m, 4m, 5m, 100m];
         decimal[] y = [100m, 2m, 4m, 6m, 8m, 10m, 100m];
-        PearsonCorrelation.Compute(x, y, start: 1, end: 6).Should().Be(1m);
+        PearsonCorrelation.Compute(x.AsSpan(1, 5), y.AsSpan(1, 5)).Should().Be(1m);
     }
 
     [Fact]

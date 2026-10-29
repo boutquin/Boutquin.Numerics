@@ -25,108 +25,122 @@ namespace Boutquin.Numerics.Distributions;
 /// <para>
 /// <b>Generic-math tier:</b> C (polynomial-approximation-bound). Accepts any
 /// <typeparamref name="T"/> implementing <see cref="IFloatingPoint{TSelf}"/> at the
-/// public surface; internally casts to <c>double</c> for the Laikov polynomial
-/// evaluation and casts back. The cast loses at most one ULP of <typeparamref name="T"/>
-/// and is below the approximation's published precision ceiling (~14 significant digits).
+/// public surface; internally casts to <c>double</c> for rational-function
+/// evaluation and casts back. For <c>T = decimal</c>, conversion to <c>double</c>
+/// can lose many decimal ULPs; the result has a double-precision ceiling as well
+/// as the approximation's own rounding error.
 /// </para>
 /// <para>
-/// Uses the relationship N(x) = (1 + erf(x / sqrt(2))) / 2 with the error function
-/// computed via Laikov's exponential-free global approximation (arXiv:2504.05068, 2025):
-/// erf(x) = x / sqrt(x^2 + (p(x^2) / q(x^2))^32) where p and q are polynomials.
-/// This provides ~48 bits of precision (~14 significant digits) across the entire range
-/// with no branch points, replacing the earlier A&amp;S 7.1.26 approximation (~7 digits).
+/// Uses Cephes rational approximations for erf and erfc in the central region
+/// and the normal-tail continued fraction for |x| &gt;= 4. The small tail is
+/// evaluated directly, avoiding subtraction from a rounded erf near one.
+/// Relative accuracy is checked against independent high-precision Gaussian
+/// integrals; results are not guaranteed to be correctly rounded.
 /// </para>
 /// <para>
-/// The algorithm is branchless and suitable for vectorized computation. It uses 17
-/// coefficients, two polynomial evaluations, 5 squarings, one division, and one sqrt.
+/// Finite tails whose exact probabilities round to 0 or 1 in double precision are
+/// saturated before the approximation. A fused multiply-add retains the
+/// rounding remainder in the Gaussian exponent, including in the tail.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">Floating-point numeric type.</typeparam>
 public static class CumulativeNormal<T>
     where T : IFloatingPoint<T>
 {
-    // Coefficients from Laikov (2025), arXiv:2504.05068, supplementary file v1.c, ferf().
-    // Stored as exact IEEE 754 bit patterns to avoid decimal→binary round-trip loss.
-    // c[0..3]  : pure q-polynomial coefficients
-    // c[4]     : first p-polynomial coefficient
-    // c[5..16] : interleaved (q, p) coefficient pairs
-    private static readonly double s_c00 = BitConverter.Int64BitsToDouble(0x403CB2FF7B83F273);
-    private static readonly double s_c01 = BitConverter.Int64BitsToDouble(0x40BE50A62F3A7A4D);
-    private static readonly double s_c02 = BitConverter.Int64BitsToDouble(0x411A4315ECBB06C2);
-    private static readonly double s_c03 = BitConverter.Int64BitsToDouble(0x4173D88BBAE026B6);
-    private static readonly double s_c04 = BitConverter.Int64BitsToDouble(0x41657CC4BDE32AAF);
-    private static readonly double s_c05 = BitConverter.Int64BitsToDouble(0x41B69EE60F7A66C0);
-    private static readonly double s_c06 = BitConverter.Int64BitsToDouble(0x41AD43852D82E0E4);
-    private static readonly double s_c07 = BitConverter.Int64BitsToDouble(0x41F5248E8C642C98);
-    private static readonly double s_c08 = BitConverter.Int64BitsToDouble(0x41F0CFEDDB1CB1FB);
-    private static readonly double s_c09 = BitConverter.Int64BitsToDouble(0x4224CB0372DE3573);
-    private static readonly double s_c10 = BitConverter.Int64BitsToDouble(0x422145A5D6A78078);
-    private static readonly double s_c11 = BitConverter.Int64BitsToDouble(0x4252D242E3B6388A);
-    private static readonly double s_c12 = BitConverter.Int64BitsToDouble(0x425126882C83534F);
-    private static readonly double s_c13 = BitConverter.Int64BitsToDouble(0x4270098836DDA156);
-    private static readonly double s_c14 = BitConverter.Int64BitsToDouble(0x426DA78609B5DD31);
-    private static readonly double s_c15 = BitConverter.Int64BitsToDouble(0x428CF4591BF6EAB5);
-    private static readonly double s_c16 = BitConverter.Int64BitsToDouble(0x428CBC9A8F83AC35);
-
-    private static readonly double s_reciprocalSqrt2 = 1.0 / Math.Sqrt(2.0);
+    // Cephes erf/erfc rational coefficients, adapted from scipy/xsf ndtr.h.
+    // Copyright 1984, 1987, 1988, 1992 Stephen L. Moshier; Copyright 2024 SciPy.
+    // BSD-3-Clause terms and source provenance are in THIRD-PARTY-NOTICES.txt.
+    private const double ReciprocalSqrt2 = 0.707106781186547524400844362104849039;
 
     /// <summary>
     /// Returns the probability that a standard normal random variable is less than
     /// or equal to <paramref name="x"/> — that is, N(x) = P(Z &lt;= x).
     /// </summary>
     /// <param name="x">The upper integration limit of the standard normal density.</param>
-    /// <returns>A value in [0, 1] representing the cumulative probability.</returns>
+    /// <returns>
+    /// A value in [0, 1] representing the cumulative probability. IEEE limit
+    /// behavior: <c>N(+∞) = 1</c>, <c>N(−∞) = 0</c>, and <c>N(NaN) = NaN</c>.
+    /// </returns>
     public static T Evaluate(T x)
     {
         var xd = double.CreateChecked(x);
-        return T.CreateChecked(0.5 * (1.0 + Erf(xd * s_reciprocalSqrt2)));
+
+        // Short-circuit nonfinite inputs to the analytic CDF limits.
+        if (!double.IsFinite(xd))
+        {
+            if (double.IsNaN(xd))
+            {
+                return T.CreateChecked(double.NaN);
+            }
+
+            return T.CreateChecked(xd > 0.0 ? 1.0 : 0.0);
+        }
+
+        // Beyond this point the exact normal tail rounds to its analytic limit in double
+        // precision. Saturating also keeps the polynomial's powers of x² finite.
+        if (xd >= 38.0)
+        {
+            return T.One;
+        }
+
+        if (xd <= -39.0)
+        {
+            return T.Zero;
+        }
+
+        var magnitude = Math.Abs(xd);
+        var tail = magnitude >= 4.0 ? NormalTail(magnitude) : CentralTail(magnitude);
+        return T.CreateChecked(xd < 0.0 ? tail : 1.0 - tail);
     }
 
-    /// <summary>
-    /// Computes erf(x) using Laikov's branchless exponential-free approximation.
-    /// Structure: erf(x) = x / sqrt(x^2 + (p(x^2)/q(x^2))^32).
-    /// </summary>
-    private static double Erf(double x)
+    // Phi(x) - 1/2 without adding then subtracting 1/2. InverseNormal uses this
+    // residual near its median, where the rounded CDF cannot resolve a correction.
+    internal static double CenteredProbability(double x)
     {
-        var z = x * x;
+        var z = 0.5 * x * x;
+        var numerator = (((9.60497373987051638749 * z + 90.0260197203842689217) * z
+            + 2232.00534594684319226) * z + 7003.32514112805075473) * z + 55592.3013010394962768;
+        var denominator = ((((z + 33.5617141647503099647) * z + 521.357949780152679795) * z
+            + 4594.32382970980127987) * z + 22629.0000613890934246) * z + 49267.3942608635921086;
+        return 0.5 * x * ReciprocalSqrt2 * (numerator / denominator);
+    }
 
-        // q(z): degree-10 polynomial, coefficients at indices 0,1,2,3 then odd indices 5,7,9,11,13,15
-        var q = z + s_c00;
-        q = q * z + s_c01;
-        q = q * z + s_c02;
-        q = q * z + s_c03;
+    private static double CentralTail(double x)
+    {
+        var z = x * ReciprocalSqrt2;
+        if (z < 1.0)
+        {
+            return 0.5 - CenteredProbability(x);
+        }
 
-        // p(z): degree-6 polynomial, coefficients at index 4 then even indices 6,8,10,12,14,16
-        var p = s_c04;
+        var numerator = (((((((2.46196981473530512524e-10 * z + 0.564189564831068821977) * z
+            + 7.46321056442269912687) * z + 48.6371970985681366614) * z + 196.520832956077098242) * z
+            + 526.445194995477358631) * z + 934.528527171957607540) * z + 1027.55188689515710272) * z
+            + 557.535335369399327526;
+        var denominator = (((((((z + 13.2281951154744992508) * z + 86.7072140885989742329) * z
+            + 354.937778887819891062) * z + 975.708501743205489753) * z + 1823.90916687909736289) * z
+            + 2246.33760818710981792) * z + 1656.66309194161350182) * z + 557.535340817727675546;
+        return 0.5 * GaussianExponential(x) * (numerator / denominator);
+    }
 
-        q = q * z + s_c05;
-        p = p * z + s_c06;
+    private static double GaussianExponential(double x)
+    {
+        var exponent = -0.5 * x * x;
+        var remainder = Math.FusedMultiplyAdd(-0.5 * x, x, -exponent);
+        return Math.Exp(exponent) * Math.Exp(remainder);
+    }
 
-        q = q * z + s_c07;
-        p = p * z + s_c08;
+    // Mills' ratio: Q(x) = phi(x) / (x + 1/(x + 2/(x + 3/...))).
+    // Forty levels are sufficient to converge at the x = 4 switch point.
+    private static double NormalTail(double x)
+    {
+        var denominator = x;
+        for (var i = 40; i >= 1; i--)
+        {
+            denominator = x + i / denominator;
+        }
 
-        q = q * z + s_c09;
-        p = p * z + s_c10;
-
-        q = q * z + s_c11;
-        p = p * z + s_c12;
-
-        q = q * z + s_c13;
-        p = p * z + s_c14;
-
-        q = q * z + s_c15;
-        p = p * z + s_c16;
-
-        // phi = (p/q)^32
-        p /= q;
-        p *= p; // ^2
-        p *= p; // ^4
-        p *= p; // ^8
-        p *= p; // ^16
-        p *= p; // ^32
-
-        // erf(x) = x / sqrt(x^2 + phi)
-        return x / Math.Sqrt(z + p);
+        return GaussianExponential(x) / Math.Sqrt(2.0 * Math.PI) / denominator;
     }
 }
 
@@ -134,6 +148,11 @@ public static class CumulativeNormal<T>
 /// Legacy concrete-typed facade forwarding to <see cref="CumulativeNormal{T}"/>
 /// instantiated at <c>double</c>. Preserves the pre-migration public API.
 /// </summary>
+[Obsolete(
+    "Use CumulativeNormal<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class CumulativeNormal
 {
     /// <inheritdoc cref="CumulativeNormal{T}.Evaluate"/>

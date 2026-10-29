@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from atomic_output import atomic_text
+
 import numpy as np
 import pytest
 
@@ -33,7 +35,6 @@ VECTORS_DIR = Path(__file__).parent / "vectors"
 def save_vector(name: str, data: dict) -> None:
     """Serialize a vector dict as JSON into ``vectors/<name>.json``."""
 
-    VECTORS_DIR.mkdir(exist_ok=True)
     path = VECTORS_DIR / f"{name}.json"
 
     def convert(obj):
@@ -45,8 +46,8 @@ def save_vector(name: str, data: dict) -> None:
             return int(obj)
         raise TypeError(f"Cannot serialize {type(obj)!r}")
 
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2, default=convert)
+    with atomic_text(path) as stream:
+        json.dump(data, stream, indent=2, default=convert, allow_nan=False)
 
 
 def load_vector(name: str) -> dict:

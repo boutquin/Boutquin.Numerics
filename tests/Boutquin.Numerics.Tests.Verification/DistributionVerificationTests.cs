@@ -20,6 +20,27 @@ namespace Boutquin.Numerics.Tests.Verification;
 
 public sealed class DistributionVerificationTests : CrossLanguageVerificationBase
 {
+    [Theory]
+    [InlineData("cdf", "x", 807)]
+    [InlineData("ppf", "p", 1151)]
+    public void NormalFunctions_MatchHighPrecisionGaussianOracles(string kind, string inputName, int count)
+    {
+        using var doc = LoadVector("distributions");
+        var data = doc.RootElement.GetProperty("high_precision").GetProperty(kind);
+        var inputs = GetDoubleArray(data.GetProperty(inputName));
+        var expected = GetDoubleArray(data.GetProperty("y"));
+        Assert.Equal(count, inputs.Length);
+        Assert.Equal(count, expected.Length);
+        for (var i = 0; i < count; i++)
+        {
+            var actual = kind == "cdf"
+                ? CumulativeNormal<double>.Evaluate(inputs[i])
+                : InverseNormal<double>.Evaluate(inputs[i]);
+            var tolerance = 4e-15 * Math.Abs(expected[i]);
+            AssertScalarWithin(actual, expected[i], tolerance, $"{kind}({inputs[i]:R})");
+        }
+    }
+
     [Fact]
     public void NormalCdf_MatchesScipyReferenceValues()
     {
@@ -27,11 +48,16 @@ public sealed class DistributionVerificationTests : CrossLanguageVerificationBas
         var cdf = doc.RootElement.GetProperty("cdf");
         var xs = GetDoubleArray(cdf.GetProperty("x"));
         var expected = GetDoubleArray(cdf.GetProperty("y"));
+        Assert.NotEmpty(xs);
+        Assert.Equal(xs.Length, expected.Length);
 
         for (var i = 0; i < xs.Length; i++)
         {
             var actual = NormalDistribution.Cdf(xs[i]);
-            AssertScalarWithin(actual, expected[i], PrecisionNumeric, $"Φ({xs[i]})");
+            // Scale the absolute error by the smaller tail probability: a fixed
+            // absolute tolerance can accept zero (or one) for a finite tail.
+            var tailProbability = Math.Min(expected[i], 1.0 - expected[i]);
+            AssertScalarWithin(actual, expected[i], PrecisionNumeric * tailProbability, $"Φ({xs[i]})");
         }
     }
 
@@ -42,6 +68,8 @@ public sealed class DistributionVerificationTests : CrossLanguageVerificationBas
         var ppf = doc.RootElement.GetProperty("ppf");
         var ps = GetDoubleArray(ppf.GetProperty("p"));
         var expected = GetDoubleArray(ppf.GetProperty("y"));
+        Assert.NotEmpty(ps);
+        Assert.Equal(ps.Length, expected.Length);
 
         for (var i = 0; i < ps.Length; i++)
         {

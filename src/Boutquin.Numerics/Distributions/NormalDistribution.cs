@@ -35,9 +35,11 @@ namespace Boutquin.Numerics.Distributions;
 /// approximation step and casts back.
 /// </para>
 /// <para>
-/// Accuracy: PDF is exact to double precision; CDF and inverse-CDF are
-/// accurate to ~14 significant digits (≈ double-precision limit). See
-/// <see cref="CumulativeNormal{T}"/> (Laikov 2025, arXiv:2504.05068) and
+/// Accuracy: PDF uses the double-precision exponential. CDF accuracy is region-dependent:
+/// it evaluates the small tail directly to preserve relative precision.
+/// The inverse CDF's Newton polishing is limited by that CDF, with relative quantile
+/// rounding error depending on the argument. Correct rounding is not guaranteed. See
+/// <see cref="CumulativeNormal{T}"/> (Cephes rational forms and a tail continued fraction) and
 /// <see cref="InverseNormal{T}"/> (Acklam 2000 with two Newton-Raphson polishing
 /// iterations) for the underlying algorithms and their precision claims.
 /// </para>
@@ -87,6 +89,11 @@ public static class NormalDistribution<T>
 /// Legacy concrete-typed facade forwarding to <see cref="NormalDistribution{T}"/>
 /// instantiated at <c>double</c>. Preserves the pre-migration public API.
 /// </summary>
+[Obsolete(
+    "Use NormalDistribution<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class NormalDistribution
 {
     /// <inheritdoc cref="NormalDistribution{T}.Pdf"/>

@@ -70,10 +70,28 @@ public sealed class InverseNormalTests
     }
 
     [Fact]
+    public void Evaluate_RepresentableLowerTail_PreservesQuantile()
+    {
+        NormalDistribution<double>.InverseCdf(1e-20)
+            .Should().BeApproximately(-9.262340089798407, 1e-9);
+    }
+
+    [Fact]
     public void Evaluate_ExtremeHighTail()
     {
         var result = InverseNormal.Evaluate(1.0 - 1e-10);
         result.Should().BeGreaterThan(6.0);
+    }
+
+    [Fact]
+    public void Evaluate_DecimalUpperTail_PreservesOpenIntervalAndSymmetry()
+    {
+        const decimal p = 0.9999999999999999m;
+        decimal actual = 0m;
+        Action evaluate = () => actual = InverseNormal<decimal>.Evaluate(p);
+
+        evaluate.Should().NotThrow<ArgumentOutOfRangeException>();
+        actual.Should().BeApproximately(-InverseNormal<decimal>.Evaluate(1m - p), 0.000000000001m);
     }
 
     [Fact]

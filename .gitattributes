@@ -7,11 +7,16 @@
 # Exclude private files from git archive (used for public repo squash push)
 ###############################################################################
 CLAUDE.md export-ignore
+AGENTS.md export-ignore
 CLAUDE.local.md export-ignore
 .claude/ export-ignore
 .claude/** export-ignore
 specs/ export-ignore
 specs/** export-ignore
+.code-arena/ export-ignore
+.code-arena/** export-ignore
+.build-arena/ export-ignore
+.build-arena/** export-ignore
 _local/ export-ignore
 _local/** export-ignore
 hooks/ export-ignore
@@ -24,3 +29,6 @@ review-accepted.yaml export-ignore
 #*.jpg   binary
 #*.png   binary
 #*.gif   binary
+
+# Retain authenticated private evidence bytes, including author whitespace.
+.code-arena/reference-refresh/** -text -whitespace

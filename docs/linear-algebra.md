@@ -6,14 +6,14 @@ Boutquin.Numerics bundles the linear-algebra primitives that the rest of the num
 
 | Type | Purpose | Tier |
 |------|---------|------|
-| `CholeskyDecomposition<T>` | `A = L·Lᵀ` for SPD matrices; pivoted variant `Pᵀ·A·P = L·Lᵀ` for PSD with rank revelation | A + √ |
-| `GaussianElimination<T>` | `A·x = b` with randomized complete pivoting (GERCP) | A |
+| `CholeskyDecomposition<T>` | `A = L·Lᵀ` for SPD matrices; pivoted variant `Pᵀ·A·P = L·Lᵀ + E` for PSD, with trailing residual `E` and a threshold-dependent rank estimate | A + √ |
+| `GaussianElimination<T>` | `A·x = b` with randomized partial row pivoting (seeded for reproducibility) | A |
 | `JacobiEigenDecomposition<T>` | `A = V·diag(λ)·Vᵀ` for real symmetric matrices via cyclic Givens rotations | A + √ |
 | `NearestPsdProjection<T>` | Higham (1988) projection onto the PSD cone; `EigenClip`, `Higham`, `IsPsd` | A + √ |
 
-Legacy concrete-typed facades (`CholeskyDecomposition`, `GaussianElimination`, `JacobiEigenDecomposition`, `NearestPsdProjection`) remain live as forwarding shims over the `T = decimal` instantiation — existing `decimal[,]` callers need no change. See the individual type doc-comments for algorithmic details and references.
+Legacy concrete-typed facades (`CholeskyDecomposition`, `GaussianElimination`, `JacobiEigenDecomposition`, `NearestPsdProjection`) remain live for existing `decimal[,]` callers. Most forward to the `T = decimal` instantiation; the Jacobi facade instead converts to `double`, performs its rotations at double precision, and converts the result back to `decimal`. See the individual type doc-comments for algorithmic details and references.
 
-> Least-squares estimation — both nonlinear (`LevenbergMarquardtSolver<T>`) and linear (`OrdinaryLeastSquares<T>`) — lives under [`docs/solvers.md`](solvers.md). The `OrdinaryLeastSquares<T>` estimator uses an internal Householder QR with column pivoting (kept internal; promotion to a public API is deferred until a second caller emerges). See `docs/solvers.md` for the public contract.
+> Least-squares estimation — both nonlinear (`LevenbergMarquardtSolver<T>`) and linear (`OrdinaryLeastSquares<T>`) — lives under [`docs/solvers.md`](solvers.md). `OrdinaryLeastSquares<T>` is a public static API backed by Householder QR with column pivoting.
 
 ### Caller-chosen precision — worked example
 
@@ -29,9 +29,8 @@ double[,] spdDouble =
     { 12.0, 37.0, -43.0 },
     { -16.0, -43.0, 98.0 },
 };
-var cholD = new CholeskyDecomposition<double>();
-double[,] Ld = cholD.Decompose(spdDouble);
-double[] xd = cholD.Solve(Ld, [1.0, 2.0, 3.0]);
+double[,] Ld = CholeskyDecomposition<double>.Decompose(spdDouble);
+double[] xd = CholeskyDecomposition<double>.Solve(Ld, [1.0, 2.0, 3.0]);
 // Ld ≈ [[2, 0, 0], [6, 1, 0], [-8, 5, 3]] — classical textbook result, double precision.
 
 // 28-digit decimal Cholesky — natural for portfolio covariance pipelines where the
@@ -44,14 +43,13 @@ decimal[,] spdDecimal =
     { 12m, 37m, -43m },
     { -16m, -43m, 98m },
 };
-var cholM = new CholeskyDecomposition<decimal>();
-decimal[,] Lm = cholM.Decompose(spdDecimal);
-decimal[] xm = cholM.Solve(Lm, [1m, 2m, 3m]);
+decimal[,] Lm = CholeskyDecomposition<decimal>.Decompose(spdDecimal);
+decimal[] xm = CholeskyDecomposition<decimal>.Solve(Lm, [1m, 2m, 3m]);
 // Lm agrees with Ld to 15 significant digits; the remaining 13 digits of precision
 // headroom in decimal absorb the next 13 decades of condition-number growth.
 
 // Pivoted Cholesky for PSD matrices with rank revelation — still generic.
-var pivoted = cholM.DecomposePivoted(spdDecimal, tolerance: 1e-10m, maxRank: 2);
+var pivoted = CholeskyDecomposition<decimal>.DecomposePivoted(spdDecimal, tolerance: 1e-10m, maxRank: 2);
 // pivoted.Lower (N×Rank), pivoted.Permutation, pivoted.Rank
 
 // Cross-type regression — double and decimal instantiations on the same 10×10 SPD
@@ -62,16 +60,22 @@ var pivoted = cholM.DecomposePivoted(spdDecimal, tolerance: 1e-10m, maxRank: 2);
 
 The same pattern applies to every other factorization. `GaussianElimination<T>.Solve`, `JacobiEigenDecomposition<T>.Decompose`, and `NearestPsdProjection<T>.EigenClip` accept the same `T` choice and respect the same tier-A + √ constraint.
 
+Jacobi returns descending eigenvalues and matching eigenvector columns. Its selection sort follows Numerical Recipes, third edition, §11.1: at each step it selects the last equal maximum among the remaining columns. This deterministic tie rule does not select a unique mathematical basis for a repeated eigenvalue.
+
+
 ### Validation
 
-Every factorization has a Python cross-check in [`tests/Verification/vectors/linalg.json`](../tests/Verification/vectors/linalg.json) and [`psd.json`](../tests/Verification/vectors/psd.json):
+The independent verification fixtures contain one 4×4 SPD input in [`linalg.json`](../tests/Verification/vectors/linalg.json) and one input with expected results for both projection methods in [`psd.json`](../tests/Verification/vectors/psd.json). The executable assertions are:
 
-- **`CholeskyDecomposition`** — agrees with `scipy.linalg.cholesky` (lower-triangular) to 1e-8 relative on a pool of synthetic SPD matrices across multiple condition numbers; the pivoted variant's rank-revelation output matches `scipy.linalg.cholesky(..., check_finite=True)` plus a manual permutation application. **Cross-type regression:** [`CholeskyCrossTypeTests.cs`](../tests/Boutquin.Numerics.Tests.Unit/CrossType/CholeskyCrossTypeTests.cs) exercises `CholeskyDecomposition<double>` and `CholeskyDecomposition<decimal>` on a curated 10×10 SPD and asserts agreement to 12 significant digits — this is the single test that demonstrates the "caller chooses the precision" proposition is live.
-- **`GaussianElimination<T>.Solve`** — agrees with `numpy.linalg.solve` to 1e-8 relative on the same pool; the GERCP seed path is additionally determinism-tested (same seed → same pivot sequence).
-- **`JacobiEigenDecomposition<T>.Decompose`** — eigenvalues agree with `numpy.linalg.eigh` to 1e-8 relative; eigenvectors agree up to sign (reconstruction `V·diag(λ)·Vᵀ` is sign-invariant and matches `numpy.linalg.eigh`'s reconstruction to 1e-10 absolute). The small gap between 1e-8 on eigenvalues and 1e-10 on reconstruction reflects the inherent numerical difference between cyclic-Jacobi and LAPACK `dsyevr` — both are iterative, both converge to the same symmetric-eigendecomposition but on different rotation sequences.
-- **`NearestPsdProjection<T>.EigenClip` / `Higham`** — agree with a hand-ported numpy implementation of Higham (1988) at 1e-8 relative on a pool of correlation-matrix inputs in `psd.json`.
+- **Cholesky:** reconstructs the input as `L·Lᵀ` with the `PrecisionNumeric = 1e-6` assertion. The class does not consume a SciPy factor or a pivoted-rank oracle. The separate [`CholeskyCrossTypeTests.cs`](../tests/Boutquin.Numerics.Tests.Unit/CrossType/CholeskyCrossTypeTests.cs) compares double and decimal on a 10×10 SPD matrix at 12 significant digits; this is cross-type parity rather than independent factor verification.
+- **Gaussian elimination:** compares the solution with `numpy.linalg.solve` using `PrecisionNumeric = 1e-6`.
+- **Jacobi:** compares sorted eigenvalues with `numpy.linalg.eigh` using `PrecisionStatistical = 1e-4`. This verification class does not assert eigenvector reconstruction.
+- **EigenClip:** compares the projected matrix with NumPy eigendecomposition and zero-floor clipping using `PrecisionNumeric = 1e-6`.
+- **Higham:** compares the nearest correlation matrix with an independent alternating-projection implementation of Higham (2002, Algorithm 3.3), using `PrecisionStatistical = 1e-4`.
 
-Generic parity (every migrated type at `T = decimal` is bit-identical to its pre-migration legacy decimal implementation) is gated by [`LinearAlgebra_ParityTests.cs`](../tests/Boutquin.Numerics.Tests.Unit/GenericParity/LinearAlgebra_ParityTests.cs).
+These tolerances are the shared comparison parameters used by `CrossLanguageVerificationBase`, not uniform relative-error guarantees across matrix families. Pivoted Cholesky's rank estimate depends on the cutoff; Higham (1990, §6) gives numerically singular matrices whose small singular values are not revealed by diagonal pivots.
+
+The generic implementations are checked against independent reference values and numerical invariants. Legacy facade parity is not an accuracy criterion; in particular, decimal Jacobi arithmetic can return more precise results than the legacy double-based facade.
 
 `PrincipalComponentAnalysis<T>` carries its own independent validation layer — see the [Validation](#validation-1) subsection below.
 
@@ -84,35 +88,34 @@ Factor-model eigendecomposition with explained-variance semantics. Built on `Jac
 ```csharp
 using Boutquin.Numerics.LinearAlgebra;
 
-// From raw returns (most common path). Decimal for portfolio-grade precision.
-var pca = new PrincipalComponentAnalysis<decimal>();
-var result = pca.FromReturns(returnsMatrix);
+// From raw decimal returns (most common path). This entry point is on the
+// decimal-compatible facade, because ReturnsMatrix itself is decimal-typed.
+var result = PrincipalComponentAnalysis.FromReturns(returnsMatrix);
 
 // From a pre-estimated covariance (e.g., Ledoit-Wolf shrunk):
-var resultFromCov = pca.Decompose(shrunkCovariance);
+var resultFromCov = PrincipalComponentAnalysis<decimal>.Decompose(shrunkCovariance);
 
 // How many PCs for 95% of variance?
-var k = result.NumComponentsForExplainedVariance(0.95m);
+var k = result.NumComponentsForExplainedVariance(0.95);
 
 // Project observations onto the top-k components.
-var scores = result.Project(returnsMatrix, numComponents: k);
+var scores = result.Project(returnsMatrix.AsTimeByAsset(), numComponents: k);
 ```
 
-Switch `T` to run the same factor decomposition at `double` speed when the caller is feeding a downstream `double`-denominated pipeline:
+Choose `T = double` to decompose a pre-computed `double` covariance matrix for a downstream `double` pipeline:
 
 ```csharp
-var pcaD = new PrincipalComponentAnalysis<double>();
-var r = pcaD.FromReturns(doublePanelReturns);
+var r = PrincipalComponentAnalysis<double>.Decompose(doubleCovarianceMatrix);
 ```
 
 ### Conventions
 
-- **Sort:** eigenvalues descending. PC1 is the largest-variance direction. Matches the Hull Ch 33.6 level/slope/curvature convention for yield curves.
+- **Sort:** eigenvalues descending. PC1 is the largest-variance direction. Matches Hull (2021, 11th Global Edition, §22.9)'s level/slope/curvature convention for yield curves.
 - **Sign:** for each eigenvector column, the column is flipped so the largest-magnitude component is non-negative. Deterministic across runs on identical data.
 - **Centering:**
-  - `FromReturns` populates `PcaResult<T>.Mean` with per-column means; `Project(data, k)` subtracts `Mean` from each row before projection.
+  - The decimal facade's `FromReturns` populates `PcaResult.Mean` with per-column means; `Project(data, k)` subtracts `Mean` from each row before projection.
   - `Decompose(covarianceMatrix)` leaves `Mean` empty because no observation data was supplied; in that case the caller must pre-center the data passed to `Project`.
-- **Precision:** caller-chosen via `T`. The legacy public API (`decimal[,]` in / `decimal[,]` out) is the `T = decimal` instantiation.
+- **Precision:** `Decompose` is caller-chosen via `T`; the returns-based convenience path is decimal-only.
 
 ### Typical Treasury-curve use
 
@@ -128,7 +131,7 @@ The first three components typically explain > 98% of the total variance. This m
 
 ### Standardization
 
-Pass `standardize: true` to `FromReturns` to divide each column by its sample standard deviation before covariance estimation — effectively running PCA on the correlation matrix instead of the covariance matrix. Useful when variables have heterogeneous scales (e.g., mixing rates and spreads in one panel, or combining market excess returns with long-short factor returns).
+Pass `standardize: true` to `FromReturns` to divide each column by its sample standard deviation before covariance estimation — effectively running PCA on the correlation matrix instead of the covariance matrix. The result exposes those fitted scales through `StandardDeviations` (empty for an unstandardized fit): `Project` centers new observations and divides by the same scales before applying the loadings. Copy `StandardDeviations` together with the other public properties when rebuilding a result. A full-component inverse projection recovers standardized centered data; multiply each column by its fitted sample standard deviation and add its mean to recover original units. Useful when variables have heterogeneous scales (e.g., mixing rates and spreads in one panel, or combining market excess returns with long-short factor returns).
 
 On correlation input, the eigenvalue trace identity becomes `Σ λᵢ = N` (number of variables) exactly, so the explained-variance ratios reduce to `λᵢ / N`. Factors designed to be near-orthogonal (e.g., Fama-French construction) yield eigenvalues near 1 each; a dominant common factor shows up as a first eigenvalue noticeably above 1.
 
@@ -141,5 +144,5 @@ The PCA is validated against:
 ### References
 
 - Jolliffe, I. T. (2002). *Principal Component Analysis*, 2nd ed. Springer.
-- Hull, J. C. (2017). *Options, Futures, and Other Derivatives*, 11e. Ch 22.9 (PCA for VaR), Ch 33.6 (PCA for yield-curve factors).
+- Hull, J. C. (2021). *Options, Futures, and Other Derivatives*, 11th Global Edition, §22.9, pp. 534–537 (yield-curve PCA).
 - Fama, E. F. & French, K. R. (2015). *A Five-Factor Asset Pricing Model*. Journal of Financial Economics 116(1), 1–22. Factor data from Kenneth French's data library, `https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html`.

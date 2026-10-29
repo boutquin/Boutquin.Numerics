@@ -22,7 +22,7 @@ namespace Boutquin.Numerics.Statistics;
 
 /// <summary>
 /// Computes the adjusted Fisher-Pearson standardized third moment (sample skewness)
-/// over a span of observations using the unbiased bias-correction factor.
+/// over a span of observations using the finite-sample correction factor.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -43,7 +43,8 @@ namespace Boutquin.Numerics.Statistics;
 /// Algorithm: two-pass. Pass 1 computes the mean and sample variance via
 /// <see cref="WelfordMoments{T}.Compute"/>. Pass 2 accumulates the sum of
 /// cubed standardized deviations. The bias-correction factor is applied once
-/// at the end.
+/// at the end. Half observations are widened losslessly to double for the
+/// calculation and the final result is rounded to Half.
 /// </para>
 /// </remarks>
 /// <typeparam name="T">Floating-point numeric type.</typeparam>
@@ -60,6 +61,8 @@ public static class SampleSkewness<T>
     /// </exception>
     /// <exception cref="InvalidOperationException">
     /// Thrown when the sample standard deviation is zero (all values are identical).
+    /// Also thrown when the observation count cannot convert to a finite
+    /// <typeparamref name="T"/>; <see cref="Half"/> accepts at most 65,519 observations.
     /// </exception>
     public static T Compute(ReadOnlySpan<T> values)
     {
@@ -71,7 +74,56 @@ public static class SampleSkewness<T>
                 nameof(values));
         }
 
-        var (mean, variance) = WelfordMoments<T>.Compute(values);
+        for (var i = 0; i < n; i++)
+        {
+            if (!T.IsFinite(values[i]))
+            {
+                throw new ArgumentException(
+                    $"Sample skewness requires finite observations; found a non-finite value at index {i}.",
+                    nameof(values));
+            }
+        }
+
+        if (typeof(T) == typeof(Half))
+        {
+            if (!T.IsFinite(T.CreateChecked(n)))
+            {
+                throw new InvalidOperationException($"The observation count {n} cannot be represented as a finite {typeof(T).Name} value.");
+            }
+
+            // Half standardized powers can overflow although the adjusted moment
+            // is finite. Widen losslessly and round only the final statistic.
+            var widened = new double[n];
+            for (var i = 0; i < n; i++)
+            {
+                widened[i] = double.CreateChecked(values[i]);
+            }
+
+            return T.CreateChecked(SampleSkewness<double>.Compute(widened));
+        }
+
+        // Translate before scaling so a large common offset cannot erase the
+        // representable spread when normalized deviations are squared.
+        var center = PearsonCorrelation<T>.NormalizationCenter(values);
+        var scale = T.Zero;
+        foreach (var x in values)
+        {
+            scale = T.Max(scale, T.Abs(x - center));
+        }
+
+        ReadOnlySpan<T> scaledValues = values;
+        if (scale != T.Zero)
+        {
+            var scaledBuffer = new T[n];
+            for (var i = 0; i < n; i++)
+            {
+                scaledBuffer[i] = (values[i] - center) / scale;
+            }
+
+            scaledValues = scaledBuffer;
+        }
+
+        var (mean, variance) = WelfordMoments<T>.Compute(scaledValues);
         var stdDev = NumericPrecision<T>.Sqrt(variance);
 
         if (T.IsZero(stdDev))
@@ -80,24 +132,30 @@ public static class SampleSkewness<T>
                 "Sample skewness is undefined when the standard deviation is zero.");
         }
 
-        var sumCubed = T.Zero;
-        foreach (var x in values)
-        {
-            var z = (x - mean) / stdDev;
-            sumCubed += z * z * z;
-        }
-
-        // Bias-correction factor: n / ((n-1) * (n-2))
         var nT = T.CreateChecked(n);
         var nm1 = T.CreateChecked(n - 1);
         var nm2 = T.CreateChecked(n - 2);
-        return nT / (nm1 * nm2) * sumCubed;
+        var sumCubed = T.Zero;
+        foreach (var x in scaledValues)
+        {
+            var z = (x - mean) / stdDev;
+            var z2 = z * z;
+            sumCubed += z2 * z;
+        }
+
+        // Bias-correction factor: n / ((n-1) * (n-2))
+        return (sumCubed / nm2) * (nT / nm1);
     }
 }
 
 /// <summary>
 /// Decimal-typed facade for <see cref="SampleSkewness{T}"/> at <c>T = decimal</c>.
 /// </summary>
+[Obsolete(
+    "Use SampleSkewness<decimal> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class SampleSkewness
 {
     /// <summary>

@@ -35,7 +35,33 @@ public sealed record MultivariateSolverResult<T>(
     bool Converged,
     LmTerminationReason TerminationReason,
     bool BoundsActive)
-    where T : IFloatingPoint<T>;
+    where T : IFloatingPoint<T>
+{
+    private T[] _parameters = (T[])Parameters.Clone();
+    private T[] _finalResiduals = (T[])FinalResiduals.Clone();
+    private T[,]? _parameterCovariance = (T[,]?)ParameterCovariance?.Clone();
+
+    /// <summary>Parameter estimate, copied on input and access.</summary>
+    public T[] Parameters
+    {
+        get => (T[])_parameters.Clone();
+        init => _parameters = (T[])value.Clone();
+    }
+
+    /// <summary>Final residual vector, copied on input and access.</summary>
+    public T[] FinalResiduals
+    {
+        get => (T[])_finalResiduals.Clone();
+        init => _finalResiduals = (T[])value.Clone();
+    }
+
+    /// <summary>Parameter covariance, copied on input and access.</summary>
+    public T[,]? ParameterCovariance
+    {
+        get => (T[,]?)_parameterCovariance?.Clone();
+        init => _parameterCovariance = (T[,]?)value?.Clone();
+    }
+}
 
 /// <summary>
 /// Reason the Levenberg–Marquardt iteration stopped.
@@ -49,7 +75,9 @@ public sealed record MultivariateSolverResult<T>(
 /// </remarks>
 public enum LmTerminationReason
 {
-    /// <summary>The cost <c>½ Σ rᵢ²</c> stopped decreasing by more than <c>functionTolerance</c> between iterations.</summary>
+    /// <summary>The absolute actual and nonnegative predicted reductions, relative to the
+    /// current cost, are both at most <c>functionTolerance</c>. May follow an accepted or
+    /// rejected trial; a clipped step cannot certify this stop.</summary>
     FunctionToleranceReached,
 
     /// <summary>The parameter step <c>‖δ‖</c> fell below <c>parameterTolerance</c> relative to <c>‖θ‖</c>.</summary>
@@ -80,9 +108,15 @@ public enum LmTerminationReason
 /// <param name="ParameterCovariance">
 /// Approximate covariance of the parameter estimate,
 /// <c>σ̂² · (JᵀJ)⁻¹</c> with <c>σ̂² = 2·FinalCost / (m − n)</c> (m = residual count,
-/// n = parameter count). <see langword="null"/> when the problem is overdetermined
-/// and <c>JᵀJ</c> at the optimum is numerically singular, or when the solver did
-/// not reach a finite-gradient stationary point.
+/// n = parameter count). <see langword="null"/> in four cases: (1) the problem is
+/// exactly- or under-determined (<c>m ≤ n</c>), where the <c>m − n</c> divisor for
+/// <c>σ̂²</c> is non-positive and no residual degrees of freedom remain to estimate
+/// it; (2) the problem is overdetermined (<c>m &gt; n</c>) but <c>JᵀJ</c> at the
+/// returned point is numerically singular; (3) the solver did not meet a
+/// convergence tolerance (<paramref name="Converged"/> is
+/// <see langword="false"/>); or (4) a covariance entry is not finite in the
+/// working floating-point type. A tolerance stop and an available covariance do not
+/// certify stationarity or justify classical unconstrained inference at an active bound.
 /// </param>
 /// <param name="Iterations">
 /// Number of accepted outer iterations — steps at which the cost strictly decreased
@@ -114,4 +148,30 @@ public sealed record MultivariateSolverResult(
     int Iterations,
     bool Converged,
     LmTerminationReason TerminationReason,
-    bool BoundsActive);
+    bool BoundsActive)
+{
+    private double[] _parameters = (double[])Parameters.Clone();
+    private double[] _finalResiduals = (double[])FinalResiduals.Clone();
+    private double[,]? _parameterCovariance = (double[,]?)ParameterCovariance?.Clone();
+
+    /// <summary>Parameter estimate, copied on input and access.</summary>
+    public double[] Parameters
+    {
+        get => (double[])_parameters.Clone();
+        init => _parameters = (double[])value.Clone();
+    }
+
+    /// <summary>Final residual vector, copied on input and access.</summary>
+    public double[] FinalResiduals
+    {
+        get => (double[])_finalResiduals.Clone();
+        init => _finalResiduals = (double[])value.Clone();
+    }
+
+    /// <summary>Parameter covariance, copied on input and access.</summary>
+    public double[,]? ParameterCovariance
+    {
+        get => (double[,]?)_parameterCovariance?.Clone();
+        init => _parameterCovariance = (double[,]?)value?.Clone();
+    }
+}

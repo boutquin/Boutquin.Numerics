@@ -37,7 +37,7 @@ public sealed class JacobiEigenDecompositionTests
     [Fact]
     public void Decompose_3x3SymmetricMatrix_ReturnsCorrectEigenvalues()
     {
-        // Known eigenvalues: 3, 1, -1 for this matrix.
+        // Rank-1 all-ones matrix = [1,1,1]ᵀ·[1,1,1]; its eigenvalues are 3, 0, 0.
         var matrix = new decimal[,]
         {
             { 1, 1, 1 },
@@ -102,5 +102,73 @@ public sealed class JacobiEigenDecompositionTests
         var matrix = new decimal[,] { { 1, 2, 3 }, { 4, 5, 6 } };
         var act = () => JacobiEigenDecomposition.Decompose(matrix);
         act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Decompose_WellConditionedFiveByFiveMatrix_ReconstructsNearMachinePrecision()
+    {
+        // Regression test for the documented reconstruction bound (docs/linear-algebra.md:
+        // "matches numpy.linalg.eigh's reconstruction to 1e-10 absolute"). Under the loose
+        // Jacobi convergence threshold (sqrt(1e-15) ~= 3.16e-8 of the off-diagonal Frobenius
+        // norm), this well-conditioned 5x5 symmetric matrix reconstructed with a residual of
+        // 2.66e-8 — an order of magnitude looser than the documented bound.
+        double[,] matrix =
+        {
+            { -0.155676, 0.448888, -0.326014, -0.197565, -0.472883 },
+            { 0.448888, -0.33067, -0.207053, -0.406037, -0.304644 },
+            { -0.326014, -0.207053, 0.226084, 0.023691, -0.443768 },
+            { -0.197565, -0.406037, 0.023691, -0.473445, -0.117064 },
+            { -0.472883, -0.304644, -0.443768, -0.117064, 0.021156 },
+        };
+        var n = 5;
+
+        var result = JacobiEigenDecomposition<double>.Decompose(matrix);
+
+        for (var i = 0; i < n; i++)
+        {
+            for (var j = 0; j < n; j++)
+            {
+                var sum = 0.0;
+                for (var k = 0; k < n; k++)
+                {
+                    sum += result.Vectors[i, k] * result.Values[k] * result.Vectors[j, k];
+                }
+
+                sum.Should().BeApproximately(matrix[i, j], 1e-10,
+                    $"reconstruction should match the documented 1e-10 absolute bound at [{i},{j}]");
+            }
+        }
+    }
+
+    [Fact]
+    public void Decompose_TinyMagnitudeWellSeparatedMatrix_DiagonalizesCorrectly()
+    {
+        // Well-separated spectrum (eigenvalue ratio ~1.5) at a tiny magnitude (~1e-22).
+        // The per-pair rotation-skip threshold must scale with the matrix magnitude;
+        // an absolute 1e-20 skip would suppress every rotation here and spuriously throw.
+        var matrix = new double[,]
+        {
+            { 2e-22, 1e-22 },
+            { 1e-22, 3e-22 },
+        };
+
+        var result = JacobiEigenDecomposition<double>.Decompose(matrix);
+        var n = 2;
+
+        // Reconstruct A = V·diag(λ)·Vᵀ — proves the decomposition is correct, not just non-throwing.
+        for (var i = 0; i < n; i++)
+        {
+            for (var j = 0; j < n; j++)
+            {
+                var sum = 0.0;
+                for (var k = 0; k < n; k++)
+                {
+                    sum += result.Vectors[i, k] * result.Values[k] * result.Vectors[j, k];
+                }
+
+                sum.Should().BeApproximately(matrix[i, j], 1e-30,
+                    $"Reconstruction failed at [{i},{j}]");
+            }
+        }
     }
 }

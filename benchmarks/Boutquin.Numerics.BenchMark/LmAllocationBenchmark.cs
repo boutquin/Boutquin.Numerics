@@ -20,9 +20,9 @@ using Boutquin.Numerics.Solvers;
 namespace Boutquin.Numerics.BenchMark;
 
 /// <summary>
-/// Demonstrates the allocation-reduction claim of <see cref="LevenbergMarquardtBuffers"/>
-/// from <c>specs/feature-lm-zero-alloc-iteration.md</c> §3.1 on a representative
-/// hot-path workload (6 parameters, 24 residuals — matching the Lanczos3 NIST StRD shape).
+/// Demonstrates the allocation-reduction claim of <see cref="LevenbergMarquardtBuffers{T}"/>
+/// on a representative hot-path workload (6 parameters, 24 residuals — matching the
+/// Lanczos3 NIST StRD shape).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -31,7 +31,7 @@ namespace Boutquin.Numerics.BenchMark;
 /// <list type="bullet">
 /// <item><description>
 /// <b>PoolFreeSolve</b> — the legacy overload. Allocates a private
-/// <see cref="LevenbergMarquardtBuffers"/> instance per call.
+/// <see cref="LevenbergMarquardtBuffers{T}"/> instance per call.
 /// </description></item>
 /// <item><description>
 /// <b>PooledSolve</b> — the new overload taking a caller-owned pool. The pool is
@@ -46,7 +46,7 @@ namespace Boutquin.Numerics.BenchMark;
 /// <para>
 /// Use the BenchmarkDotNet <c>[MemoryDiagnoser]</c> output to compare the <c>Allocated</c>
 /// column: the pooled overload with a zero-allocating residual callback should show only
-/// the <see cref="MultivariateSolverResult"/> record and its owned arrays plus the one-shot
+/// the <see cref="MultivariateSolverResult{T}"/> record and its owned arrays plus the one-shot
 /// covariance scratch allocated at convergence.
 /// </para>
 /// </remarks>
@@ -56,8 +56,8 @@ public class LmAllocationBenchmark
     private const int ParameterCount = 6;
     private const int ResidualCount = 24;
 
-    private LevenbergMarquardtSolver _solver = null!;
-    private LevenbergMarquardtBuffers _pool = null!;
+    private LevenbergMarquardtSolver<double> _solver = null!;
+    private LevenbergMarquardtBuffers<double> _pool = null!;
     private double[] _initialGuess = null!;
     private double[] _xs = null!;
     private double[] _ys = null!;
@@ -75,8 +75,13 @@ public class LmAllocationBenchmark
     [GlobalSetup]
     public void Setup()
     {
-        _solver = new LevenbergMarquardtSolver(maxIterations: 100);
-        _pool = new LevenbergMarquardtBuffers(ParameterCount, ResidualCount);
+        _solver = new LevenbergMarquardtSolver<double>(
+            maxIterations: 100,
+            functionTolerance: 1e-10,
+            parameterTolerance: 1e-10,
+            gradientTolerance: 1e-10,
+            initialDamping: 1e-3);
+        _pool = new LevenbergMarquardtBuffers<double>(ParameterCount, ResidualCount);
         _initialGuess = new double[ParameterCount];
 
         // Deterministic polynomial fit — 6-parameter polynomial in x ∈ [-1, 1] with seeded
@@ -114,16 +119,16 @@ public class LmAllocationBenchmark
     /// allocation contract.
     /// </summary>
     [Benchmark(Baseline = true)]
-    public MultivariateSolverResult PoolFreeSolve() =>
+    public MultivariateSolverResult<double> PoolFreeSolve() =>
         _solver.Solve(_nonAllocatingResiduals, _initialGuess);
 
     /// <summary>
     /// Pooled overload + non-allocating residual callback. This is the tight allocation
-    /// bound — only the <see cref="MultivariateSolverResult"/> record and its owned arrays
+    /// bound — only the <see cref="MultivariateSolverResult{T}"/> record and its owned arrays
     /// plus the one-shot covariance scratch survive per solve.
     /// </summary>
     [Benchmark]
-    public MultivariateSolverResult PooledSolve() =>
+    public MultivariateSolverResult<double> PooledSolve() =>
         _solver.Solve(_nonAllocatingResiduals, _initialGuess, _pool);
 
     /// <summary>
@@ -132,7 +137,7 @@ public class LmAllocationBenchmark
     /// residual function in the obvious way.
     /// </summary>
     [Benchmark]
-    public MultivariateSolverResult PooledSolveAllocatingResidual() =>
+    public MultivariateSolverResult<double> PooledSolveAllocatingResidual() =>
         _solver.Solve(_allocatingResiduals, _initialGuess, _pool);
 
     private double[] NonAllocatingResiduals(double[] theta)

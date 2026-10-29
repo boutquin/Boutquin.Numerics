@@ -80,6 +80,27 @@ internal static class ParityHarness
     }
 
     /// <summary>
+    /// Asserts that a generic invocation produces a result that is bit-identical
+    /// to the legacy invocation for a raw integral draw (e.g. <c>ulong</c> output
+    /// from a random source's <c>NextULong()</c>). Separate from
+    /// <see cref="AssertExactScalarParity{T}"/> because the underlying random
+    /// sources yield <see cref="ulong"/> — an <see cref="IBinaryInteger{TSelf}"/>,
+    /// not an <see cref="IFloatingPoint{TSelf}"/> — so the floating-point-constrained
+    /// helper above does not apply.
+    /// </summary>
+    /// <param name="legacyResult">Draw from the pre-migration concrete-typed random source.</param>
+    /// <param name="genericResult">Draw from the new generic random source instantiated at any <c>T</c>.</param>
+    /// <param name="context">
+    /// Human-readable description of the comparison (e.g., "Pcg64RandomSource draw #37").
+    /// Included in the assertion message on failure.
+    /// </param>
+    internal static void AssertExactULongParity(ulong legacyResult, ulong genericResult, string context)
+    {
+        genericResult.Should().Be(legacyResult,
+            because: $"generic {context} must be bit-identical to legacy");
+    }
+
+    /// <summary>
     /// Asserts element-wise parity between a legacy vector and a generic vector.
     /// </summary>
     /// <typeparam name="T">The numeric type being compared.</typeparam>

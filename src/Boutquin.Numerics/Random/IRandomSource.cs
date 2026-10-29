@@ -98,5 +98,30 @@ public interface IRandomSource<T> : IRandomSource
     /// <summary>
     /// Generates a uniform value of type <typeparamref name="T"/> in [0, 1).
     /// </summary>
-    T NextT() => T.CreateChecked(NextDouble());
+    T NextT()
+    {
+        var value = T.CreateChecked(NextDouble());
+        return value < T.One ? value : UnitIntervalUpperBound<T>.s_largestBelowOne;
+    }
+}
+
+internal static class UnitIntervalUpperBound<T>
+    where T : IFloatingPoint<T>
+{
+    internal static readonly T s_largestBelowOne = FindLargestBelowOne();
+
+    private static T FindLargestBelowOne()
+    {
+        var candidate = Math.BitDecrement(1.0);
+        while (true)
+        {
+            var converted = T.CreateChecked(candidate);
+            if (converted < T.One)
+            {
+                return converted;
+            }
+
+            candidate -= 1.0 - candidate;
+        }
+    }
 }

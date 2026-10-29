@@ -27,7 +27,18 @@ namespace Boutquin.Numerics.Interpolation;
 /// </summary>
 /// <typeparam name="T">The floating-point type for interpolation.</typeparam>
 /// <remarks>
+/// <para>
 /// Tier B: Requires IEEE 754 transcendental functions (Log, Exp).
+/// </para>
+/// <para>
+/// Precondition: all y-values must be strictly positive (they are interpreted as discount
+/// factors). Positivity is not validated for performance; non-positive input propagates rather
+/// than throwing: when <c>ys[i] &lt; 0</c>, <c>T.Log</c> returns <c>NaN</c>, which propagates to
+/// the result. At interior queries a positive-left/zero-right interval returns zero;
+/// a zero left node produces <c>NaN</c>, including a zero-zero interval, because
+/// the exponent contains undefined infinity arithmetic.
+/// Domain layers are expected to enforce strict positivity upstream.
+/// </para>
 /// </remarks>
 public sealed class LogLinearInterpolator<T> : IInterpolator<T> where T : IFloatingPointIeee754<T>
 {
@@ -52,6 +63,9 @@ public sealed class LogLinearInterpolator<T> : IInterpolator<T> where T : IFloat
             throw new ArgumentException("At least one node is required.");
         }
 
+        InterpolationHelper.ValidateSortedAscending(xs, nameof(xs));
+        InterpolationHelper.ValidateFiniteTarget(x);
+
         if (x <= xs[0])
         {
             return ys[0];
@@ -66,7 +80,7 @@ public sealed class LogLinearInterpolator<T> : IInterpolator<T> where T : IFloat
 
         var lnYi = T.Log(ys[i]);
         var lnYi1 = T.Log(ys[i + 1]);
-        var t = (x - xs[i]) / (xs[i + 1] - xs[i]);
+        var t = InterpolationHelper.LinearWeight(x, xs[i], xs[i + 1]);
         var lnY = lnYi + t * (lnYi1 - lnYi);
 
         return T.Exp(lnY);
@@ -83,19 +97,25 @@ public sealed class LogLinearInterpolator<T> : IInterpolator<T> where T : IFloat
 /// <remarks>
 /// <para>
 /// Precondition: all y-values must be strictly positive. The implementation does
-/// not validate positivity for performance; <c>Math.Log</c> on a non-positive
-/// value produces <c>NaN</c> or <c>-Infinity</c> and propagates to the result.
-/// Domain layers are expected to enforce positivity upstream.
+/// not validate positivity for performance. Non-positive y-values propagate as
+/// follows: when <c>ys[i] &lt; 0</c>, <c>Math.Log</c> returns <c>NaN</c>, which
+/// propagates to the result. At interior queries a positive-left/zero-right interval
+/// returns zero; a zero left node produces <c>NaN</c>, including a zero-zero interval.
+/// Domain layers are expected to enforce strict positivity upstream.
 /// </para>
 /// <para>
-/// Interpolating in log space is numerically preferable to dividing discount
-/// factors directly: the subtraction <c>ln(ys[i+1]) − ln(ys[i])</c> has bounded
-/// relative error even when successive discount factors are very close to one
-/// another, where the ratio form <c>ys[i+1] / ys[i]</c> can cancel significant
-/// digits.
+/// The log-space formula evaluates the geometric blend without explicitly
+/// forming the ratio <c>ys[i+1] / ys[i]</c>, which can overflow for widely
+/// separated finite positive ordinates. Its accuracy still depends on the
+/// working type's logarithm, exponential, and arithmetic rounding.
 /// </para>
 /// <para>Flat extrapolation beyond the node range. Stateless; exposed as the singleton <see cref="Instance"/>.</para>
 /// </remarks>
+[Obsolete(
+    "Use LogLinearInterpolator<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class LogLinearInterpolator : IInterpolator
 {
     /// <summary>

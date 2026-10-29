@@ -30,10 +30,10 @@ public class SolverBenchmarks
     [Params(1e-10, 1e-6)]
     public double Tolerance { get; set; }
 
-    private BisectionSolver _bisection = null!;
-    private BrentSolver _brent = null!;
-    private NewtonRaphsonSolver _newton = null!;
-    private SecantSolver _secant = null!;
+    private BisectionSolver<double> _bisection = null!;
+    private BrentSolver<double> _brent = null!;
+    private NewtonRaphsonSolver<double> _newton = null!;
+    private SecantSolver<double> _secant = null!;
 
     // f(x) = x^3 - x - 2; root ≈ 1.5213797...
     private static double F(double x) => x * x * x - x - 2.0;
@@ -42,21 +42,21 @@ public class SolverBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _bisection = new BisectionSolver(Tolerance);
-        _brent = new BrentSolver(Tolerance);
-        _newton = new NewtonRaphsonSolver(Tolerance, Tolerance, derivative: FPrime);
-        _secant = new SecantSolver(Tolerance);
+        _bisection = new BisectionSolver<double>(Tolerance, Tolerance);
+        _brent = new BrentSolver<double>(Tolerance);
+        _newton = new NewtonRaphsonSolver<double>(Tolerance, Tolerance, 0.0, derivative: FPrime);
+        _secant = new SecantSolver<double>(Tolerance);
     }
 
     [Benchmark(Baseline = true)]
-    public RootSolverResult Bisection() => _bisection.Solve(F, 1.0, 2.0);
+    public RootSolverResult<double> Bisection() => _bisection.Solve(F, 1.0, 2.0);
 
     [Benchmark]
-    public RootSolverResult Brent() => _brent.Solve(F, 1.0, 2.0);
+    public RootSolverResult<double> Brent() => _brent.Solve(F, 1.0, 2.0);
 
     [Benchmark]
-    public RootSolverResult Newton() => _newton.Solve(F, 1.0, 2.0);
+    public RootSolverResult<double> Newton() => _newton.Solve(F, 1.0, 2.0);
 
     [Benchmark]
-    public RootSolverResult Secant() => _secant.Solve(F, 1.0, 2.0);
+    public RootSolverResult<double> Secant() => _secant.Solve(F, 1.0, 2.0);
 }

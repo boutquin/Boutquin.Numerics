@@ -32,11 +32,11 @@ namespace Boutquin.Numerics.Solvers;
 /// <remarks>
 /// <para>
 /// The buffer set is sized for one specific <c>(parameterCount, residualCount)</c> pair.
-/// Calling <see cref="Reset(int, int)"/> resizes the storage in place when those change
+/// Calling <see cref="Reset(int, int)"/> reconfigures the storage when those change
 /// (e.g., fitting a different model against the same pool). The policy is grow-only:
-/// repeated resets to smaller sizes retain the original capacity and only update the
-/// logical <see cref="ParameterCount"/> / <see cref="ResidualCount"/> — this avoids
-/// reallocation churn across solves of varying sizes.
+/// repeated resets to smaller sizes retain the original work-buffer capacity and
+/// update the logical <see cref="ParameterCount"/> / <see cref="ResidualCount"/>.
+/// A change in parameter count also replaces the exact-length callback parameter array.
 /// </para>
 /// <para>
 /// Thread safety: not thread-safe. One buffer instance per thread; each thread constructs
@@ -45,8 +45,10 @@ namespace Boutquin.Numerics.Solvers;
 /// </para>
 /// <para>
 /// Allocation contract: construction and <see cref="Reset(int, int)"/> calls that exceed
-/// the current capacity allocate the internal arrays. Subsequent solves using the pool
-/// do not grow managed-heap allocation inside the iteration loop — the only per-solve
+/// the current capacity allocate the internal arrays. A reset to a different parameter
+/// count also allocates an exact-length callback parameter array, even within capacity.
+/// Subsequent solves using the pool do not grow managed-heap allocation inside
+/// the iteration loop — the only per-solve
 /// allocations come from the caller's residual (and optional analytic Jacobian) callbacks
 /// and from the returned <see cref="MultivariateSolverResult"/> record plus its owned arrays.
 /// </para>
@@ -75,6 +77,8 @@ public sealed class LevenbergMarquardtBuffers<T>
     private T[] _minusBuffer = null!;
     private T[] _residual = null!;
     private T[] _trialResidual = null!;
+    private T[] _jacobianFlatScratch = null!;
+    private T[] _callbackParameters = [];
 
     /// <summary>
     /// Initializes a buffer pool sized for a specific <c>(parameterCount, residualCount)</c> problem.
@@ -86,8 +90,7 @@ public sealed class LevenbergMarquardtBuffers<T>
     /// </exception>
     public LevenbergMarquardtBuffers(int parameterCount, int residualCount)
     {
-        ValidateDimensions(parameterCount, residualCount);
-        Allocate(parameterCount, residualCount);
+        Reset(parameterCount, residualCount);
     }
 
     /// <summary>
@@ -129,7 +132,7 @@ public sealed class LevenbergMarquardtBuffers<T>
     /// <summary>Trial parameter vector, length <c>n</c>.</summary>
     internal T[] TrialTheta => _trialTheta;
 
-    /// <summary>Effective delta vector (geodesic acceleration), length <c>n</c>.</summary>
+    /// <summary>Effective (post-bounds-clipping) step vector, length <c>n</c>.</summary>
     internal T[] EffectiveDelta => _effectiveDelta;
 
     /// <summary>Perturbed-parameter scratch for finite-difference Jacobian, length <c>n</c>.</summary>
@@ -148,10 +151,23 @@ public sealed class LevenbergMarquardtBuffers<T>
     internal T[] TrialResidual => _trialResidual;
 
     /// <summary>
+    /// Contiguous row-major scratch for an analytic Jacobian writer, sized to the
+    /// high-water <c>m·n</c> capacity. Used only on a shrunk grow-only pool, where the
+    /// Jacobian slab's physical column stride exceeds the logical parameter count and a
+    /// flat span over the slab would not be contiguous. Reusing this scratch across solves
+    /// keeps the shrunk-pool analytic path allocation-free after warmup.
+    /// </summary>
+    internal T[] JacobianFlatScratch => _jacobianFlatScratch;
+
+    /// <summary>Exact logical-length parameter array passed to <c>Func</c>-based callbacks.</summary>
+    internal T[] CallbackParameters => _callbackParameters;
+
+    /// <summary>
     /// Reconfigures the pool for a new <c>(parameterCount, residualCount)</c>. When either
     /// dimension exceeds the current allocated capacity, the underlying arrays are resized;
-    /// when both are within capacity, only the logical dimensions are updated and no
-    /// allocation occurs.
+    /// when both are within capacity, the work buffers are reused. Changing the
+    /// parameter count allocates an exact-length callback parameter array even when
+    /// both dimensions remain within capacity.
     /// </summary>
     /// <param name="parameterCount">New parameter-vector dimension <c>n</c>. Must be positive.</param>
     /// <param name="residualCount">New residual-vector dimension <c>m</c>. Must be positive.</param>
@@ -160,53 +176,42 @@ public sealed class LevenbergMarquardtBuffers<T>
     /// </exception>
     /// <remarks>
     /// Grow-only policy: capacity is monotonic across the pool's lifetime. Callers fitting
-    /// many models of varying sizes against the same pool pay the allocation cost at the
-    /// high-water mark and never again.
+    /// many models of varying sizes against the same pool retain work-buffer capacity;
+    /// each parameter-count change still allocates a callback parameter array.
     /// </remarks>
     public void Reset(int parameterCount, int residualCount)
     {
         ValidateDimensions(parameterCount, residualCount);
 
-        if (parameterCount <= _capacityParameterCount && residualCount <= _capacityResidualCount)
+        var callbackParameters = _callbackParameters.Length == parameterCount
+            ? _callbackParameters : new T[parameterCount];
+        if (parameterCount > _capacityParameterCount || residualCount > _capacityResidualCount)
         {
-            // In-capacity shrink / same-size reset — no allocation. Logical dimensions
-            // shrink but the underlying storage retains its high-water capacity.
-            ParameterCount = parameterCount;
-            ResidualCount = residualCount;
-            return;
+            Allocate(Math.Max(parameterCount, _capacityParameterCount),
+                Math.Max(residualCount, _capacityResidualCount));
         }
 
-        // Grow to at least the requested size. We take the max of the requested size and
-        // current capacity so capacity is monotonic even when only one dimension grew.
-        Allocate(
-            Math.Max(parameterCount, _capacityParameterCount),
-            Math.Max(residualCount, _capacityResidualCount));
-
+        _callbackParameters = callbackParameters;
         ParameterCount = parameterCount;
         ResidualCount = residualCount;
     }
 
     private void Allocate(int parameterCount, int residualCount)
     {
+        var flatLength = checked(residualCount * parameterCount);
+        // Tuple assignment evaluates every allocation before publishing any buffer.
+        // A failed resize therefore leaves the previous pool and capacities intact.
+        (_jacobian, _normalEquations, _gradient, _delta, _rhs, _y, _theta,
+            _trialTheta, _effectiveDelta, _perturbedParameters, _plusBuffer,
+            _minusBuffer, _residual, _trialResidual, _jacobianFlatScratch) =
+            (new T[residualCount, parameterCount], new T[parameterCount, parameterCount],
+                new T[parameterCount], new T[parameterCount], new T[parameterCount],
+                new T[parameterCount], new T[parameterCount], new T[parameterCount],
+                new T[parameterCount], new T[parameterCount], new T[residualCount],
+                new T[residualCount], new T[residualCount], new T[residualCount],
+                new T[flatLength]);
         _capacityParameterCount = parameterCount;
         _capacityResidualCount = residualCount;
-        ParameterCount = parameterCount;
-        ResidualCount = residualCount;
-
-        _jacobian = new T[residualCount, parameterCount];
-        _normalEquations = new T[parameterCount, parameterCount];
-        _gradient = new T[parameterCount];
-        _delta = new T[parameterCount];
-        _rhs = new T[parameterCount];
-        _y = new T[parameterCount];
-        _theta = new T[parameterCount];
-        _trialTheta = new T[parameterCount];
-        _effectiveDelta = new T[parameterCount];
-        _perturbedParameters = new T[parameterCount];
-        _plusBuffer = new T[residualCount];
-        _minusBuffer = new T[residualCount];
-        _residual = new T[residualCount];
-        _trialResidual = new T[residualCount];
     }
 
     private static void ValidateDimensions(int parameterCount, int residualCount)
@@ -314,7 +319,7 @@ public sealed class LevenbergMarquardtBuffers
     /// <summary>Trial parameter vector, length <c>n</c>.</summary>
     internal double[] TrialTheta => _inner.TrialTheta;
 
-    /// <summary>Effective delta vector (geodesic acceleration), length <c>n</c>.</summary>
+    /// <summary>Effective (post-bounds-clipping) step vector, length <c>n</c>.</summary>
     internal double[] EffectiveDelta => _inner.EffectiveDelta;
 
     /// <summary>Perturbed-parameter scratch for finite-difference Jacobian, length <c>n</c>.</summary>
@@ -335,8 +340,9 @@ public sealed class LevenbergMarquardtBuffers
     /// <summary>
     /// Reconfigures the pool for a new <c>(parameterCount, residualCount)</c>. When either
     /// dimension exceeds the current allocated capacity, the underlying arrays are resized;
-    /// when both are within capacity, only the logical dimensions are updated and no
-    /// allocation occurs.
+    /// when both are within capacity, the work buffers are reused. Changing the
+    /// parameter count allocates an exact-length callback parameter array even when
+    /// both dimensions remain within capacity.
     /// </summary>
     /// <param name="parameterCount">New parameter-vector dimension <c>n</c>. Must be positive.</param>
     /// <param name="residualCount">New residual-vector dimension <c>m</c>. Must be positive.</param>
@@ -345,8 +351,8 @@ public sealed class LevenbergMarquardtBuffers
     /// </exception>
     /// <remarks>
     /// Grow-only policy: capacity is monotonic across the pool's lifetime. Callers fitting
-    /// many models of varying sizes against the same pool pay the allocation cost at the
-    /// high-water mark and never again.
+    /// many models of varying sizes against the same pool retain work-buffer capacity;
+    /// each parameter-count change still allocates a callback parameter array.
     /// </remarks>
     public void Reset(int parameterCount, int residualCount) =>
         _inner.Reset(parameterCount, residualCount);

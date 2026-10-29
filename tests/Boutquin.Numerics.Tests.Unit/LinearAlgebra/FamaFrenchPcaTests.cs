@@ -20,10 +20,10 @@ using FluentAssertions;
 namespace Boutquin.Numerics.Tests.Unit.LinearAlgebra;
 
 /// <summary>
-/// Closes <c>feature-lm-solver-and-pca.md</c> §3.2 AC #2 — "Standardization reproduces
-/// published CAPM factor example results" — by running <see cref="PrincipalComponentAnalysis"/>
-/// on the canonical Fama-French 5-factor monthly data and verifying standardization behaves
-/// as documented in the factor-model literature.
+/// Verifies that standardization reproduces published CAPM factor example results
+/// by running <see cref="PrincipalComponentAnalysis"/> on the canonical Fama-French
+/// 5-factor monthly data and checking standardization behaves as documented in the
+/// factor-model literature.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -169,7 +169,7 @@ public sealed class FamaFrenchPcaTests
         // behaved factor data (no collinearity), k typically lands between 2 and N-1.
         var pca = PrincipalComponentAnalysis.FromReturns(FiveFactorReturns(), standardize: true);
 
-        var k95 = pca.NumComponentsForExplainedVariance(0.95m);
+        var k95 = pca.NumComponentsForExplainedVariance(0.95);
 
         k95.Should().BeInRange(1, Factors);
         pca.CumulativeExplainedVariance[k95 - 1].Should().BeGreaterThanOrEqualTo(0.95m);
@@ -188,11 +188,20 @@ public sealed class FamaFrenchPcaTests
 
         var scores = pca.Project(returns, numComponents: Factors);
 
-        // Reconstruction: X_centered ≈ scores · Eigenvectorsᵀ (columns of V are loadings).
-        // Because standardize=true, Project divides by std before projecting, so the
-        // inverse must multiply by std to restore original units — but the `Project`
-        // method documented behavior does NOT re-standardize on output. Test the
-        // centered-reconstruction identity that holds regardless.
+        // Invert the correlation-PCA coordinates using independently computed sample scales.
+        var scales = new decimal[Factors];
+        for (var j = 0; j < Factors; j++)
+        {
+            var sumSquares = 0m;
+            for (var t = 0; t < Months; t++)
+            {
+                var centered = returns[t, j] - pca.Mean[j];
+                sumSquares += centered * centered;
+            }
+
+            scales[j] = (decimal)Math.Sqrt((double)(sumSquares / (Months - 1)));
+        }
+
         for (var t = 0; t < Months; t++)
         {
             for (var j = 0; j < Factors; j++)
@@ -200,7 +209,7 @@ public sealed class FamaFrenchPcaTests
                 var reconstructed = pca.Mean[j];
                 for (var k = 0; k < Factors; k++)
                 {
-                    reconstructed += scores[t, k] * pca.Eigenvectors[j, k];
+                    reconstructed += scores[t, k] * pca.Eigenvectors[j, k] * scales[j];
                 }
 
                 // Tolerance accommodates the standardize-then-project pathway precision.

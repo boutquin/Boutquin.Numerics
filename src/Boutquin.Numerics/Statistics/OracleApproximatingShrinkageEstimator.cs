@@ -16,6 +16,8 @@
 
 using System.Numerics;
 
+using Boutquin.Numerics.Internal;
+
 namespace Boutquin.Numerics.Statistics;
 
 /// <summary>
@@ -36,27 +38,55 @@ namespace Boutquin.Numerics.Statistics;
 /// <para>
 /// Shrinkage intensity (Theorem 3 in the paper):
 /// <c>rho* = min(1, ((1 - 2/p) . tr(S^2) + tr(S)^2) / ((n + 1 - 2/p) . (tr(S^2) - tr(S)^2/p)))</c>
-/// where p = assets, n = observations, S = sample covariance. The target
+/// where p = assets, n = observations, S = sum of raw outer products divided by n (known zero mean). The target
 /// is the scaled-identity <c>F = (tr S / p) . I</c>.
 /// </para>
+/// <para>Half inputs widen exactly to double for estimation; only the final covariance is rounded back.</para>
 /// </remarks>
 /// <typeparam name="T">Floating-point numeric type.</typeparam>
 public sealed class OracleApproximatingShrinkageEstimator<T> : ICovarianceEstimator<T>
     where T : IFloatingPoint<T>
 {
     private static readonly T s_two = T.CreateChecked(2);
-    private static readonly T s_denominatorTolerance = T.CreateChecked(1e-28);
+
+    // Relative tolerance for the eigenvalue-dispersion degeneracy test (scale-invariant).
+    private static readonly T s_dispersionRelativeTolerance = T.CreateChecked(1e-12);
 
     /// <inheritdoc />
     public T[,] Estimate(T[,] returns)
     {
         CovarianceHelpers<T>.ValidateReturns(returns);
+        if (typeof(T) == typeof(Half))
+        {
+            // Widen before forming second and fourth moments.
+            return CovarianceHelpers<T>.EstimateHalfShrinkage(returns, new OracleApproximatingShrinkageEstimator<double>());
+        }
 
         var t = returns.GetLength(0);
         var p = returns.GetLength(1);
+        // Scale raw observations without subtracting a location: the mean is known zero.
+        var scale = T.Zero;
+        foreach (var value in returns)
+        {
+            scale = T.Max(scale, T.Abs(value));
+        }
 
-        var means = CovarianceHelpers<T>.ComputeMeans(returns);
-        var sampleCov = CovarianceHelpers<T>.ComputeSampleCovariance(returns, means);
+        if (scale == T.Zero)
+        {
+            return new T[p, p];
+        }
+
+        var sampleCov = new T[p, p];
+        for (var i = 0; i < p; i++)
+        {
+            for (var j = 0; j < p; j++)
+            {
+                for (var row = 0; row < t; row++)
+                {
+                    sampleCov[i, j] += (returns[row, i] / scale) * (returns[row, j] / scale) / T.CreateChecked(t);
+                }
+            }
+        }
 
         // mu = tr(S) / p; target F = mu . I.
         var traceS = T.Zero;
@@ -81,14 +111,21 @@ public sealed class OracleApproximatingShrinkageEstimator<T> : ICovarianceEstima
         // OAS rho* (Chen et al. 2010, Theorem 3).
         var nT = T.CreateChecked(t);
         var numerator = (T.One - s_two / pT) * traceS2 + traceS * traceS;
-        var denominator = (nT + T.One - s_two / pT) * (traceS2 - traceS * traceS / pT);
+
+        // The denominator's only data-dependent factor is the eigenvalue-dispersion term
+        // tr(S²) − tr(S)²/p (zero iff S is a scaled identity). The degeneracy test is made
+        // scale-RELATIVE by comparing it to tr(S²): an absolute threshold spuriously fires
+        // for small-magnitude inputs (where the denominator underflows the constant) and so
+        // makes ρ — a scale-free quantity — depend on the magnitude of the returns.
+        var dispersion = traceS2 - traceS * traceS / pT;
         T rho;
-        if (denominator <= s_denominatorTolerance)
+        if (dispersion <= s_dispersionRelativeTolerance * traceS2)
         {
             rho = T.One;
         }
         else
         {
+            var denominator = (nT + T.One - s_two / pT) * dispersion;
             rho = numerator / denominator;
             if (rho > T.One)
             {
@@ -100,18 +137,44 @@ public sealed class OracleApproximatingShrinkageEstimator<T> : ICovarianceEstima
             }
         }
 
-        // Sigma_hat = (1 - rho) . S + rho . F where F = mu . I.
+        // Sigma_hat = (1 - rho) . S + rho . F where F = mu . I. The intensity rho is a ratio of sums that the
+        // largest columns dominate, so it is accurate in the common-scale coordinates above. The entries are
+        // not: a column far below the common maximum has its second moments formed beyond the type's range
+        // there, and a plain restore by scale^2 cannot recover them. Each entry is therefore blended in the
+        // original units, with each S_ij product conditioned before division by the count.
+        var muOriginal = (mu * scale) * scale;
         var shrunk = new T[p, p];
         for (var i = 0; i < p; i++)
         {
-            for (var j = 0; j < p; j++)
+            for (var j = i; j < p; j++)
             {
-                var target = i == j ? mu : T.Zero;
-                shrunk[i, j] = (T.One - rho) * sampleCov[i, j] + rho * target;
+                var moment = PairSecondMoment(returns, i, j);
+                var entry = ScaledArithmetic<T>.BlendScaled(moment, i == j ? muOriginal : T.Zero, rho, 0);
+                shrunk[i, j] = entry;
+                shrunk[j, i] = entry;
             }
         }
 
         return shrunk;
+    }
+
+    /// <summary>
+    /// Known-zero-mean second moment, retaining physical product exponents through the sum
+    /// and dividing only once. Both normalization before amplification and division before
+    /// aggregation can otherwise erase a representable entry.
+    /// </summary>
+    private static T PairSecondMoment(T[,] returns, int i, int j)
+    {
+        var count = T.CreateChecked(returns.GetLength(0));
+        var sum = T.Zero;
+        long exponent = 0;
+        for (var row = 0; row < returns.GetLength(0); row++)
+        {
+            var term = ScaledArithmetic<T>.ProductScaled(returns[row, i], returns[row, j], T.One, T.One);
+            ScaledArithmetic<T>.AddScaled(ref sum, ref exponent, term.Significand, term.Exponent);
+        }
+
+        return ScaledArithmetic<T>.ProductQuotient(sum, T.One, T.One, count, exponent);
     }
 }
 
@@ -128,6 +191,11 @@ public sealed class OracleApproximatingShrinkageEstimator<T> : ICovarianceEstima
 /// on Signal Processing, 58(10), 5016-5029.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use OracleApproximatingShrinkageEstimator<decimal> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class OracleApproximatingShrinkageEstimator : ICovarianceEstimator
 {
     private readonly OracleApproximatingShrinkageEstimator<decimal> _inner = new();

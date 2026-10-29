@@ -21,6 +21,13 @@ namespace Boutquin.Numerics.Tests.Verification;
 
 public sealed class SolverVerificationTests : CrossLanguageVerificationBase
 {
+    private static void AssertExpectedCases(System.Text.Json.JsonElement cases)
+    {
+        Assert.Equal(
+            ["cosine", "cubic", "exp_minus_linear", "log", "quadratic"],
+            cases.EnumerateArray().Select(c => c.GetProperty("name").GetString()!).OrderBy(name => name).ToArray());
+    }
+
     private static Func<double, double> ResolveFunction(string name) => name switch
     {
         "cubic" => x => x * x * x - x - 2.0,
@@ -36,6 +43,8 @@ public sealed class SolverVerificationTests : CrossLanguageVerificationBase
     {
         using var doc = LoadVector("solvers");
         var cases = doc.RootElement.GetProperty("cases");
+        Assert.Equal(5, cases.GetArrayLength());
+        AssertExpectedCases(cases);
 
         foreach (var c in cases.EnumerateArray())
         {
@@ -55,6 +64,8 @@ public sealed class SolverVerificationTests : CrossLanguageVerificationBase
     {
         using var doc = LoadVector("solvers");
         var cases = doc.RootElement.GetProperty("cases");
+        Assert.Equal(5, cases.GetArrayLength());
+        AssertExpectedCases(cases);
 
         foreach (var c in cases.EnumerateArray())
         {
@@ -83,6 +94,8 @@ public sealed class SolverVerificationTests : CrossLanguageVerificationBase
     {
         using var doc = LoadVector("solvers");
         var cases = doc.RootElement.GetProperty("cases");
+        Assert.Equal(5, cases.GetArrayLength());
+        AssertExpectedCases(cases);
 
         foreach (var c in cases.EnumerateArray())
         {
@@ -102,6 +115,8 @@ public sealed class SolverVerificationTests : CrossLanguageVerificationBase
     {
         using var doc = LoadVector("solvers");
         var cases = doc.RootElement.GetProperty("cases");
+        Assert.Equal(5, cases.GetArrayLength());
+        AssertExpectedCases(cases);
 
         foreach (var c in cases.EnumerateArray())
         {
@@ -121,6 +136,8 @@ public sealed class SolverVerificationTests : CrossLanguageVerificationBase
     {
         using var doc = LoadVector("solvers");
         var cases = doc.RootElement.GetProperty("cases");
+        Assert.Equal(5, cases.GetArrayLength());
+        AssertExpectedCases(cases);
 
         foreach (var c in cases.EnumerateArray())
         {
@@ -140,6 +157,8 @@ public sealed class SolverVerificationTests : CrossLanguageVerificationBase
     {
         using var doc = LoadVector("solvers");
         var cases = doc.RootElement.GetProperty("cases");
+        Assert.Equal(5, cases.GetArrayLength());
+        AssertExpectedCases(cases);
 
         foreach (var c in cases.EnumerateArray())
         {

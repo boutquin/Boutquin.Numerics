@@ -38,7 +38,7 @@ namespace Boutquin.Numerics.MonteCarlo;
 /// <para>
 /// The <see cref="MeanBlockLength"/> parameter controls the expected block
 /// size (= 1/p). For automatic selection, use
-/// <see cref="PolitisWhiteBlockLength.Estimate{T}(T[])"/> which
+/// <see cref="PolitisWhiteBlockLength.EstimateDouble"/> which
 /// implements the Politis-White (2004) data-driven optimal block length.
 /// </para>
 /// <para>
@@ -62,7 +62,7 @@ public sealed class StationaryBootstrapResampler<T>
     public StationaryBootstrapResampler(double meanBlockLength, IRandomSource random)
     {
         ArgumentNullException.ThrowIfNull(random);
-        if (meanBlockLength < 1.0 || double.IsNaN(meanBlockLength))
+        if (!double.IsFinite(meanBlockLength) || meanBlockLength < 1.0)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(meanBlockLength), meanBlockLength,
@@ -83,9 +83,8 @@ public sealed class StationaryBootstrapResampler<T>
                 : new Pcg64RandomSource(BootstrapResampler<T>.GetEntropySeed()));
 
     /// <summary>Resamples a single series into a new path of the same length.</summary>
-    public T[] Resample(T[] source)
+    public T[] Resample(ReadOnlySpan<T> source)
     {
-        ArgumentNullException.ThrowIfNull(source);
         if (source.Length == 0)
         {
             throw new ArgumentException("Source must contain at least one element.", nameof(source));
@@ -112,10 +111,8 @@ public sealed class StationaryBootstrapResampler<T>
     }
 
     /// <summary>Resamples two paired series with shared block positions.</summary>
-    public (T[] A, T[] B) ResamplePaired(T[] sourceA, T[] sourceB)
+    public (T[] A, T[] B) ResamplePaired(ReadOnlySpan<T> sourceA, ReadOnlySpan<T> sourceB)
     {
-        ArgumentNullException.ThrowIfNull(sourceA);
-        ArgumentNullException.ThrowIfNull(sourceB);
         if (sourceA.Length != sourceB.Length)
         {
             throw new ArgumentException("Paired series must have the same length.", nameof(sourceB));
@@ -166,11 +163,15 @@ public sealed class StationaryBootstrapResampler<T>
 /// <para>
 /// The <see cref="MeanBlockLength"/> parameter controls the expected block
 /// size (= 1/p). For automatic selection, use
-/// <see cref="PolitisWhiteBlockLength.Estimate{T}(T[])"/> which
+/// <see cref="PolitisWhiteBlockLength.EstimateDouble"/> which
 /// implements the Politis-White (2004) data-driven optimal block length.
 /// </para>
 /// <para>
-/// Tier A: Delegates to <see cref="StationaryBootstrapResampler{T}"/> with T = <see cref="decimal"/>.
+/// <b>Working type: <see cref="decimal"/>.</b> This non-generic facade delegates
+/// to <see cref="StationaryBootstrapResampler{T}"/> instantiated at
+/// <see cref="decimal"/>; inputs and outputs are <see cref="decimal"/>. For
+/// <see cref="double"/>-precision resampling, use the generic
+/// <see cref="StationaryBootstrapResampler{T}"/> with <c>T = double</c>. (Tier A.)
 /// </para>
 /// </remarks>
 public sealed class StationaryBootstrapResampler
@@ -199,9 +200,9 @@ public sealed class StationaryBootstrapResampler
                 : new Pcg64RandomSource(BootstrapResampler<decimal>.GetEntropySeed()));
 
     /// <summary>Resamples a single series into a new path of the same length.</summary>
-    public decimal[] Resample(decimal[] source) => _impl.Resample(source);
+    public decimal[] Resample(ReadOnlySpan<decimal> source) => _impl.Resample(source);
 
     /// <summary>Resamples two paired series with shared block positions.</summary>
-    public (decimal[] A, decimal[] B) ResamplePaired(decimal[] sourceA, decimal[] sourceB)
+    public (decimal[] A, decimal[] B) ResamplePaired(ReadOnlySpan<decimal> sourceA, ReadOnlySpan<decimal> sourceB)
         => _impl.ResamplePaired(sourceA, sourceB);
 }

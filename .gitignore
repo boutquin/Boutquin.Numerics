@@ -8,7 +8,6 @@ _local/
 .abacusai/
 .claude/
 hooks/
-review-accepted.yaml
 
 # User-specific files
 *.rsuser
@@ -377,10 +376,55 @@ FodyWeavers.xsd
 # Claude Code
 sessions/
 CLAUDE.local.md
-specs/
+
+# code-arena-reference: raw downloaded source papers (copyright / re-downloadable).
+# Whole-dir ignore so no source binary or text is ever tracked. The skill's tracked
+# outputs live in specs/code-arena-reference/ (a different, tracked dir).
+specs/reference/
 
 # JetBrains Rider
 .idea/
 
 # macOS
 .DS_Store
+.sweep-arena/
+
+# Arena run EVIDENCE is git-tracked (build reports, audits, verdicts, receipts,
+# events, ledger). Ignore ONLY machine state. Never add a bare `.build-arena/`
+# line — git cannot re-include a file below an excluded parent directory.
+.build-arena/locks/
+.build-arena/.current-runid
+.build-arena/**/reduced-supervisor-state.json
+.build-arena/**/preflight-ok.txt
+.build-arena/**/.preflight
+.build-arena/**/PENDING-SPAWNS.md
+.build-arena/**/scratch/
+.build-arena/**/*.lock
+.build-arena/**/next-action.json
+specs/.*.arena-target.lock
+.build-arena/**/__pycache__/
+.build-arena/**/*.pyc
+# The generic .NET `artifacts/` rule above would otherwise hide each run's
+# builder/verifier/judge reports and packets, which are evidence.
+!.build-arena/**/artifacts/
+
+# Arena run EVIDENCE is git-tracked (findings, verdicts, fixes, audits, ledger).
+# Ignore ONLY machine state. Never add a bare `.code-arena/` line — git cannot
+# re-include a file below an excluded parent directory, so it kills all of it.
+.code-arena/locks/
+.code-arena/**/reduced-supervisor-state.json
+.code-arena/**/preflight-ok.txt
+.code-arena/**/.preflight
+.code-arena/**/PENDING-SPAWNS.md
+.code-arena/**/__pycache__/
+.code-arena/**/*.pyc
+.code-arena/**/check-cache/
+# Re-include executed-gate evidence when the repository has a generic `*.log` ignore.
+!.code-arena/**/*.log
+# Third-party reference text is NEVER committed (copyright) — the ledger records
+# its sha256, and `pdftotext -layout` re-derives it from the operator's source.
+.code-arena/**/reference.txt
+.code-arena/reference/
+
+# NIST/LM solver stress harness — gitignored evidence bundles + run summaries
+.stress-artifacts/

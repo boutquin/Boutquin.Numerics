@@ -82,7 +82,7 @@ public sealed class BootstrapResampler<T>
                 ? new Pcg64RandomSource((ulong)seed.Value)
                 : new Pcg64RandomSource(GetEntropySeed()));
 
-    /// <summary>Gets the configured block size.</summary>
+    /// <summary>Configured block length in observations.</summary>
     public int BlockSize => _blockSize;
 
     /// <summary>
@@ -91,9 +91,8 @@ public sealed class BootstrapResampler<T>
     /// <param name="source">Source series (length must be ≥ 1).</param>
     /// <returns>A resampled path of the same length as <paramref name="source"/>.</returns>
     /// <exception cref="ArgumentException"><paramref name="source"/> is empty.</exception>
-    public T[] Resample(T[] source)
+    public T[] Resample(ReadOnlySpan<T> source)
     {
-        ArgumentNullException.ThrowIfNull(source);
         if (source.Length == 0)
         {
             throw new ArgumentException("Source must contain at least one element.", nameof(source));
@@ -114,10 +113,8 @@ public sealed class BootstrapResampler<T>
     /// <param name="sourceB">Second source series (must have the same length).</param>
     /// <returns>Two resampled paths, same length, indexed identically.</returns>
     /// <exception cref="ArgumentException">Inputs have different lengths, or either is empty.</exception>
-    public (T[] A, T[] B) ResamplePaired(T[] sourceA, T[] sourceB)
+    public (T[] A, T[] B) ResamplePaired(ReadOnlySpan<T> sourceA, ReadOnlySpan<T> sourceB)
     {
-        ArgumentNullException.ThrowIfNull(sourceA);
-        ArgumentNullException.ThrowIfNull(sourceB);
         if (sourceA.Length != sourceB.Length)
         {
             throw new ArgumentException("Paired series must have the same length.", nameof(sourceB));
@@ -135,18 +132,20 @@ public sealed class BootstrapResampler<T>
         return (resultA, resultB);
     }
 
-    private void FillResampledPath(T[] source, T[] destination)
+    private void FillResampledPath(ReadOnlySpan<T> source, T[] destination)
     {
         var targetLength = destination.Length;
         var writeIdx = 0;
         while (writeIdx < targetLength)
         {
-            var blockStart = _rng.NextInt(source.Length);
+            var srcIdx = _rng.NextInt(source.Length);
             var remaining = Math.Min(_blockSize, targetLength - writeIdx);
             for (var k = 0; k < remaining; k++)
             {
-                var srcIdx = (blockStart + k) % source.Length;
                 destination[writeIdx + k] = source[srcIdx];
+
+                // Advance circularly; srcIdx + 1 <= Array.MaxLength cannot overflow Int32.
+                srcIdx = srcIdx + 1 == source.Length ? 0 : srcIdx + 1;
             }
 
             writeIdx += remaining;
@@ -154,8 +153,8 @@ public sealed class BootstrapResampler<T>
     }
 
     private void FillResampledPathPaired(
-        T[] sourceA,
-        T[] sourceB,
+        ReadOnlySpan<T> sourceA,
+        ReadOnlySpan<T> sourceB,
         T[] destinationA,
         T[] destinationB)
     {
@@ -163,13 +162,15 @@ public sealed class BootstrapResampler<T>
         var writeIdx = 0;
         while (writeIdx < targetLength)
         {
-            var blockStart = _rng.NextInt(sourceA.Length);
+            var srcIdx = _rng.NextInt(sourceA.Length);
             var remaining = Math.Min(_blockSize, targetLength - writeIdx);
             for (var k = 0; k < remaining; k++)
             {
-                var srcIdx = (blockStart + k) % sourceA.Length;
                 destinationA[writeIdx + k] = sourceA[srcIdx];
                 destinationB[writeIdx + k] = sourceB[srcIdx];
+
+                // Advance circularly; srcIdx + 1 <= Array.MaxLength cannot overflow Int32.
+                srcIdx = srcIdx + 1 == sourceA.Length ? 0 : srcIdx + 1;
             }
 
             writeIdx += remaining;
@@ -205,7 +206,11 @@ public sealed class BootstrapResampler<T>
 /// across .NET runtime versions.
 /// </para>
 /// <para>
-/// Tier A: Delegates to <see cref="BootstrapResampler{T}"/> with T = <see cref="decimal"/>.
+/// <b>Working type: <see cref="decimal"/>.</b> This non-generic facade delegates
+/// to <see cref="BootstrapResampler{T}"/> instantiated at <see cref="decimal"/>;
+/// inputs and outputs are <see cref="decimal"/>. For <see cref="double"/>-precision
+/// resampling, use the generic <see cref="BootstrapResampler{T}"/> with
+/// <c>T = double</c>. (Tier A.)
 /// </para>
 /// </remarks>
 public sealed class BootstrapResampler
@@ -235,7 +240,7 @@ public sealed class BootstrapResampler
                 ? new Pcg64RandomSource((ulong)seed.Value)
                 : new Pcg64RandomSource(BootstrapResampler<decimal>.GetEntropySeed()));
 
-    /// <summary>Gets the configured block size.</summary>
+    /// <summary>Configured block length in observations.</summary>
     public int BlockSize => _impl.BlockSize;
 
     /// <summary>
@@ -244,7 +249,7 @@ public sealed class BootstrapResampler
     /// <param name="source">Source series (length must be ≥ 1).</param>
     /// <returns>A resampled path of the same length as <paramref name="source"/>.</returns>
     /// <exception cref="ArgumentException"><paramref name="source"/> is empty.</exception>
-    public decimal[] Resample(decimal[] source) => _impl.Resample(source);
+    public decimal[] Resample(ReadOnlySpan<decimal> source) => _impl.Resample(source);
 
     /// <summary>
     /// Resamples two paired series (e.g., portfolio returns + benchmark
@@ -255,6 +260,6 @@ public sealed class BootstrapResampler
     /// <param name="sourceB">Second source series (must have the same length).</param>
     /// <returns>Two resampled paths, same length, indexed identically.</returns>
     /// <exception cref="ArgumentException">Inputs have different lengths, or either is empty.</exception>
-    public (decimal[] A, decimal[] B) ResamplePaired(decimal[] sourceA, decimal[] sourceB)
+    public (decimal[] A, decimal[] B) ResamplePaired(ReadOnlySpan<decimal> sourceA, ReadOnlySpan<decimal> sourceB)
         => _impl.ResamplePaired(sourceA, sourceB);
 }

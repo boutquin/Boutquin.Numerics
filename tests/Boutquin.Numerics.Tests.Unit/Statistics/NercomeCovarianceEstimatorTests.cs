@@ -22,6 +22,35 @@ namespace Boutquin.Numerics.Tests.Unit.Statistics;
 public sealed class NercomeCovarianceEstimatorTests
 {
     [Fact]
+    public void Estimate_HalfLongPanel_DoesNotOverflowObservationCount()
+    {
+        var returns = new Half[70_000, 1];
+        for (var i = 0; i < returns.GetLength(0); i++)
+        {
+            returns[i, 0] = (Half)(i % 2);
+        }
+
+        ICovarianceEstimator<Half> estimator = new NercomeCovarianceEstimator<Half>();
+        Half[,]? covariance = null;
+        FluentActions.Invoking(() => covariance = estimator.Estimate(new ReturnsMatrix<Half>(returns)))
+            .Should().NotThrow("valid observation counts must not overflow Half during partitioning");
+        ((double)covariance![0, 0]).Should().BeApproximately(0.5, 0.002);
+    }
+
+    [Fact]
+    public void Ctor_GenericDefaultUsesAutomaticSplitAndEstimatesSmallSample()
+    {
+        FluentActions.Invoking(() => new NercomeCovarianceEstimator<decimal>())
+            .Should().NotThrow("the documented default selects a split automatically");
+        var estimator = new NercomeCovarianceEstimator<decimal>();
+
+        estimator.SplitFraction.Should().Be(0.5m);
+        var covariance = estimator.Estimate(new decimal[,] { { 2m, 1m }, { 2m, 1m }, { 2m, 1m } });
+        covariance[0, 0].Should().BeApproximately(4m, 1e-20m);
+        covariance[0, 1].Should().BeApproximately(2m, 1e-20m);
+    }
+
+    [Fact]
     public void Ctor_RejectsOutOfRangeSplitFraction()
     {
         FluentActions.Invoking(() => new NercomeCovarianceEstimator(0m))
@@ -61,10 +90,9 @@ public sealed class NercomeCovarianceEstimatorTests
     }
 
     [Fact]
-    public void Estimate_SmallSampleFallsBackToSampleCovariance()
+    public void Estimate_SmallSampleUsesAdmissibleSplit()
     {
-        // T = 3 is below the minimum viable split; estimator should degrade
-        // gracefully to the sample covariance rather than throw.
+        // Known-zero-mean second moments permit a one-row subset.
         var returns = GenerateReturns(3, 2, seed: 7);
         var cov = new NercomeCovarianceEstimator().Estimate(returns);
         cov.Should().NotBeNull();

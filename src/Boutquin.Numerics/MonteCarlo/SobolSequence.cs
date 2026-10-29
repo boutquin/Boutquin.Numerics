@@ -36,11 +36,15 @@ namespace Boutquin.Numerics.MonteCarlo;
 /// the embedded Joe-Kuo direction numbers. The first dimension uses the
 /// trivial van der Corput sequence in base 2; higher dimensions use the
 /// recurrence
-/// <c>m_k = a_1·m_{k−1} ⊕ … ⊕ a_{s−1}·m_{k−s+1} ⊕ m_{k−s}·2^s ⊕ m_{k−s}</c>
+/// <c>m_k = 2^1·a_1·m_{k−1} ⊕ … ⊕ 2^(s−1)·a_{s−1}·m_{k−s+1} ⊕ m_{k−s}·2^s ⊕ m_{k−s}</c>
 /// for the appropriate primitive polynomial.
 /// </para>
 /// <para>
 /// Tier C: Direction numbers designed for double lattice; cast to/from double internally.
+/// </para>
+/// <para>
+/// Not thread-safe: holds mutable advancement state. Instantiate one instance
+/// per thread; do not share across concurrent consumers.
 /// </para>
 /// </remarks>
 public sealed class SobolSequence<T>
@@ -82,7 +86,7 @@ public sealed class SobolSequence<T>
         (7, 32u, [1u, 3u, 7u, 5u, 13u, 19u, 59u]),    // dim 29
         (7, 37u, [1u, 1u, 3u, 9u, 25u, 29u, 41u]),    // dim 30
         (7, 41u, [1u, 3u, 5u, 13u, 23u, 1u, 55u]),    // dim 31
-        (7, 42u, [1u, 1u, 3u, 1u, 13u, 41u, 17u]),    // dim 32
+        (7, 42u, [1u, 3u, 7u, 3u, 13u, 59u, 17u]),    // dim 32
     ];
 
     private const int Bits = 30; // resolution: 2^30 ≈ 1.07e9 distinct points.
@@ -91,10 +95,11 @@ public sealed class SobolSequence<T>
     private readonly uint[][] _directions;
     private readonly uint[] _x;
     private uint _index;
+    private bool _hasEmitted;
 
     /// <summary>Creates a Sobol sequence over the given dimension.</summary>
     /// <param name="dimension">Number of dimensions (1 ≤ d ≤ 32).</param>
-    /// <param name="skip">Number of leading points to skip. Recommended: power of two ≥ 64.</param>
+    /// <param name="skip">Number of leading points to skip. Must lie in <c>[0, 2^Bits)</c> where <c>Bits = 30</c> is the sequence's resolution ceiling. Index zero is the origin; use <c>skip = 1</c> to omit it.</param>
     public SobolSequence(int dimension, long skip = 0)
     {
         if (dimension < 1 || dimension > s_directionTable.Length)
@@ -104,9 +109,9 @@ public sealed class SobolSequence<T>
                 $"Dimension must lie in [1, {s_directionTable.Length}].");
         }
 
-        if (skip < 0 || skip > uint.MaxValue)
+        if (skip < 0 || skip >= (1L << Bits))
         {
-            throw new ArgumentOutOfRangeException(nameof(skip), skip, "Skip must be in [0, 2^32).");
+            throw new ArgumentOutOfRangeException(nameof(skip), skip, $"Must be in [0, 2^{Bits}).");
         }
 
         _dimension = dimension;
@@ -117,10 +122,19 @@ public sealed class SobolSequence<T>
         }
 
         _x = new uint[dimension];
-        _index = 0;
-        for (var i = 0L; i < skip; i++)
+        _index = (uint)skip;
+        var gray = _index ^ (_index >> 1);
+        for (var bit = 0; bit < Bits; bit++)
         {
-            Advance();
+            if ((gray & (1u << bit)) == 0)
+            {
+                continue;
+            }
+
+            for (var d = 0; d < dimension; d++)
+            {
+                _x[d] ^= _directions[d][bit];
+            }
         }
     }
 
@@ -130,18 +144,69 @@ public sealed class SobolSequence<T>
     /// <summary>Returns the next d-dimensional Sobol point in [0, 1).</summary>
     public T[] Next()
     {
-        Advance();
         var result = new T[_dimension];
-        for (var d = 0; d < _dimension; d++)
+        Next(result);
+        return result;
+    }
+
+    /// <summary>
+    /// Writes the next d-dimensional Sobol point (each coordinate in [0, 1)) into
+    /// <paramref name="destination"/>. Allocation-free alternative to <see cref="Next()"/>
+    /// for hot quasi-Monte-Carlo loops.
+    /// </summary>
+    /// <param name="destination">
+    /// Target span; must have length at least <see cref="Dimension"/>. Only the first
+    /// <see cref="Dimension"/> elements are written.
+    /// </param>
+    /// <exception cref="ArgumentException"><paramref name="destination"/> is shorter than <see cref="Dimension"/>.</exception>
+    public void Next(Span<T> destination)
+    {
+        if (destination.Length < _dimension)
         {
-            result[d] = T.CreateChecked(_x[d] / (double)(1u << Bits));
+            throw new ArgumentException(
+                $"Destination span must have length at least {_dimension}.", nameof(destination));
         }
 
-        return result;
+        if (_hasEmitted)
+        {
+            Advance();
+        }
+
+        _hasEmitted = true;
+        for (var d = 0; d < _dimension; d++)
+        {
+            var coordinate = T.CreateChecked(_x[d] / (double)(1u << Bits));
+            destination[d] = coordinate < T.One ? coordinate : LargestValueBelowOne();
+        }
+    }
+
+    private static T LargestValueBelowOne()
+    {
+        // A narrow output type can round a valid direction fraction up to 1.
+        // Approach 1 in T until the midpoint itself rounds to 1, retaining
+        // the largest representable value below the endpoint.
+        var below = T.CreateChecked(0.5);
+        var two = T.CreateChecked(2);
+        while (true)
+        {
+            var midpoint = (below + T.One) / two;
+            if (midpoint >= T.One)
+            {
+                return below;
+            }
+
+            below = midpoint;
+        }
     }
 
     private void Advance()
     {
+        if (_index >= (1u << Bits) - 1u)
+        {
+            throw new InvalidOperationException(
+                $"Sobol sequence index exceeded {1u << Bits} points.");
+        }
+
         _index++;
         // Find the rightmost zero bit of (_index − 1), 1-based.
         var c = 1;
@@ -219,11 +284,15 @@ public sealed class SobolSequence<T>
 /// the embedded Joe-Kuo direction numbers. The first dimension uses the
 /// trivial van der Corput sequence in base 2; higher dimensions use the
 /// recurrence
-/// <c>m_k = a_1·m_{k−1} ⊕ … ⊕ a_{s−1}·m_{k−s+1} ⊕ m_{k−s}·2^s ⊕ m_{k−s}</c>
+/// <c>m_k = 2^1·a_1·m_{k−1} ⊕ … ⊕ 2^(s−1)·a_{s−1}·m_{k−s+1} ⊕ m_{k−s}·2^s ⊕ m_{k−s}</c>
 /// for the appropriate primitive polynomial.
 /// </para>
 /// <para>
 /// Tier C: Delegates to <see cref="SobolSequence{T}"/> with T = <see cref="double"/>.
+/// </para>
+/// <para>
+/// Not thread-safe: holds mutable advancement state. Instantiate one instance
+/// per thread; do not share across concurrent consumers.
 /// </para>
 /// </remarks>
 public sealed class SobolSequence
@@ -232,7 +301,7 @@ public sealed class SobolSequence
 
     /// <summary>Creates a Sobol sequence over the given dimension.</summary>
     /// <param name="dimension">Number of dimensions (1 ≤ d ≤ 32).</param>
-    /// <param name="skip">Number of leading points to skip. Recommended: power of two ≥ 64.</param>
+    /// <param name="skip">Number of leading points to skip. Must lie in <c>[0, 2^30)</c>. Index zero is the origin; use <c>skip = 1</c> to omit it.</param>
     public SobolSequence(int dimension, long skip = 0)
     {
         _impl = new SobolSequence<double>(dimension, skip);
@@ -243,4 +312,11 @@ public sealed class SobolSequence
 
     /// <summary>Returns the next d-dimensional Sobol point in [0, 1).</summary>
     public double[] Next() => _impl.Next();
+
+    /// <summary>
+    /// Writes the next d-dimensional Sobol point into <paramref name="destination"/>.
+    /// Allocation-free alternative to <see cref="Next()"/> for hot loops.
+    /// </summary>
+    /// <param name="destination">Target span; must have length at least <see cref="Dimension"/>.</param>
+    public void Next(Span<double> destination) => _impl.Next(destination);
 }

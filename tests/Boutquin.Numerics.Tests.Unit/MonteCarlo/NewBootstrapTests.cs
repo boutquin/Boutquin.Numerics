@@ -39,18 +39,52 @@ public sealed class NewBootstrapTests
     }
 
     [Fact]
+    public void StationaryBootstrap_RestartsOnlyBelowReciprocalMeanBlockLength()
+    {
+        decimal[] source = [0m, 1m, 2m, 3m, 4m, 5m, 6m, 7m, 8m, 9m];
+        var random = new ScriptedStationarySource();
+        var actual = new StationaryBootstrapResampler(3.0, random).Resample(source);
+
+        actual.Take(5).Should().Equal(0m, 5m, 6m, 9m, 0m);
+    }
+
+    private sealed class ScriptedStationarySource : Boutquin.Numerics.Random.IRandomSource
+    {
+        private readonly int[] _indices = [0, 5, 9, 3];
+        private readonly double[] _uniforms = [0.2, 0.4, 0.33, 0.34, 0.1];
+        private int _indexPosition;
+        private int _uniformPosition;
+
+        public ulong NextULong() => throw new NotSupportedException();
+
+        public int NextInt(int upperExclusive) => _indices[_indexPosition++ % _indices.Length];
+
+        public double NextDouble() => _uniforms[_uniformPosition++ % _uniforms.Length];
+    }
+
+    [Fact]
     public void MovingBlockBootstrap_NeverWraps()
     {
         decimal[] source = [1m, 2m, 3m, 4m, 5m, 6m, 7m, 8m];
-        var rs = MovingBlockBootstrapResampler.FromSeed(blockSize: 3, seed: 5);
+        var rs = new MovingBlockBootstrapResampler<decimal>(blockSize: 3, new MaximumRandomSource());
         var result = rs.Resample(source);
         result.Length.Should().Be(8);
-        // Every element must be present in source.
-        var allowed = new HashSet<decimal>(source);
-        foreach (var v in result)
+
+        for (var blockStart = 0; blockStart < result.Length; blockStart += 3)
         {
-            allowed.Should().Contain(v);
+            var blockLength = Math.Min(3, result.Length - blockStart);
+            for (var offset = 1; offset < blockLength; offset++)
+            {
+                result[blockStart + offset].Should().Be(
+                    result[blockStart] + offset,
+                    "every emitted moving block is a contiguous source slice and cannot wrap from the final element to the first");
+            }
         }
+    }
+
+    private sealed class MaximumRandomSource : Boutquin.Numerics.Random.IRandomSource
+    {
+        public ulong NextULong() => ulong.MaxValue;
     }
 
     [Fact]
@@ -67,10 +101,18 @@ public sealed class NewBootstrapTests
     }
 
     [Fact]
-    public void Subsampler_ReturnsT_MinusBplus1_Values()
+    public void Subsampler_ReturnsSortedValues_FromNonMonotoneStatistic()
     {
-        decimal[] source = [1m, 2m, 3m, 4m, 5m, 6m, 7m, 8m];
-        var values = Subsampler.Run(source, 4, span =>
+        // A non-monotone source so the per-window statistic is genuinely out of
+        // order before Subsampler.Run sorts it — the old test used a strictly
+        // increasing source with a window-mean statistic, so the window values
+        // arrived already ascending and Array.Sort was never exercised.
+        decimal[] source = [5m, 1m, 9m, 2m, 8m, 3m, 7m, 4m];
+
+        // Window mean for b = 3 over this source:
+        //   [5,1,9]->5, [1,9,2]->4, [9,2,8]->19/3, [2,8,3]->13/3,
+        //   [8,3,7]->6, [3,7,4]->14/3  -> raw order is NOT sorted.
+        var values = Subsampler.Run(source, 3, span =>
         {
             decimal sum = 0m;
             for (var i = 0; i < span.Length; i++)
@@ -81,10 +123,54 @@ public sealed class NewBootstrapTests
             return sum / span.Length;
         });
 
-        values.Length.Should().Be(5); // 8 − 4 + 1 = 5
+        values.Length.Should().Be(6); // 8 − 3 + 1 = 6
+
+        // Output must be ascending — proves Array.Sort actually reordered the
+        // non-monotone window statistics.
         for (var i = 1; i < values.Length; i++)
         {
             values[i].Should().BeGreaterThanOrEqualTo(values[i - 1]);
+        }
+
+        // And the sorted set must be a permutation of the known window means.
+        var expected = new[] { 5m, 4m, 19m / 3m, 13m / 3m, 6m, 14m / 3m }.OrderBy(x => x).ToArray();
+        for (var i = 0; i < expected.Length; i++)
+        {
+            Math.Abs(values[i] - expected[i]).Should().BeLessThan(1e-9m);
+        }
+    }
+
+    [Fact]
+    public void SuggestSubsampleLength_SeriesLengthBelowTwo_ThrowsArgumentOutOfRangeException()
+    {
+        // M-3 guard: Run requires 1 <= subsampleLength < series.Length (Subsampler.cs
+        // domain), so no Run-valid length exists for seriesLength < 2. Pre-fix,
+        // SuggestSubsampleLength(1) returns 1, which Run then rejects (1 >= series.Length
+        // of 1) — contradicting the documented "always a valid argument to Run" contract.
+        var act = () => Subsampler.SuggestSubsampleLength(1);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("seriesLength");
+    }
+
+    [Fact]
+    public void SuggestSubsampleLength_RoundTripsIntoRun_ForEverySeriesLengthInRange()
+    {
+        // AC round-trip property: for every seriesLength in [2, 64], Run must accept
+        // SuggestSubsampleLength(seriesLength) without throwing — deterministic
+        // iteration, no randomness.
+        for (var seriesLength = 2; seriesLength <= 64; seriesLength++)
+        {
+            var series = new double[seriesLength];
+            for (var i = 0; i < seriesLength; i++)
+            {
+                series[i] = i;
+            }
+
+            var suggested = Subsampler.SuggestSubsampleLength(seriesLength);
+
+            var act = () => Subsampler.Run<double>(series, suggested, static span => span[0]);
+
+            act.Should().NotThrow($"seriesLength={seriesLength}, suggested={suggested}");
         }
     }
 
@@ -99,7 +185,7 @@ public sealed class NewBootstrapTests
             series[i] = rng.NextDouble() * 2 - 1;
         }
 
-        var b = PolitisWhiteBlockLength.Estimate(series);
+        var b = PolitisWhiteBlockLength.EstimateDouble(series);
         b.Should().BeGreaterThan(0.0);
         b.Should().BeLessThan(series.Length / 2.0 + 1.0);
     }
@@ -132,7 +218,7 @@ public sealed class NewBootstrapTests
         decimal[] obs = [0.5m, -0.3m, 0.2m, -0.1m, 0.4m, -0.2m, 0.6m, -0.1m];
         var fdb = FastDoubleBootstrap.FromSeed(outerCount: 500, seed: 101);
 
-        static decimal Stat(decimal[] v)
+        static decimal Stat(ReadOnlySpan<decimal> v)
         {
             decimal sum = 0m;
             for (var i = 0; i < v.Length; i++)
@@ -174,17 +260,19 @@ public sealed class NewBootstrapTests
     }
 
     [Fact]
-    public void FastDoubleBootstrap_TwoSided_EqualsTwiceMinOfOneSided_OnBilateralStatistic()
+    public void FastDoubleBootstrap_TwoSided_IsDeterministicGoldenValue_UnderFixedSeed()
     {
-        // Property: on a symmetric bootstrap distribution, two-sided p-value
-        // equals min(2·min(right, left), 1). Run right / left / two-sided with
-        // the SAME seed so the resampled outer + inner distributions are
-        // identical across the three calls, making the comparison exact.
+        // With a fixed seed the outer/inner resample draws are reproducible, so
+        // every FDB p-value is a deterministic number. Pin the actual values so any
+        // change to the resampling, ranking, or tail logic is caught. The two-sided
+        // value is the equal-tail fold min(2*min(right, left), 1) of the two
+        // one-sided FDB p-values, each of which takes its own quantile of the inner
+        // distribution (right: the (1 - p*)-quantile; left: the p*-quantile).
         decimal[] obs = [0.02m, -0.01m, 0.03m, -0.015m, 0.005m, -0.02m, 0.025m, -0.005m];
         const int seed = 2026;
         const int outerCount = 600;
 
-        static decimal Stat(decimal[] v)
+        static decimal Stat(ReadOnlySpan<decimal> v)
         {
             decimal sum = 0m;
             for (var i = 0; i < v.Length; i++)
@@ -199,20 +287,12 @@ public sealed class NewBootstrapTests
         var left = FastDoubleBootstrap.FromSeed(outerCount, seed).PValue(obs, 0.01m, Stat, PValueTail.LeftTail);
         var two = FastDoubleBootstrap.FromSeed(outerCount, seed).PValue(obs, 0.01m, Stat, PValueTail.TwoSided);
 
-        // TwoSided result uses the SAME outer/inner distributions as the one-
-        // sided calls (same seed); the aggregator at the end applies the
-        // ``min(2·min(right, left), 1)`` formula. But note: TwoSided applies
-        // that formula TWICE (once for p*, once for the final rank), so the
-        // equality is not literal ``2·min(right_final, left_final)``. The
-        // invariant that does hold at the aggregator step is a two-sided
-        // bound: 0 ≤ TwoSided ≤ 1. Use it as a sanity check.
-        two.Should().BeGreaterThanOrEqualTo(0m).And.BeLessThanOrEqualTo(1m);
-
-        // Also verify left ≈ 1 − right at the single-step ComputePValue
-        // convention boundary. Because ties are double-counted on both tails
-        // (matching the empirical-distribution convention), their sum exceeds
-        // 1 by the tie mass — so we bound rather than equate.
-        (right + left).Should().BeGreaterThanOrEqualTo(1m);
+        // Exact rational sample means over the PCG index tape give strict first-level
+        // counts right93/left492 and final counts right34/left538 out of600.
+        right.Should().Be(34m / 600m);
+        left.Should().Be(538m / 600m);
+        two.Should().Be(Math.Min(2m * Math.Min(right, left), 1m),
+            "the two-sided FDB p-value is the equal-tail fold of the one-sided FDB p-values");
     }
 
     [Fact]
@@ -222,6 +302,22 @@ public sealed class NewBootstrapTests
         var hd50 = HarrellDavisPercentile.Compute(sorted, 0.50);
         // For n=5, HD median = weighted average of the order stats — should be close to 3.
         Math.Abs(hd50 - 3m).Should().BeLessThan(0.5m);
+    }
+
+    [Fact]
+    public void HarrellDavisPercentile_NaNPercentile_ThrowsArgumentOutOfRangeException()
+    {
+        // M-3 guard: a NaN percentile must be rejected with the same exception type
+        // PSquareEstimator's sibling percentile-domain guard uses (ArgumentOutOfRangeException).
+        // Pre-guard, NaN fails both the p<=0 and p>=1 boundary checks (NaN comparisons are
+        // always false), falls through to the open-interval Beta-weight computation, and
+        // the weightSum<=0 fallback check ALSO silently passes on NaN — so Compute()
+        // returns a NaN result instead of throwing.
+        double[] sorted = [1.0, 2.0, 3.0, 4.0, 5.0];
+
+        var act = () => HarrellDavisPercentile.Compute<double>(sorted, double.NaN);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("p");
     }
 
     [Fact]
@@ -255,10 +351,24 @@ public sealed class NewBootstrapTests
     }
 
     [Fact]
+    public void SobolSequence_HalfCoordinatesStayBelowOne()
+    {
+        var sobol = new SobolSequence<Half>(dimension: 32);
+        for (var i = 0; i < 4096; i++)
+        {
+            foreach (var coordinate in sobol.Next())
+            {
+                Assert.True(coordinate >= Half.Zero && coordinate < Half.One,
+                    $"Sobol Half point {i} produced {coordinate} outside [0, 1).");
+            }
+        }
+    }
+
+    [Fact]
     public void SobolSequence_DiffersFromHaltonInHigherDim()
     {
         var halton = new HaltonSequence(8);
-        var sobol = new SobolSequence(8);
+        var sobol = new SobolSequence(8, skip: 1);
         var differences = 0;
         for (var i = 0; i < 50; i++)
         {

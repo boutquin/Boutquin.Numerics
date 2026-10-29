@@ -129,6 +129,74 @@ public sealed class PoetCovarianceEstimatorTests
     }
 
     [Fact]
+    public void Ctor_GenericDefaultsUseDocumentedThresholdMultiplier()
+    {
+        // The generic constructor documents a default multiplier of 0.5. With an
+        // unconstrained T, `T? = default` is 0 for value types, so omitted arguments
+        // must be routed to 0.5 explicitly — the same default the decimal facade uses.
+        new PoetCovarianceEstimator<double>().ThresholdMultiplier.Should().Be(0.5);
+        new PoetCovarianceEstimator<double>(2).ThresholdMultiplier.Should().Be(0.5);
+        new PoetCovarianceEstimator<decimal>().ThresholdMultiplier.Should().Be(0.5m);
+
+        var returns = new double[60, 4];
+        var rng = new System.Random(5);
+        for (var i = 0; i < 60; i++)
+        {
+            var factor = rng.NextGaussian();
+            for (var j = 0; j < 4; j++)
+            {
+                returns[i, j] = factor + rng.NextGaussian();
+            }
+        }
+
+        var byDefault = new PoetCovarianceEstimator<double>().Estimate(returns);
+        var explicitHalf = new PoetCovarianceEstimator<double>(1, 0.5).Estimate(returns);
+        byDefault.Should().BeEquivalentTo(explicitHalf);
+    }
+
+    [Fact]
+    public void Estimate_AdaptiveThreshold_IsScaleEquivariant()
+    {
+        // FLM (2013) eq. 3.2 thresholds each residual entry at C·sqrt(theta_ij)·omega_T,
+        // where theta_ij is the variance of u_it·u_jt. Rescaling the returns by c scales
+        // theta_ij by c^4, so the threshold scales by c^2 exactly as the residual does:
+        // POET(c·X) = c^2·POET(X). A threshold with no data scale breaks this — at
+        // daily-return scale it zeroes every residual off-diagonal.
+        const int t = 250;
+        const int n = 20;
+        const double c = 0.01;
+        var rng = new System.Random(4242);
+        var unit = new double[t, n];
+        var scaled = new double[t, n];
+        for (var i = 0; i < t; i++)
+        {
+            var factor = rng.NextGaussian();
+            for (var j = 0; j < n; j++)
+            {
+                unit[i, j] = factor + rng.NextGaussian();
+                scaled[i, j] = c * unit[i, j];
+            }
+        }
+
+        var estimator = new PoetCovarianceEstimator<double>(1, 0.5);
+        var atUnit = estimator.Estimate(unit);
+        var atScale = estimator.Estimate(scaled);
+
+        var maxAbs = 0.0;
+        var maxDiff = 0.0;
+        for (var i = 0; i < n; i++)
+        {
+            for (var j = 0; j < n; j++)
+            {
+                maxAbs = Math.Max(maxAbs, Math.Abs(c * c * atUnit[i, j]));
+                maxDiff = Math.Max(maxDiff, Math.Abs(atScale[i, j] - (c * c * atUnit[i, j])));
+            }
+        }
+
+        (maxDiff / maxAbs).Should().BeLessThan(1e-9, "POET's adaptive threshold is scale-equivariant");
+    }
+
+    [Fact]
     public void Properties_MatchConstructor()
     {
         var estimator = new PoetCovarianceEstimator(2, 1.25);

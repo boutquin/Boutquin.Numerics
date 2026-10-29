@@ -76,8 +76,12 @@ public sealed class DenoisedCovarianceEstimatorTests
         var plain = new DenoisedCovarianceEstimator(applyLedoitWolfShrinkage: false).Estimate(returns);
         var shrunk = new DenoisedCovarianceEstimator(applyLedoitWolfShrinkage: true).Estimate(returns);
 
-        // The shrinkage pass shifts off-diagonal entries toward zero.
-        Math.Abs(shrunk[0, 1]).Should().BeLessThan(Math.Abs(plain[0, 1]) + 1e-20m);
+        // The shrinkage pass pulls off-diagonal entries strictly toward zero
+        // (target = 0, intensity 0.1 -> shrunk_offdiag = 0.9 * plain_offdiag), so
+        // |shrunk[0,1]| < |plain[0,1]| strictly. Also pin the exact 0.9 factor.
+        Math.Abs(plain[0, 1]).Should().BeGreaterThan(0m, "the test relies on a non-zero off-diagonal");
+        Math.Abs(shrunk[0, 1]).Should().BeLessThan(Math.Abs(plain[0, 1]));
+        Math.Abs(shrunk[0, 1] - 0.9m * plain[0, 1]).Should().BeLessThan(1e-12m);
     }
 
     /// <summary>

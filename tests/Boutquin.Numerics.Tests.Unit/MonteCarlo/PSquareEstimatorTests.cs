@@ -89,6 +89,83 @@ public sealed class PSquareEstimatorTests
     }
 
     [Fact]
+    public void Estimate_TwoFiniteOppositeSignExtremesDoNotOverflow()
+    {
+        var estimator = new PSquareEstimator<double>(0.5);
+        estimator.Add(-1e308);
+        estimator.Add(1e308);
+
+        estimator.Estimate.Should().Be(0);
+    }
+
+    [Fact]
+    public void Estimate_DecimalExtremesDoNotOverflow()
+    {
+        var estimator = new PSquareEstimator<decimal>(0.5);
+        estimator.Add(decimal.MinValue);
+        estimator.Add(decimal.MaxValue);
+
+        estimator.Estimate.Should().Be(0);
+    }
+
+    [Fact]
+    public void Add_WideOppositeSignMarkers_KeepEstimateFiniteAndBounded()
+    {
+        // Adjacent markers at ±1e308 straddle zero; their difference exceeds
+        // double.MaxValue. Past the fifth observation the marker update must not
+        // turn finite heights into ±Inf/NaN. The estimate always lies between the
+        // smallest and largest observation seen so far.
+        double[] stream = [-1e308, -1e308, 1e308, 1e308, 1e308, -1e308, -1e308, -1e308, 1e308, 0, 0, 0, 0, 0, 0];
+        var estimator = new PSquareEstimator<double>(0.5);
+
+        for (var i = 0; i < stream.Length; i++)
+        {
+            estimator.Add(stream[i]);
+            var seen = stream[..(i + 1)];
+            estimator.Estimate.Should().BeInRange(seen.Min(), seen.Max(), "after observation {0}", i + 1);
+        }
+    }
+
+    [Fact]
+    public void Add_DecimalExtremeMarkers_DoNotOverflow()
+    {
+        decimal[] stream =
+        [
+            decimal.MinValue, decimal.MinValue, decimal.MaxValue, decimal.MaxValue, decimal.MaxValue,
+            decimal.MinValue, decimal.MinValue, decimal.MinValue, decimal.MaxValue, 0m, 0m, 0m, 0m, 0m, 0m,
+        ];
+        var estimator = new PSquareEstimator<decimal>(0.5);
+
+        for (var i = 0; i < stream.Length; i++)
+        {
+            var observation = stream[i];
+            var add = () => estimator.Add(observation);
+            add.Should().NotThrow("finite decimal markers must not overflow at observation {0}", i + 1);
+            var seen = stream[..(i + 1)];
+            estimator.Estimate.Should().BeInRange(seen.Min(), seen.Max(), "after observation {0}", i + 1);
+        }
+    }
+
+    [Fact]
+    [Trait("Tier", "Unit")]
+    public void Add_HalfExtremeTailStream_KeepsEstimateFiniteAndBounded()
+    {
+        var estimator = new PSquareEstimator<Half>(0.99);
+        Half[] initial = [Half.MinValue, Half.MinValue, Half.MaxValue, Half.MaxValue, Half.MaxValue];
+        foreach (var observation in initial)
+        {
+            estimator.Add(observation);
+        }
+
+        for (var i = 0; i < 400; i++)
+        {
+            estimator.Add(Half.MinValue);
+            Half.IsFinite(estimator.Estimate).Should().BeTrue("after observation {0}", estimator.Count);
+            ((double)estimator.Estimate).Should().BeInRange((double)Half.MinValue, (double)Half.MaxValue);
+        }
+    }
+
+    [Fact]
     public void Estimate_PercentilePropertyIsPreserved()
     {
         new PSquareEstimator(0.99).Percentile.Should().Be(0.99);

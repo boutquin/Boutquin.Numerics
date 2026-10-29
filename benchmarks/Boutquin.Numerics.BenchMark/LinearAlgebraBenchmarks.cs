@@ -62,12 +62,12 @@ public class LinearAlgebraBenchmarks
     }
 
     [Benchmark(Baseline = true)]
-    public decimal[,] Cholesky() => CholeskyDecomposition.Decompose(_matrix);
+    public decimal[,] Cholesky() => CholeskyDecomposition<decimal>.Decompose(_matrix);
 
     [Benchmark]
-    public PivotedCholeskyResult PivotedCholesky() =>
-        CholeskyDecomposition.DecomposePivoted(_matrix);
+    public PivotedCholeskyResult<decimal> PivotedCholesky() =>
+        CholeskyDecomposition<decimal>.DecomposePivoted(_matrix);
 
     [Benchmark]
-    public EigenResult Jacobi() => JacobiEigenDecomposition.Decompose(_matrix);
+    public EigenResult<decimal> Jacobi() => JacobiEigenDecomposition<decimal>.Decompose(_matrix);
 }

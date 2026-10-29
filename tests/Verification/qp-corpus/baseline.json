@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "pre_rewrite_solver": "ActiveSetQpSolver<T>.SolveMinVariance / SolveMeanVariance as of the commit in baseline-commit.txt",
+  "classification": "ok: returned a vector within max(4 x sensitivity x max|w*|, 4 ulp(max|w*|)) of the exact optimum; refused: threw; wrong: returned a vector outside that bound",
+  "qualification": "qualified: in the operating domain, exact optimum representable, and 48*n*u*cond_eq < 1 (cond_eq of the free block after QpScaling<T>'s equilibration; the free block is the variables strictly inside the box at the exact optimum); re-recorded through the retained legacy core when the qualification margin was adopted, and again (through the legacy core of the last commit that retained it, 4293713d) when the free block stopped counting free variables sitting exactly on a bound. The ok / refused / wrong counts of the M-1 families and the timing block are the M-1 record and do not change.",
+  "corpus_cases": 2300,
+  "m1_corpus_cases": 1708,
+  "measured_runtime_seconds": 6.79,
+  "families": [
+    {
+      "family": "dbl-corr",
+      "type": "double",
+      "cases": 180,
+      "qualified": 170,
+      "ok": 176,
+      "refused": 1,
+      "wrong": 3,
+      "qualified_refused": 1,
+      "qualified_wrong": 1
+    },
+    {
+      "family": "dbl-minvar",
+      "type": "double",
+      "cases": 120,
+      "qualified": 111,
+      "ok": 120,
+      "refused": 0,
+      "wrong": 0,
+      "qualified_refused": 0,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "dec-corr",
+      "type": "decimal",
+      "cases": 120,
+      "qualified": 87,
+      "ok": 120,
+      "refused": 0,
+      "wrong": 0,
+      "qualified_refused": 0,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "dec-diag-count",
+      "type": "decimal",
+      "cases": 40,
+      "qualified": 23,
+      "ok": 40,
+      "refused": 0,
+      "wrong": 0,
+      "qualified_refused": 0,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "degenb-dbl",
+      "type": "double",
+      "cases": 120,
+      "qualified": 114,
+      "ok": 114,
+      "refused": 6,
+      "wrong": 0,
+      "qualified_refused": 6,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "degenb-dec",
+      "type": "decimal",
+      "cases": 120,
+      "qualified": 114,
+      "ok": 119,
+      "refused": 1,
+      "wrong": 0,
+      "qualified_refused": 1,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "hd-hand",
+      "type": "decimal",
+      "cases": 8,
+      "qualified": 8,
+      "ok": 7,
+      "refused": 0,
+      "wrong": 1,
+      "qualified_refused": 0,
+      "qualified_wrong": 1
+    },
+    {
+      "family": "heldout-dbl",
+      "type": "double",
+      "cases": 20,
+      "qualified": 14,
+      "ok": 20,
+      "refused": 0,
+      "wrong": 0,
+      "qualified_refused": 0,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "heldout-dec",
+      "type": "decimal",
+      "cases": 25,
+      "qualified": 18,
+      "ok": 23,
+      "refused": 2,
+      "wrong": 0,
+      "qualified_refused": 2,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "nearmo-dbl",
+      "type": "double",
+      "cases": 24,
+      "qualified": 15,
+      "ok": 18,
+      "refused": 0,
+      "wrong": 6,
+      "qualified_refused": 0,
+      "qualified_wrong": 4
+    },
+    {
+      "family": "nearmo-dec",
+      "type": "decimal",
+      "cases": 43,
+      "qualified": 32,
+      "ok": 39,
+      "refused": 0,
+      "wrong": 4,
+      "qualified_refused": 0,
+      "qualified_wrong": 2
+    },
+    {
+      "family": "nearo-dbl",
+      "type": "double",
+      "cases": 60,
+      "qualified": 22,
+      "ok": 48,
+      "refused": 3,
+      "wrong": 9,
+      "qualified_refused": 0,
+      "qualified_wrong": 2
+    },
+    {
+      "family": "nearo-dec",
+      "type": "decimal",
+      "cases": 60,
+      "qualified": 28,
+      "ok": 56,
+      "refused": 0,
+      "wrong": 4,
+      "qualified_refused": 0,
+      "qualified_wrong": 3
+    },
+    {
+      "family": "nearq-dbl",
+      "type": "double",
+      "cases": 60,
+      "qualified": 33,
+      "ok": 54,
+      "refused": 2,
+      "wrong": 4,
+      "qualified_refused": 1,
+      "qualified_wrong": 3
+    },
+    {
+      "family": "nearq-dec",
+      "type": "decimal",
+      "cases": 60,
+      "qualified": 32,
+      "ok": 52,
+      "refused": 0,
+      "wrong": 8,
+      "qualified_refused": 0,
+      "qualified_wrong": 3
+    },
+    {
+      "family": "r5-dbl-disp-mv",
+      "type": "double",
+      "cases": 200,
+      "qualified": 200,
+      "ok": 172,
+      "refused": 16,
+      "wrong": 12,
+      "qualified_refused": 16,
+      "qualified_wrong": 12
+    },
+    {
+      "family": "r5-dec-rng-budget-min",
+      "type": "decimal",
+      "cases": 120,
+      "qualified": 120,
+      "ok": 115,
+      "refused": 0,
+      "wrong": 5,
+      "qualified_refused": 0,
+      "qualified_wrong": 5
+    },
+    {
+      "family": "r5-dec-rng-budget",
+      "type": "decimal",
+      "cases": 120,
+      "qualified": 120,
+      "ok": 81,
+      "refused": 27,
+      "wrong": 12,
+      "qualified_refused": 27,
+      "qualified_wrong": 12
+    },
+    {
+      "family": "r5-dec-rng-mean",
+      "type": "decimal",
+      "cases": 120,
+      "qualified": 120,
+      "ok": 82,
+      "refused": 7,
+      "wrong": 31,
+      "qualified_refused": 7,
+      "qualified_wrong": 31
+    },
+    {
+      "family": "r5-dec-rng-zc",
+      "type": "decimal",
+      "cases": 120,
+      "qualified": 120,
+      "ok": 102,
+      "refused": 1,
+      "wrong": 17,
+      "qualified_refused": 1,
+      "qualified_wrong": 17
+    },
+    {
+      "family": "r5-dec-zc2",
+      "type": "decimal",
+      "cases": 120,
+      "qualified": 120,
+      "ok": 120,
+      "refused": 0,
+      "wrong": 0,
+      "qualified_refused": 0,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "r5-rng-dbl-budget-min",
+      "type": "double",
+      "cases": 120,
+      "qualified": 41,
+      "ok": 120,
+      "refused": 0,
+      "wrong": 0,
+      "qualified_refused": 0,
+      "qualified_wrong": 0
+    },
+    {
+      "family": "r5-rng-dbl-budget",
+      "type": "double",
+      "cases": 120,
+      "qualified": 120,
+      "ok": 119,
+      "refused": 0,
+      "wrong": 1,
+      "qualified_refused": 0,
+      "qualified_wrong": 1
+    },
+    {
+      "family": "r5-rng-dbl-mean",
+      "type": "double",
+      "cases": 80,
+      "qualified": 80,
+      "ok": 79,
+      "refused": 0,
+      "wrong": 1,
+      "qualified_refused": 0,
+      "qualified_wrong": 1
+    },
+    {
+      "family": "r5-rng-dbl-zc",
+      "type": "double",
+      "cases": 120,
+      "qualified": 74,
+      "ok": 108,
+      "refused": 3,
+      "wrong": 9,
+      "qualified_refused": 0,
+      "qualified_wrong": 9
+    }
+  ],
+  "timing": {
+    "calibration": {
+      "workload": "200x200 CholeskyDecomposition<double>.Decompose",
+      "ms": 1.083
+    },
+    "double": {
+      "cases": 940,
+      "median_ms": 0.01175,
+      "p99_ms": 0.0565,
+      "median_ratio": 0.010849,
+      "p99_ratio": 0.05217
+    },
+    "decimal": {
+      "cases": 768,
+      "median_ms": 0.052,
+      "p99_ms": 0.2302,
+      "median_ratio": 0.048015,
+      "p99_ratio": 0.212558
+    }
+  },
+  "refusal_exception_types": {
+    "InvalidOperationException": 69
+  }
+}

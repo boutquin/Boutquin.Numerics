@@ -27,7 +27,18 @@ namespace Boutquin.Numerics.Interpolation;
 /// </summary>
 /// <typeparam name="T">The floating-point type for interpolation.</typeparam>
 /// <remarks>
+/// <para>
 /// Tier B: Requires IEEE 754 transcendental functions (Log, Exp).
+/// </para>
+/// <para>
+/// Precondition: all y-values must be strictly positive (they are interpreted as discount
+/// factors). Positivity is not validated for performance; non-positive input propagates rather
+/// than throwing: when <c>ys[i] &lt; 0</c>, <c>T.Log</c> returns <c>NaN</c>, which propagates to
+/// the result. At interior queries a positive-left/zero-right interval returns zero;
+/// a zero left node produces <c>NaN</c>, including a zero-zero interval, because the
+/// log-linear exponent contains undefined infinity arithmetic. Domain layers must
+/// enforce strict positivity upstream.
+/// </para>
 /// </remarks>
 public sealed class FlatForwardInterpolator<T> : IInterpolator<T> where T : IFloatingPointIeee754<T>
 {
@@ -52,6 +63,9 @@ public sealed class FlatForwardInterpolator<T> : IInterpolator<T> where T : IFlo
             throw new ArgumentException("At least one node is required.");
         }
 
+        InterpolationHelper.ValidateSortedAscending(xs, nameof(xs));
+        InterpolationHelper.ValidateFiniteTarget(x);
+
         if (x <= xs[0])
         {
             return ys[0];
@@ -64,10 +78,9 @@ public sealed class FlatForwardInterpolator<T> : IInterpolator<T> where T : IFlo
 
         var i = InterpolationHelper.FindInterval(x, xs);
 
-        var dx = xs[i + 1] - xs[i];
-        var f = (T.Log(ys[i]) - T.Log(ys[i + 1])) / dx;
-
-        return ys[i] * T.Exp(-f * (x - xs[i]));
+        var t = InterpolationHelper.LinearWeight(x, xs[i], xs[i + 1]);
+        var lnYi = T.Log(ys[i]);
+        return T.Exp(lnYi + t * (T.Log(ys[i + 1]) - lnYi));
     }
 }
 
@@ -82,15 +95,13 @@ public sealed class FlatForwardInterpolator<T> : IInterpolator<T> where T : IFlo
 /// <para>
 /// Mathematically equivalent to <see cref="LogLinearInterpolator"/> under
 /// continuous compounding — both reproduce the same DF values at interior points.
-/// The two differ only in which quantity is the primary output of the formula:
-/// <see cref="FlatForwardInterpolator"/> exposes the forward rate <c>f</c> as
-/// the load-bearing quantity, which is preferable when the same curve is
-/// consumed downstream in rate form (e.g., pricing FRAs, computing carry).
+/// The implementation returns the interpolated discount factor using the same
+/// log-linear exponent; the constant forward rate describes the interval's model.
 /// </para>
 /// <para>
 /// Precondition: all y-values must be strictly positive (they are interpreted
-/// as discount factors). Not validated; non-positive input produces <c>NaN</c>
-/// via <c>Math.Log</c>.
+/// as discount factors). Not validated. At interior queries a positive-left/zero-right
+/// interval returns zero; a zero left node or a negative node produces <c>NaN</c>.
 /// </para>
 /// <para>
 /// Stateless; exposed as the singleton <see cref="Instance"/>. When adjacent
@@ -99,6 +110,11 @@ public sealed class FlatForwardInterpolator<T> : IInterpolator<T> where T : IFlo
 /// — the formula handles this case without special logic.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use FlatForwardInterpolator<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class FlatForwardInterpolator : IInterpolator
 {
     /// <summary>

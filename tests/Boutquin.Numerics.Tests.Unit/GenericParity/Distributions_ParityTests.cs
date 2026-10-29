@@ -22,73 +22,46 @@ namespace Boutquin.Numerics.Tests.Unit.GenericParity;
 
 public sealed class Distributions_ParityTests
 {
-    [Fact]
-    public void CumulativeNormal_GenericMatchesLegacy_AtDouble()
+    [Theory]
+    [InlineData(-3.0, 0.0013499)]
+    [InlineData(-1.5, 0.0668072)]
+    [InlineData(0.0, 0.5)]
+    [InlineData(1.5, 0.9331928)]
+    [InlineData(3.0, 0.9986501)]
+    public void CumulativeNormal_Decimal_MatchesDoubleWithinPrecisionCeiling(double xd, double _)
     {
-        var testValues = new[] { -3.0, -1.5, 0.0, 1.5, 3.0 };
-
-        foreach (var x in testValues)
-        {
-            var legacy = CumulativeNormal.Evaluate(x);
-            var generic = CumulativeNormal<double>.Evaluate(x);
-
-            generic.Should().BeApproximately(legacy, 1e-12);
-        }
+        // Tier C computes in double; decimal output has a double-precision ceiling.
+        var x = (decimal)xd;
+        var expected = (decimal)CumulativeNormal<double>.Evaluate(xd);
+        var actual = CumulativeNormal<decimal>.Evaluate(x);
+        ((double)actual).Should().BeApproximately((double)expected, 1e-14);
     }
 
-    [Fact]
-    public void InverseNormal_GenericMatchesLegacy_AtDouble()
+    [Theory]
+    [InlineData(0.01)]
+    [InlineData(0.25)]
+    [InlineData(0.5)]
+    [InlineData(0.75)]
+    [InlineData(0.99)]
+    public void InverseNormal_Decimal_MatchesDoubleWithinPrecisionCeiling(double pd)
     {
-        var testValues = new[] { 0.01, 0.25, 0.5, 0.75, 0.99 };
-
-        foreach (var p in testValues)
-        {
-            var legacy = InverseNormal.Evaluate(p);
-            var generic = InverseNormal<double>.Evaluate(p);
-
-            generic.Should().BeApproximately(legacy, 1e-12);
-        }
+        var p = (decimal)pd;
+        var expected = InverseNormal<double>.Evaluate(pd);
+        var actual = InverseNormal<decimal>.Evaluate(p);
+        ((double)actual).Should().BeApproximately(expected, 1e-10);
     }
 
-    [Fact]
-    public void NormalDistribution_Pdf_GenericMatchesLegacy_AtDouble()
+    [Theory]
+    [InlineData(-3.0)]
+    [InlineData(-1.0)]
+    [InlineData(0.0)]
+    [InlineData(1.0)]
+    [InlineData(3.0)]
+    public void InverseNormal_Decimal_RoundTrip_WithCdf(double xd)
     {
-        var testValues = new[] { -2.0, -1.0, 0.0, 1.0, 2.0 };
-
-        foreach (var x in testValues)
-        {
-            var legacy = NormalDistribution.Pdf(x);
-            var generic = NormalDistribution<double>.Pdf(x);
-
-            generic.Should().BeApproximately(legacy, 1e-12);
-        }
-    }
-
-    [Fact]
-    public void NormalDistribution_Cdf_GenericMatchesLegacy_AtDouble()
-    {
-        var testValues = new[] { -2.0, -1.0, 0.0, 1.0, 2.0 };
-
-        foreach (var x in testValues)
-        {
-            var legacy = NormalDistribution.Cdf(x);
-            var generic = NormalDistribution<double>.Cdf(x);
-
-            generic.Should().BeApproximately(legacy, 1e-12);
-        }
-    }
-
-    [Fact]
-    public void NormalDistribution_InverseCdf_GenericMatchesLegacy_AtDouble()
-    {
-        var testValues = new[] { 0.01, 0.25, 0.5, 0.75, 0.99 };
-
-        foreach (var p in testValues)
-        {
-            var legacy = NormalDistribution.InverseCdf(p);
-            var generic = NormalDistribution<double>.InverseCdf(p);
-
-            generic.Should().BeApproximately(legacy, 1e-12);
-        }
+        var x = (decimal)xd;
+        var p = CumulativeNormal<decimal>.Evaluate(x);
+        var z = InverseNormal<decimal>.Evaluate(p);
+        ((double)z).Should().BeApproximately(xd, 1e-10);
     }
 }

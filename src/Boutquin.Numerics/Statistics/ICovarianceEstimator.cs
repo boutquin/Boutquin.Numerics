@@ -49,6 +49,16 @@ public interface ICovarianceEstimator<T>
     /// N-by-N symmetric covariance matrix in <c>T[,]</c> layout.
     /// </returns>
     T[,] Estimate(T[,] returns);
+
+    /// <summary>
+    /// Estimates from a <see cref="ReturnsMatrix{T}"/> input accepting either T-by-N
+    /// or asset-major layouts. The default implementation materializes a T-by-N view via
+    /// <see cref="ReturnsMatrix{T}.AsTimeByAsset"/> and delegates to <c>Estimate(T[,])</c>;
+    /// implementations that prefer asset-major traversal may override to avoid the copy.
+    /// </summary>
+    /// <param name="returns">Returns matrix with either layout.</param>
+    /// <returns>N-by-N symmetric covariance matrix.</returns>
+    T[,] Estimate(ReturnsMatrix<T> returns) => Estimate(returns.AsTimeByAsset());
 }
 
 /// <summary>
@@ -73,14 +83,21 @@ public interface ICovarianceEstimator<T>
 /// <list type="bullet">
 ///   <item><see cref="SampleCovarianceEstimator"/>, <see cref="LedoitWolfShrinkageEstimator"/>,
 ///         <see cref="LedoitWolfConstantCorrelationEstimator"/>, <see cref="LedoitWolfSingleFactorEstimator"/>,
-///         <see cref="OracleApproximatingShrinkageEstimator"/>, <see cref="QuadraticInverseShrinkageEstimator"/>,
-///         <see cref="DenoisedCovarianceEstimator"/>, <see cref="TracyWidomDenoisedCovarianceEstimator"/>,
+///         <see cref="OracleApproximatingShrinkageEstimator"/>,
 ///         <see cref="NercomeCovarianceEstimator"/>, <see cref="DoublySparseEstimator"/> — PSD by construction.</item>
 ///   <item><see cref="ExponentiallyWeightedCovarianceEstimator"/> — PSD when weights are non-negative,
 ///         which is ensured for lambda in (0, 1); outside this range positivity of weights can break.</item>
-///   <item><see cref="DetonedCovarianceEstimator"/> — <em>conditionally</em> PSD. PC1 shrinkage can
-///         invert eigenvalue ordering and yield a non-PSD result; callers must project if PSD
-///         is required downstream.</item>
+///   <item><see cref="DenoisedCovarianceEstimator"/>, <see cref="TracyWidomDenoisedCovarianceEstimator"/> —
+///         PSD by construction (up to rounding). Eigenvalue cleaning keeps the reconstruction PSD,
+///         and the rescale of the cleaned correlation to a unit diagonal is a congruence by a
+///         positive diagonal matrix, which preserves PSD.</item>
+///   <item><see cref="DetonedCovarianceEstimator"/> — PSD up to rounding. Full removal of a market
+///         component with a positive residual diagonal yields a singular matrix. No singularity is guaranteed
+///         for fewer than three assets, an all-noise spectrum, or zero residual rows using the identity
+///         fallback. Check positive definiteness before Cholesky factorization or inversion.</item>
+///   <item><see cref="QuadraticInverseShrinkageEstimator"/> — positive definite whenever the
+///         non-null sample eigenvalues are: every shrunk eigenvalue, including the null-block value
+///         assigned when N exceeds T - 1, is positive.</item>
 ///   <item><see cref="PoetCovarianceEstimator"/> — no PSD guarantee. Soft-thresholding of the
 ///         residual covariance can break positivity when the threshold multiplier is aggressive.</item>
 /// </list>
@@ -101,10 +118,12 @@ public interface ICovarianceEstimator : ICovarianceEstimator<decimal>
     /// Estimates from a <see cref="ReturnsMatrix"/> input accepting either T-by-N
     /// or asset-major layouts. The default implementation materializes a T-by-N
     /// view via <see cref="ReturnsMatrix.AsTimeByAsset"/> and delegates to
-    /// <see cref="ICovarianceEstimator{T}.Estimate"/>; implementations that prefer
+    /// the generic <c>Estimate(T[,])</c> overload; implementations that prefer
     /// asset-major traversal may override to avoid the copy.
     /// </summary>
     /// <param name="returns">Returns matrix with either layout.</param>
     /// <returns>N-by-N covariance matrix.</returns>
+#pragma warning disable BNU0001
     decimal[,] Estimate(ReturnsMatrix returns) => ((ICovarianceEstimator<decimal>)this).Estimate(returns.AsTimeByAsset());
+#pragma warning restore BNU0001
 }

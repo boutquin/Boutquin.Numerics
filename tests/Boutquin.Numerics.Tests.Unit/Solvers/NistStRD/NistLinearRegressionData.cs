@@ -36,6 +36,11 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers.NistStRD;
 /// </remarks>
 internal static class NistLinearRegressionData
 {
+    // Shared by the certified-value suites and the repeated stress gate.
+    internal static double DoubleCoefficientToleranceFor(string name) => name == "Filip" ? 1e-7 : 1e-12;
+
+    internal static decimal DecimalCoefficientToleranceFor(string name) => name == "Filip" ? 1e-6m : 1e-13m;
+
     public readonly record struct Problem(
         string Name,
         double[,] X,

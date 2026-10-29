@@ -80,9 +80,16 @@ public sealed class DoublySparseEstimatorTests
             resultTrace += result[i, i];
         }
 
-        // Trace should be approximately preserved (may differ slightly due to thresholding).
-        ((double)resultTrace).Should().BeApproximately((double)sampleTrace, (double)sampleTrace * 0.5,
-            "Trace should be approximately preserved");
+        // The DSCE preserves the trace tightly on this well-behaved 5-asset sample:
+        // none of the eigenvector entries fall below the default 0.1 threshold here, so
+        // the signal eigenvectors stay orthonormal and the reconstructed correlation
+        // diagonal stays at 1 to machine precision. (In general, aggressive thresholding
+        // can re-normalize the signal eigenvectors and introduce a small bounded trace
+        // drift.) Measured relative error is < 1e-15 — pin it to 1e-8, a robust tight
+        // bound, instead of the original vacuous ±50% band.
+        var relativeError = (double)Math.Abs((resultTrace - sampleTrace) / sampleTrace);
+        relativeError.Should().BeLessThan(1e-8,
+            "thresholded-eigenvector reconstruction should keep the trace very close to the sample trace");
     }
 
     [Fact]
@@ -108,6 +115,74 @@ public sealed class DoublySparseEstimatorTests
 
         var act = () => estimator.Estimate(returns);
         act.Should().Throw<ArgumentException>();
+    }
+
+    // -----------------------------------------------------------------------
+    //  F-LQ-2: negative eigenvectorThreshold → ArgumentOutOfRangeException
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// F-LQ-2: A negative eigenvectorThreshold silently disables sparsification
+    /// (T.Abs(entry) >= negative ≡ always true). Must throw ArgumentOutOfRangeException
+    /// to mirror PoetCovarianceEstimator.
+    /// </summary>
+    [Fact]
+    public void Constructor_ThrowsArgumentOutOfRangeException_ForNegativeEigenvectorThreshold()
+    {
+        var act = () => new DoublySparseEstimator<double>(eigenvectorThreshold: -0.5);
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("eigenvectorThreshold");
+    }
+
+    /// <summary>
+    /// F-LQ-2 regression: zero threshold must be accepted (≥ 0 is the valid range).
+    /// </summary>
+    [Fact]
+    public void Constructor_AcceptsZeroEigenvectorThreshold()
+    {
+        var act = () => new DoublySparseEstimator<double>(eigenvectorThreshold: 0.0);
+        act.Should().NotThrow();
+    }
+
+    /// <summary>
+    /// The generic parameterless constructor must apply the documented 0.1
+    /// eigenvector threshold. With an unconstrained T, `T? = default` is 0 for
+    /// value types, which keeps every eigenvector entry and disables sparsification.
+    /// </summary>
+    [Fact]
+    public void Ctor_GenericDefaultAppliesDocumentedPointOneThreshold()
+    {
+        // One factor loading only the first 8 of 30 assets: the signal eigenvector
+        // has ~0.35 entries on those assets and sub-0.1 noise entries elsewhere, so
+        // thresholds 0 and 0.1 produce different reconstructions.
+        const int t = 400;
+        const int n = 30;
+        var rng = new System.Random(2024);
+        var returns = new double[t, n];
+        for (var i = 0; i < t; i++)
+        {
+            var factor = rng.NextGaussian();
+            for (var j = 0; j < n; j++)
+            {
+                returns[i, j] = (j < 8 ? factor : 0.0) + rng.NextGaussian();
+            }
+        }
+
+        var byDefault = new DoublySparseEstimator<double>().Estimate(returns);
+        var pointOne = new DoublySparseEstimator<double>(0.1).Estimate(returns);
+        var zero = new DoublySparseEstimator<double>(0.0).Estimate(returns);
+
+        var maxDiffZeroVsPointOne = 0.0;
+        for (var i = 0; i < n; i++)
+        {
+            for (var j = 0; j < n; j++)
+            {
+                maxDiffZeroVsPointOne = Math.Max(maxDiffZeroVsPointOne, Math.Abs(zero[i, j] - pointOne[i, j]));
+            }
+        }
+
+        maxDiffZeroVsPointOne.Should().BeGreaterThan(1e-6, "the panel must discriminate threshold 0 from 0.1");
+        byDefault.Should().BeEquivalentTo(pointOne, "the documented default eigenvector threshold is 0.1");
     }
 
     private static decimal[,] GenerateReturns(int t, int n, int seed)

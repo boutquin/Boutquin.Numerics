@@ -33,6 +33,7 @@ public sealed class NumericPrecisionTests
     private static readonly double[] s_testValues =
     [
         0.0,
+        -0.0,
         0.25,
         1.0,
         2.0,
@@ -61,7 +62,7 @@ public sealed class NumericPrecisionTests
             var expected = Math.Sqrt(v);
             var actual = NumericPrecision<double>.Sqrt(v);
 
-            actual.Should().Be(expected,
+            BitConverter.DoubleToInt64Bits(actual).Should().Be(BitConverter.DoubleToInt64Bits(expected),
                 because: $"NumericPrecision<double>.Sqrt({v}) must be bit-identical to Math.Sqrt({v})");
         }
     }
@@ -89,7 +90,7 @@ public sealed class NumericPrecisionTests
             var expected = MathF.Sqrt(fv);
             var actual = NumericPrecision<float>.Sqrt(fv);
 
-            actual.Should().Be(expected,
+            BitConverter.SingleToInt32Bits(actual).Should().Be(BitConverter.SingleToInt32Bits(expected),
                 because: $"NumericPrecision<float>.Sqrt({fv}) must be bit-identical to MathF.Sqrt({fv})");
         }
     }
@@ -123,7 +124,7 @@ public sealed class NumericPrecisionTests
             var expected = Half.Sqrt(hv);
             var actual = NumericPrecision<Half>.Sqrt(hv);
 
-            actual.Should().Be(expected,
+            BitConverter.HalfToInt16Bits(actual).Should().Be(BitConverter.HalfToInt16Bits(expected),
                 because: $"NumericPrecision<Half>.Sqrt({hv}) must match Half.Sqrt({hv})");
         }
     }
@@ -154,6 +155,8 @@ public sealed class NumericPrecisionTests
         NumericPrecision<decimal>.Sqrt(0.25m).Should().Be(0.5m);
 
         var sqrt2 = NumericPrecision<decimal>.Sqrt(2m);
+        sqrt2.Should().BeApproximately(1.4142135623730950488016887242m, 1e-27m,
+            because: "the principal square root is positive and agrees with the known decimal expansion");
         (sqrt2 * sqrt2).Should().BeApproximately(2m, 1e-27m,
             because: "sqrt(2)^2 must be 2 to full decimal precision");
     }
@@ -183,11 +186,39 @@ public sealed class NumericPrecisionTests
         // Verify that decimal sqrt achieves better than double precision.
         // sqrt(2) ≈ 1.41421356237309504880168872420969807856967...
         var sqrt2 = NumericPrecision<decimal>.Sqrt(2m);
+        sqrt2.Should().BeApproximately(1.4142135623730950488016887242m, 1e-27m,
+            because: "the principal square root is positive and agrees with the known decimal expansion");
 
         // The result squared should be very close to 2 — within decimal's
         // precision envelope (~1e-28).
         var residual = Math.Abs(sqrt2 * sqrt2 - 2m);
         residual.Should().BeLessThan(1e-26m,
             because: "decimal Sqrt should achieve near-28-digit precision");
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(10)]
+    [InlineData(1_000)]
+    [InlineData(int.MaxValue)]
+    public void LogPositiveInteger_Double_AgreesWithNativeLog(int value)
+    {
+        NumericPrecision<double>.LogPositiveInteger(value)
+            .Should().BeApproximately(Math.Log(value), 5e-15);
+    }
+
+    [Fact]
+    public void LogPositiveInteger_DecimalRetainsFullPrecision()
+    {
+        NumericPrecision<decimal>.LogPositiveInteger(3)
+            .Should().BeApproximately(1.0986122886681096913952452369m, 5e-28m);
+    }
+
+    [Fact]
+    public void NegativeRationalPower_DecimalRetainsFullPrecision()
+    {
+        NumericPrecision<decimal>.NegativeRationalPowerOfPositiveInteger(1_000, 7, 20)
+            .Should().BeApproximately(0.0891250938133745529953108681m, 1e-27m);
     }
 }

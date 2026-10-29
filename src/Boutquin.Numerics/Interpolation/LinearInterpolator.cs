@@ -42,13 +42,16 @@ public sealed class LinearInterpolator<T> : IInterpolator<T> where T : IFloating
     {
         if (xs.Length != ys.Length)
         {
-            throw new ArgumentException("xs and ys must have the same length.");
+            throw new ArgumentException("xs and ys must have the same length.", nameof(ys));
         }
 
         if (xs.Length == 0)
         {
-            throw new ArgumentException("At least one node is required.");
+            throw new ArgumentException("At least one node is required.", nameof(xs));
         }
+
+        InterpolationHelper.ValidateSortedAscending(xs, nameof(xs));
+        InterpolationHelper.ValidateFiniteTarget(x);
 
         if (x <= xs[0])
         {
@@ -62,8 +65,7 @@ public sealed class LinearInterpolator<T> : IInterpolator<T> where T : IFloating
 
         var i = InterpolationHelper.FindInterval(x, xs);
 
-        var t = (x - xs[i]) / (xs[i + 1] - xs[i]);
-        return ys[i] + t * (ys[i + 1] - ys[i]);
+        return InterpolationHelper.LinearInterpolate(x, xs[i], ys[i], xs[i + 1], ys[i + 1]);
     }
 }
 
@@ -87,6 +89,11 @@ public sealed class LinearInterpolator<T> : IInterpolator<T> where T : IFloating
 /// <see cref="CubicSplineInterpolator"/> (C²).
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use LinearInterpolator<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class LinearInterpolator : IInterpolator
 {
     /// <summary>

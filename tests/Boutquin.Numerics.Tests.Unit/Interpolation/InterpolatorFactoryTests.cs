@@ -77,4 +77,32 @@ public sealed class InterpolatorFactoryTests
         var act = () => InterpolatorFactory.Create((InterpolatorKind)999);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
+
+    [Theory]
+    [InlineData(InterpolatorKind.LogLinear)]
+    [InlineData(InterpolatorKind.FlatForward)]
+    public void GenericCreate_HalfIeeeInterpolator_ReturnsDirectSingletonAndMatchesBehavior(InterpolatorKind kind)
+    {
+        IInterpolator<Half>? factory = null;
+        var act = () => factory = InterpolatorFactory<Half>.Create(kind);
+        act.Should().NotThrow();
+
+        var direct = kind == InterpolatorKind.LogLinear
+            ? (IInterpolator<Half>)LogLinearInterpolator<Half>.Instance
+            : FlatForwardInterpolator<Half>.Instance;
+        factory.Should().BeSameAs(direct);
+
+        Half[] xs = [(Half)0, (Half)2];
+        Half[] ys = [(Half)1, (Half)4];
+        factory!.Interpolate((Half)1, xs, ys).Should().Be(direct.Interpolate((Half)1, xs, ys));
+    }
+
+    [Theory]
+    [InlineData(InterpolatorKind.LogLinear)]
+    [InlineData(InterpolatorKind.FlatForward)]
+    public void GenericCreate_DecimalIeeeInterpolator_ThrowsNotSupported(InterpolatorKind kind)
+    {
+        var act = () => InterpolatorFactory<decimal>.Create(kind);
+        act.Should().Throw<NotSupportedException>();
+    }
 }

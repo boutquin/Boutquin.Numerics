@@ -1,17 +1,41 @@
 #nullable enable
+Boutquin.Numerics.Collections.RollingWindow<T>
+Boutquin.Numerics.Collections.RollingWindow<T>.Add(T item) -> void
+Boutquin.Numerics.Collections.RollingWindow<T>.Capacity.get -> int
+Boutquin.Numerics.Collections.RollingWindow<T>.Clear() -> void
+Boutquin.Numerics.Collections.RollingWindow<T>.Count.get -> int
+Boutquin.Numerics.Collections.RollingWindow<T>.GetEnumerator() -> System.Collections.Generic.IEnumerator<T>!
+Boutquin.Numerics.Collections.RollingWindow<T>.IsFull.get -> bool
+Boutquin.Numerics.Collections.RollingWindow<T>.RollingWindow(int capacity) -> void
+Boutquin.Numerics.Collections.RollingWindow<T>.ToArray() -> T[]!
+Boutquin.Numerics.Collections.RollingWindow<T>.this[int index].get -> T
 Boutquin.Numerics.Distributions.CumulativeNormal
+Boutquin.Numerics.Distributions.CumulativeNormal<T>
 Boutquin.Numerics.Distributions.InverseNormal
+Boutquin.Numerics.Distributions.InverseNormal<T>
 Boutquin.Numerics.Distributions.NormalDistribution
+Boutquin.Numerics.Distributions.NormalDistribution<T>
 Boutquin.Numerics.Interpolation.CubicSplineInterpolator
 Boutquin.Numerics.Interpolation.CubicSplineInterpolator.CubicSplineInterpolator(System.Collections.Generic.IReadOnlyList<double>! xs, System.Collections.Generic.IReadOnlyList<double>! ys) -> void
 Boutquin.Numerics.Interpolation.CubicSplineInterpolator.CubicSplineInterpolator(System.Collections.Generic.IReadOnlyList<double>! xs, System.Collections.Generic.IReadOnlyList<double>! ys, Boutquin.Numerics.Interpolation.SplineBoundary! boundary) -> void
 Boutquin.Numerics.Interpolation.CubicSplineInterpolator.Interpolate(double x) -> double
+Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>
+Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>.CubicSplineInterpolator(System.Collections.Generic.IReadOnlyList<T>! xs, System.Collections.Generic.IReadOnlyList<T>! ys) -> void
+Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>.CubicSplineInterpolator(System.Collections.Generic.IReadOnlyList<T>! xs, System.Collections.Generic.IReadOnlyList<T>! ys, Boutquin.Numerics.Interpolation.SplineBoundary! boundary) -> void
+Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>.CubicSplineInterpolator(System.Collections.Generic.IReadOnlyList<T>! xs, System.Collections.Generic.IReadOnlyList<T>! ys, Boutquin.Numerics.Interpolation.SplineBoundary<T>! boundary) -> void
+Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>.Interpolate(T x) -> T
 Boutquin.Numerics.Interpolation.FlatForwardInterpolator
 Boutquin.Numerics.Interpolation.FlatForwardInterpolator.Interpolate(double x, System.ReadOnlySpan<double> xs, System.ReadOnlySpan<double> ys) -> double
 Boutquin.Numerics.Interpolation.FlatForwardInterpolator.Name.get -> string!
+Boutquin.Numerics.Interpolation.FlatForwardInterpolator<T>
+Boutquin.Numerics.Interpolation.FlatForwardInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
+Boutquin.Numerics.Interpolation.FlatForwardInterpolator<T>.Name.get -> string!
 Boutquin.Numerics.Interpolation.IInterpolator
 Boutquin.Numerics.Interpolation.IInterpolator.Interpolate(double x, System.ReadOnlySpan<double> xs, System.ReadOnlySpan<double> ys) -> double
 Boutquin.Numerics.Interpolation.IInterpolator.Name.get -> string!
+Boutquin.Numerics.Interpolation.IInterpolator<T>
+Boutquin.Numerics.Interpolation.IInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
+Boutquin.Numerics.Interpolation.IInterpolator<T>.Name.get -> string!
 Boutquin.Numerics.Interpolation.InterpolatorFactory
 Boutquin.Numerics.Interpolation.InterpolatorFactory<T>
 Boutquin.Numerics.Interpolation.InterpolatorKind
@@ -19,36 +43,58 @@ Boutquin.Numerics.Interpolation.InterpolatorKind.CubicSpline = 4 -> Boutquin.Num
 Boutquin.Numerics.Interpolation.InterpolatorKind.FlatForward = 2 -> Boutquin.Numerics.Interpolation.InterpolatorKind
 Boutquin.Numerics.Interpolation.InterpolatorKind.Linear = 0 -> Boutquin.Numerics.Interpolation.InterpolatorKind
 Boutquin.Numerics.Interpolation.InterpolatorKind.LogLinear = 1 -> Boutquin.Numerics.Interpolation.InterpolatorKind
-Boutquin.Numerics.Interpolation.InterpolatorKind.MonotoneCubic = 3 -> Boutquin.Numerics.Interpolation.InterpolatorKind
 Boutquin.Numerics.Interpolation.InterpolatorKind.MonotoneConvex = 5 -> Boutquin.Numerics.Interpolation.InterpolatorKind
+Boutquin.Numerics.Interpolation.InterpolatorKind.MonotoneCubic = 3 -> Boutquin.Numerics.Interpolation.InterpolatorKind
 Boutquin.Numerics.Interpolation.LinearInterpolator
 Boutquin.Numerics.Interpolation.LinearInterpolator.Interpolate(double x, System.ReadOnlySpan<double> xs, System.ReadOnlySpan<double> ys) -> double
 Boutquin.Numerics.Interpolation.LinearInterpolator.Name.get -> string!
+Boutquin.Numerics.Interpolation.LinearInterpolator<T>
+Boutquin.Numerics.Interpolation.LinearInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
+Boutquin.Numerics.Interpolation.LinearInterpolator<T>.Name.get -> string!
 Boutquin.Numerics.Interpolation.LogLinearInterpolator
 Boutquin.Numerics.Interpolation.LogLinearInterpolator.Interpolate(double x, System.ReadOnlySpan<double> xs, System.ReadOnlySpan<double> ys) -> double
 Boutquin.Numerics.Interpolation.LogLinearInterpolator.Name.get -> string!
-Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator
-Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator.Interpolate(double x, System.ReadOnlySpan<double> xs, System.ReadOnlySpan<double> ys) -> double
-Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator.Name.get -> string!
+Boutquin.Numerics.Interpolation.LogLinearInterpolator<T>
+Boutquin.Numerics.Interpolation.LogLinearInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
+Boutquin.Numerics.Interpolation.LogLinearInterpolator<T>.Name.get -> string!
 Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator
 Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator.Interpolate(double x, System.ReadOnlySpan<double> xs, System.ReadOnlySpan<double> ys) -> double
 Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator.Name.get -> string!
+Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator<T>
+Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
+Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator<T>.Name.get -> string!
+Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator
+Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator.Interpolate(double x, System.ReadOnlySpan<double> xs, System.ReadOnlySpan<double> ys) -> double
+Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator.Name.get -> string!
+Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>
+Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
+Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>.Name.get -> string!
 Boutquin.Numerics.Interpolation.MonotoneCubicSpline
 Boutquin.Numerics.Interpolation.MonotoneCubicSpline.Interpolate(double x) -> double
 Boutquin.Numerics.Interpolation.MonotoneCubicSpline.MonotoneCubicSpline(System.Collections.Generic.IReadOnlyList<double>! xs, System.Collections.Generic.IReadOnlyList<double>! ys) -> void
+Boutquin.Numerics.Interpolation.MonotoneCubicSpline<T>
+Boutquin.Numerics.Interpolation.MonotoneCubicSpline<T>.Interpolate(T x) -> T
+Boutquin.Numerics.Interpolation.MonotoneCubicSpline<T>.MonotoneCubicSpline(System.Collections.Generic.IReadOnlyList<T>! xs, System.Collections.Generic.IReadOnlyList<T>! ys) -> void
 Boutquin.Numerics.Interpolation.SplineBoundary
 Boutquin.Numerics.Interpolation.SplineBoundary<T>
 Boutquin.Numerics.Interpolation.TwoPointLinearInterpolator
+Boutquin.Numerics.Interpolation.TwoPointLinearInterpolator<T>
 Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition
 Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition<T>
 Boutquin.Numerics.LinearAlgebra.EigenResult
+Boutquin.Numerics.LinearAlgebra.EigenResult.<Clone>$() -> Boutquin.Numerics.LinearAlgebra.EigenResult!
+Boutquin.Numerics.LinearAlgebra.EigenResult.Deconstruct(out decimal[]! Values, out decimal[,]! Vectors) -> void
 Boutquin.Numerics.LinearAlgebra.EigenResult.EigenResult(decimal[]! Values, decimal[,]! Vectors) -> void
+Boutquin.Numerics.LinearAlgebra.EigenResult.Equals(Boutquin.Numerics.LinearAlgebra.EigenResult? other) -> bool
 Boutquin.Numerics.LinearAlgebra.EigenResult.Values.get -> decimal[]!
 Boutquin.Numerics.LinearAlgebra.EigenResult.Values.init -> void
 Boutquin.Numerics.LinearAlgebra.EigenResult.Vectors.get -> decimal[,]!
 Boutquin.Numerics.LinearAlgebra.EigenResult.Vectors.init -> void
 Boutquin.Numerics.LinearAlgebra.EigenResult<T>
+Boutquin.Numerics.LinearAlgebra.EigenResult<T>.<Clone>$() -> Boutquin.Numerics.LinearAlgebra.EigenResult<T>!
+Boutquin.Numerics.LinearAlgebra.EigenResult<T>.Deconstruct(out T[]! Values, out T[,]! Vectors) -> void
 Boutquin.Numerics.LinearAlgebra.EigenResult<T>.EigenResult(T[]! Values, T[,]! Vectors) -> void
+Boutquin.Numerics.LinearAlgebra.EigenResult<T>.Equals(Boutquin.Numerics.LinearAlgebra.EigenResult<T>? other) -> bool
 Boutquin.Numerics.LinearAlgebra.EigenResult<T>.Values.get -> T[]!
 Boutquin.Numerics.LinearAlgebra.EigenResult<T>.Values.init -> void
 Boutquin.Numerics.LinearAlgebra.EigenResult<T>.Vectors.get -> T[,]!
@@ -60,32 +106,43 @@ Boutquin.Numerics.LinearAlgebra.JacobiEigenDecomposition<T>
 Boutquin.Numerics.LinearAlgebra.NearestPsdProjection
 Boutquin.Numerics.LinearAlgebra.NearestPsdProjection<T>
 Boutquin.Numerics.LinearAlgebra.PcaResult
+Boutquin.Numerics.LinearAlgebra.PcaResult.<Clone>$() -> Boutquin.Numerics.LinearAlgebra.PcaResult!
 Boutquin.Numerics.LinearAlgebra.PcaResult.CumulativeExplainedVariance.get -> decimal[]!
 Boutquin.Numerics.LinearAlgebra.PcaResult.CumulativeExplainedVariance.init -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult.Eigenvalues.get -> decimal[]!
 Boutquin.Numerics.LinearAlgebra.PcaResult.Eigenvalues.init -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult.Eigenvectors.get -> decimal[,]!
 Boutquin.Numerics.LinearAlgebra.PcaResult.Eigenvectors.init -> void
+Boutquin.Numerics.LinearAlgebra.PcaResult.Equals(Boutquin.Numerics.LinearAlgebra.PcaResult? other) -> bool
 Boutquin.Numerics.LinearAlgebra.PcaResult.ExplainedVarianceRatio.get -> decimal[]!
 Boutquin.Numerics.LinearAlgebra.PcaResult.ExplainedVarianceRatio.init -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult.Mean.get -> decimal[]!
 Boutquin.Numerics.LinearAlgebra.PcaResult.Mean.init -> void
-Boutquin.Numerics.LinearAlgebra.PcaResult.NumComponentsForExplainedVariance(decimal threshold) -> int
+Boutquin.Numerics.LinearAlgebra.PcaResult.NumComponentsForExplainedVariance(double threshold) -> int
+Boutquin.Numerics.LinearAlgebra.PcaResult.PcaResult() -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult.Project(decimal[,]! data, int numComponents) -> decimal[,]!
+Boutquin.Numerics.LinearAlgebra.PcaResult.StandardDeviations.get -> decimal[]!
+Boutquin.Numerics.LinearAlgebra.PcaResult.StandardDeviations.init -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>
+Boutquin.Numerics.LinearAlgebra.PcaResult<T>.<Clone>$() -> Boutquin.Numerics.LinearAlgebra.PcaResult<T>!
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.CumulativeExplainedVariance.get -> T[]!
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.CumulativeExplainedVariance.init -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Eigenvalues.get -> T[]!
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Eigenvalues.init -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Eigenvectors.get -> T[,]!
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Eigenvectors.init -> void
+Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Equals(Boutquin.Numerics.LinearAlgebra.PcaResult<T>? other) -> bool
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.ExplainedVarianceRatio.get -> T[]!
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.ExplainedVarianceRatio.init -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Mean.get -> T[]!
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Mean.init -> void
-Boutquin.Numerics.LinearAlgebra.PcaResult<T>.NumComponentsForExplainedVariance(T threshold) -> int
+Boutquin.Numerics.LinearAlgebra.PcaResult<T>.NumComponentsForExplainedVariance(double threshold) -> int
+Boutquin.Numerics.LinearAlgebra.PcaResult<T>.PcaResult() -> void
 Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Project(T[,]! data, int numComponents) -> T[,]!
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult
+Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.<Clone>$() -> Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult!
+Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.Deconstruct(out decimal[,]! Lower, out int[]! Permutation, out int Rank) -> void
+Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.Equals(Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult? other) -> bool
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.Lower.get -> decimal[,]!
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.Lower.init -> void
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.Permutation.get -> int[]!
@@ -94,6 +151,9 @@ Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.PivotedCholeskyResult(deci
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.Rank.get -> int
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.Rank.init -> void
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>
+Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.<Clone>$() -> Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>!
+Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.Deconstruct(out T[,]! Lower, out int[]! Permutation, out int Rank) -> void
+Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.Equals(Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>? other) -> bool
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.Lower.get -> T[,]!
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.Lower.init -> void
 Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.Permutation.get -> int[]!
@@ -105,11 +165,19 @@ Boutquin.Numerics.LinearAlgebra.PrincipalComponentAnalysis
 Boutquin.Numerics.LinearAlgebra.PrincipalComponentAnalysis<T>
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine.BootstrapMonteCarloEngine(int simulationCount, Boutquin.Numerics.Random.IRandomSource! random) -> void
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine.Run(decimal[]! observations, System.Func<decimal[]!, decimal>! statistic) -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult!
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine.RunMulti(decimal[]! observations, int statisticCount, System.Action<decimal[]!, decimal[]!>! statisticWriter, System.Collections.Generic.IReadOnlyList<string!>? names = null) -> Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult!
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine.Run(System.ReadOnlySpan<decimal> observations, System.Func<System.ReadOnlySpan<decimal>, decimal>! statistic) -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult!
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine.RunMulti(System.ReadOnlySpan<decimal> observations, int statisticCount, System.Action<System.ReadOnlySpan<decimal>, System.Span<decimal>>! statisticWriter, System.Collections.Generic.IReadOnlyList<string!>? names = null) -> Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult!
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine.SimulationCount.get -> int
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.BootstrapMonteCarloEngine(int simulationCount, Boutquin.Numerics.Random.IRandomSource! random) -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.Run(System.ReadOnlySpan<T> observations, System.Func<System.ReadOnlySpan<T>, T>! statistic) -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>!
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.RunMulti(System.ReadOnlySpan<T> observations, int statisticCount, System.Action<System.ReadOnlySpan<T>, System.Span<T>>! statisticWriter, System.Collections.Generic.IReadOnlyList<string!>? names = null) -> Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>!
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.SimulationCount.get -> int
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.<Clone>$() -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult!
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.BootstrapMonteCarloResult(int SimulationCount, System.Collections.Generic.IReadOnlyList<decimal>! Statistics, decimal Median, decimal Percentile5, decimal Percentile95, decimal Mean) -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.Deconstruct(out int SimulationCount, out System.Collections.Generic.IReadOnlyList<decimal>! Statistics, out decimal Median, out decimal Percentile5, out decimal Percentile95, out decimal Mean) -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.Equals(Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult? other) -> bool
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.Mean.get -> decimal
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.Mean.init -> void
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.Median.get -> decimal
@@ -122,24 +190,60 @@ Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.SimulationCount.get -> in
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.SimulationCount.init -> void
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.Statistics.get -> System.Collections.Generic.IReadOnlyList<decimal>!
 Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.Statistics.init -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.<Clone>$() -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>!
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.BootstrapMonteCarloResult(int SimulationCount, System.Collections.Generic.IReadOnlyList<T>! Statistics, T Median, T Percentile5, T Percentile95, T Mean) -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Deconstruct(out int SimulationCount, out System.Collections.Generic.IReadOnlyList<T>! Statistics, out T Median, out T Percentile5, out T Percentile95, out T Mean) -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Equals(Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>? other) -> bool
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Mean.get -> T
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Mean.init -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Median.get -> T
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Median.init -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Percentile5.get -> T
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Percentile5.init -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Percentile95.get -> T
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Percentile95.init -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.SimulationCount.get -> int
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.SimulationCount.init -> void
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Statistics.get -> System.Collections.Generic.IReadOnlyList<T>!
+Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Statistics.init -> void
 Boutquin.Numerics.MonteCarlo.BootstrapResampler
 Boutquin.Numerics.MonteCarlo.BootstrapResampler.BlockSize.get -> int
 Boutquin.Numerics.MonteCarlo.BootstrapResampler.BootstrapResampler(int blockSize, Boutquin.Numerics.Random.IRandomSource! random) -> void
-Boutquin.Numerics.MonteCarlo.BootstrapResampler.Resample(decimal[]! source) -> decimal[]!
-Boutquin.Numerics.MonteCarlo.BootstrapResampler.ResamplePaired(decimal[]! sourceA, decimal[]! sourceB) -> (decimal[]! A, decimal[]! B)
+Boutquin.Numerics.MonteCarlo.BootstrapResampler.Resample(System.ReadOnlySpan<decimal> source) -> decimal[]!
+Boutquin.Numerics.MonteCarlo.BootstrapResampler.ResamplePaired(System.ReadOnlySpan<decimal> sourceA, System.ReadOnlySpan<decimal> sourceB) -> (decimal[]! A, decimal[]! B)
+Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>
+Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.BlockSize.get -> int
+Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.BootstrapResampler(int blockSize, Boutquin.Numerics.Random.IRandomSource! random) -> void
+Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.Resample(System.ReadOnlySpan<T> source) -> T[]!
+Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.ResamplePaired(System.ReadOnlySpan<T> sourceA, System.ReadOnlySpan<T> sourceB) -> (T[]! A, T[]! B)
 Boutquin.Numerics.MonteCarlo.FastDoubleBootstrap
 Boutquin.Numerics.MonteCarlo.FastDoubleBootstrap.FastDoubleBootstrap(int outerCount, Boutquin.Numerics.Random.IRandomSource! random) -> void
-Boutquin.Numerics.MonteCarlo.FastDoubleBootstrap.PValue(decimal[]! observations, decimal observed, System.Func<decimal[]!, decimal>! statistic, Boutquin.Numerics.MonteCarlo.PValueTail tail = Boutquin.Numerics.MonteCarlo.PValueTail.RightTail) -> decimal
+Boutquin.Numerics.MonteCarlo.FastDoubleBootstrap.PValue(System.ReadOnlySpan<decimal> observations, decimal observed, System.Func<System.ReadOnlySpan<decimal>, decimal>! statistic, Boutquin.Numerics.MonteCarlo.PValueTail tail = Boutquin.Numerics.MonteCarlo.PValueTail.RightTail) -> decimal
+Boutquin.Numerics.MonteCarlo.FastDoubleBootstrap.PValueImposingNull(System.ReadOnlySpan<decimal> observations, decimal observed, System.Func<System.ReadOnlySpan<decimal>, decimal>! statistic, System.Action<System.Span<decimal>>! imposeNull, Boutquin.Numerics.MonteCarlo.PValueTail tail = Boutquin.Numerics.MonteCarlo.PValueTail.RightTail) -> decimal
 Boutquin.Numerics.MonteCarlo.HaltonSequence
 Boutquin.Numerics.MonteCarlo.HaltonSequence.Dimension.get -> int
 Boutquin.Numerics.MonteCarlo.HaltonSequence.HaltonSequence(int dimension, long skip = 0) -> void
 Boutquin.Numerics.MonteCarlo.HaltonSequence.Next() -> double[]!
+Boutquin.Numerics.MonteCarlo.HaltonSequence.Next(System.Span<double> destination) -> void
+Boutquin.Numerics.MonteCarlo.HaltonSequence<T>
+Boutquin.Numerics.MonteCarlo.HaltonSequence<T>.Dimension.get -> int
+Boutquin.Numerics.MonteCarlo.HaltonSequence<T>.HaltonSequence(int dimension, long skip = 0) -> void
+Boutquin.Numerics.MonteCarlo.HaltonSequence<T>.Next() -> T[]!
+Boutquin.Numerics.MonteCarlo.HaltonSequence<T>.Next(System.Span<T> destination) -> void
 Boutquin.Numerics.MonteCarlo.HarrellDavisPercentile
 Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler
 Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler.BlockSize.get -> int
 Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler.MovingBlockBootstrapResampler(int blockSize, Boutquin.Numerics.Random.IRandomSource! random) -> void
-Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler.Resample(decimal[]! source) -> decimal[]!
+Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler.Resample(System.ReadOnlySpan<decimal> source) -> decimal[]!
+Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>
+Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>.BlockSize.get -> int
+Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>.MovingBlockBootstrapResampler(int blockSize, Boutquin.Numerics.Random.IRandomSource! random) -> void
+Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>.Resample(System.ReadOnlySpan<T> source) -> T[]!
 Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.<Clone>$() -> Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult!
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.Deconstruct(out int SimulationCount, out System.Collections.Generic.IReadOnlyList<string!>! Names, out System.Collections.Generic.IReadOnlyList<decimal[]!>! Statistics, out System.Collections.Generic.IReadOnlyList<decimal>! Means, out System.Collections.Generic.IReadOnlyList<decimal>! Medians, out System.Collections.Generic.IReadOnlyList<decimal>! Percentile5s, out System.Collections.Generic.IReadOnlyList<decimal>! Percentile95s) -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.Equals(Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult? other) -> bool
 Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.Means.get -> System.Collections.Generic.IReadOnlyList<decimal>!
 Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.Means.init -> void
 Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.Medians.get -> System.Collections.Generic.IReadOnlyList<decimal>!
@@ -155,32 +259,72 @@ Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.SimulationCount.get -
 Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.SimulationCount.init -> void
 Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.Statistics.get -> System.Collections.Generic.IReadOnlyList<decimal[]!>!
 Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.Statistics.init -> void
-Boutquin.Numerics.MonteCarlo.Percentile
-Boutquin.Numerics.MonteCarlo.PolitisWhiteBlockLength
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.<Clone>$() -> Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>!
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Deconstruct(out int SimulationCount, out System.Collections.Generic.IReadOnlyList<string!>! Names, out System.Collections.Generic.IReadOnlyList<T[]!>! Statistics, out System.Collections.Generic.IReadOnlyList<T>! Means, out System.Collections.Generic.IReadOnlyList<T>! Medians, out System.Collections.Generic.IReadOnlyList<T>! Percentile5s, out System.Collections.Generic.IReadOnlyList<T>! Percentile95s) -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Equals(Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>? other) -> bool
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Means.get -> System.Collections.Generic.IReadOnlyList<T>!
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Means.init -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Medians.get -> System.Collections.Generic.IReadOnlyList<T>!
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Medians.init -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.MultiStatisticBootstrapResult(int SimulationCount, System.Collections.Generic.IReadOnlyList<string!>! Names, System.Collections.Generic.IReadOnlyList<T[]!>! Statistics, System.Collections.Generic.IReadOnlyList<T>! Means, System.Collections.Generic.IReadOnlyList<T>! Medians, System.Collections.Generic.IReadOnlyList<T>! Percentile5s, System.Collections.Generic.IReadOnlyList<T>! Percentile95s) -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Names.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Names.init -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Percentile5s.get -> System.Collections.Generic.IReadOnlyList<T>!
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Percentile5s.init -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Percentile95s.get -> System.Collections.Generic.IReadOnlyList<T>!
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Percentile95s.init -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.SimulationCount.get -> int
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.SimulationCount.init -> void
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Statistics.get -> System.Collections.Generic.IReadOnlyList<T[]!>!
+Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Statistics.init -> void
 Boutquin.Numerics.MonteCarlo.PSquareEstimator
 Boutquin.Numerics.MonteCarlo.PSquareEstimator.Add(double observation) -> void
 Boutquin.Numerics.MonteCarlo.PSquareEstimator.Count.get -> long
 Boutquin.Numerics.MonteCarlo.PSquareEstimator.Estimate.get -> double
-Boutquin.Numerics.MonteCarlo.PSquareEstimator.Percentile.get -> double
 Boutquin.Numerics.MonteCarlo.PSquareEstimator.PSquareEstimator(double percentile) -> void
+Boutquin.Numerics.MonteCarlo.PSquareEstimator.Percentile.get -> double
+Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>
+Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.Add(T observation) -> void
+Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.Count.get -> long
+Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.Estimate.get -> T
+Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.PSquareEstimator(double percentile) -> void
+Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.Percentile.get -> double
 Boutquin.Numerics.MonteCarlo.PValueTail
 Boutquin.Numerics.MonteCarlo.PValueTail.LeftTail = 1 -> Boutquin.Numerics.MonteCarlo.PValueTail
 Boutquin.Numerics.MonteCarlo.PValueTail.RightTail = 0 -> Boutquin.Numerics.MonteCarlo.PValueTail
 Boutquin.Numerics.MonteCarlo.PValueTail.TwoSided = 2 -> Boutquin.Numerics.MonteCarlo.PValueTail
+Boutquin.Numerics.MonteCarlo.Percentile
+Boutquin.Numerics.MonteCarlo.PolitisWhiteBlockLength
 Boutquin.Numerics.MonteCarlo.SobolSequence
 Boutquin.Numerics.MonteCarlo.SobolSequence.Dimension.get -> int
 Boutquin.Numerics.MonteCarlo.SobolSequence.Next() -> double[]!
+Boutquin.Numerics.MonteCarlo.SobolSequence.Next(System.Span<double> destination) -> void
 Boutquin.Numerics.MonteCarlo.SobolSequence.SobolSequence(int dimension, long skip = 0) -> void
+Boutquin.Numerics.MonteCarlo.SobolSequence<T>
+Boutquin.Numerics.MonteCarlo.SobolSequence<T>.Dimension.get -> int
+Boutquin.Numerics.MonteCarlo.SobolSequence<T>.Next() -> T[]!
+Boutquin.Numerics.MonteCarlo.SobolSequence<T>.Next(System.Span<T> destination) -> void
+Boutquin.Numerics.MonteCarlo.SobolSequence<T>.SobolSequence(int dimension, long skip = 0) -> void
 Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler
 Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler.MeanBlockLength.get -> double
-Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler.Resample(decimal[]! source) -> decimal[]!
-Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler.ResamplePaired(decimal[]! sourceA, decimal[]! sourceB) -> (decimal[]! A, decimal[]! B)
+Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler.Resample(System.ReadOnlySpan<decimal> source) -> decimal[]!
+Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler.ResamplePaired(System.ReadOnlySpan<decimal> sourceA, System.ReadOnlySpan<decimal> sourceB) -> (decimal[]! A, decimal[]! B)
 Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler.StationaryBootstrapResampler(double meanBlockLength, Boutquin.Numerics.Random.IRandomSource! random) -> void
+Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>
+Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.MeanBlockLength.get -> double
+Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.Resample(System.ReadOnlySpan<T> source) -> T[]!
+Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.ResamplePaired(System.ReadOnlySpan<T> sourceA, System.ReadOnlySpan<T> sourceB) -> (T[]! A, T[]! B)
+Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.StationaryBootstrapResampler(double meanBlockLength, Boutquin.Numerics.Random.IRandomSource! random) -> void
 Boutquin.Numerics.MonteCarlo.Subsampler
 Boutquin.Numerics.MonteCarlo.WildBootstrapResampler
-Boutquin.Numerics.MonteCarlo.WildBootstrapResampler.Resample(decimal[]! residuals) -> decimal[]!
+Boutquin.Numerics.MonteCarlo.WildBootstrapResampler.Resample(System.ReadOnlySpan<decimal> residuals) -> decimal[]!
 Boutquin.Numerics.MonteCarlo.WildBootstrapResampler.Weights.get -> Boutquin.Numerics.MonteCarlo.WildBootstrapWeights
 Boutquin.Numerics.MonteCarlo.WildBootstrapResampler.WildBootstrapResampler(Boutquin.Numerics.MonteCarlo.WildBootstrapWeights weights, Boutquin.Numerics.Random.IRandomSource! random) -> void
+Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>
+Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>.Resample(System.ReadOnlySpan<T> residuals) -> T[]!
+Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>.Weights.get -> Boutquin.Numerics.MonteCarlo.WildBootstrapWeights
+Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>.WildBootstrapResampler(Boutquin.Numerics.MonteCarlo.WildBootstrapWeights weights, Boutquin.Numerics.Random.IRandomSource! random) -> void
 Boutquin.Numerics.MonteCarlo.WildBootstrapWeights
 Boutquin.Numerics.MonteCarlo.WildBootstrapWeights.Gaussian = 2 -> Boutquin.Numerics.MonteCarlo.WildBootstrapWeights
 Boutquin.Numerics.MonteCarlo.WildBootstrapWeights.Mammen = 0 -> Boutquin.Numerics.MonteCarlo.WildBootstrapWeights
@@ -190,19 +334,36 @@ Boutquin.Numerics.Random.GaussianSampler.GaussianSampler(Boutquin.Numerics.Rando
 Boutquin.Numerics.Random.GaussianSampler.Next() -> double
 Boutquin.Numerics.Random.GaussianSampler.Next(double mean, double stdDev) -> double
 Boutquin.Numerics.Random.GaussianSampler.NextBatch(int count) -> double[]!
+Boutquin.Numerics.Random.GaussianSampler<T>
+Boutquin.Numerics.Random.GaussianSampler<T>.GaussianSampler(Boutquin.Numerics.Random.IRandomSource! source) -> void
+Boutquin.Numerics.Random.GaussianSampler<T>.Next() -> T
+Boutquin.Numerics.Random.GaussianSampler<T>.Next(T mean, T stdDev) -> T
+Boutquin.Numerics.Random.GaussianSampler<T>.NextBatch(int count) -> T[]!
 Boutquin.Numerics.Random.IRandomSource
 Boutquin.Numerics.Random.IRandomSource.NextDouble() -> double
 Boutquin.Numerics.Random.IRandomSource.NextInt(int upperExclusive) -> int
 Boutquin.Numerics.Random.IRandomSource.NextUInt() -> uint
 Boutquin.Numerics.Random.IRandomSource.NextULong() -> ulong
+Boutquin.Numerics.Random.IRandomSource<T>
+Boutquin.Numerics.Random.IRandomSource<T>.NextT() -> T
 Boutquin.Numerics.Random.Pcg64RandomSource
 Boutquin.Numerics.Random.Pcg64RandomSource.NextULong() -> ulong
 Boutquin.Numerics.Random.Pcg64RandomSource.Pcg64RandomSource(ulong seed) -> void
 Boutquin.Numerics.Random.Pcg64RandomSource.Pcg64RandomSource(ulong seed, ulong streamId) -> void
+Boutquin.Numerics.Random.Pcg64RandomSource<T>
+Boutquin.Numerics.Random.Pcg64RandomSource<T>.NextULong() -> ulong
+Boutquin.Numerics.Random.Pcg64RandomSource<T>.Pcg64RandomSource(ulong seed) -> void
+Boutquin.Numerics.Random.Pcg64RandomSource<T>.Pcg64RandomSource(ulong seed, ulong streamId) -> void
 Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource
 Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource.Jump() -> void
 Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource.NextULong() -> ulong
 Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource.Xoshiro256StarStarRandomSource(ulong seed) -> void
+Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource<T>
+Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource<T>.Jump() -> void
+Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource<T>.NextULong() -> ulong
+Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource<T>.Xoshiro256StarStarRandomSource(ulong seed) -> void
+Boutquin.Numerics.Solvers.ActiveSetQpSolver
+Boutquin.Numerics.Solvers.ActiveSetQpSolver<T>
 Boutquin.Numerics.Solvers.BisectionSolver
 Boutquin.Numerics.Solvers.BisectionSolver.BisectionSolver(double functionTolerance = 1E-12, double bracketTolerance = 1E-12, int maxIterations = 200) -> void
 Boutquin.Numerics.Solvers.BisectionSolver.Solve(System.Func<double, double>! objective, double lowerBound, double upperBound) -> Boutquin.Numerics.Solvers.RootSolverResult!
@@ -222,7 +383,7 @@ Boutquin.Numerics.Solvers.IBracketedRootSolver<T>.Solve(System.Func<T, T>! objec
 Boutquin.Numerics.Solvers.IMultivariateLeastSquaresSolver
 Boutquin.Numerics.Solvers.IMultivariateLeastSquaresSolver.Solve(System.Func<double[]!, double[]!>! residuals, double[]! initialGuess, System.Func<double[]!, double[,]!>? jacobian = null, double[]? lowerBounds = null, double[]? upperBounds = null) -> Boutquin.Numerics.Solvers.MultivariateSolverResult!
 Boutquin.Numerics.Solvers.IMultivariateLeastSquaresSolver<T>
-Boutquin.Numerics.Solvers.IMultivariateLeastSquaresSolver<T>.Solve(System.Func<T[]!, T[]!>! residuals, T[]! initialGuess, System.Func<T[]!, T[,]!>? jacobian = null, T[]? lowerBounds = null, T[]? upperBounds = null) -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
+Boutquin.Numerics.Solvers.IMultivariateLeastSquaresSolver<T>.Solve(System.Func<T[]!, T[]!>! residuals, System.ReadOnlySpan<T> initialGuess, System.Func<T[]!, T[,]!>? jacobian = null, System.ReadOnlySpan<T> lowerBounds = default(System.ReadOnlySpan<T>), System.ReadOnlySpan<T> upperBounds = default(System.ReadOnlySpan<T>)) -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
 Boutquin.Numerics.Solvers.IUnbracketedRootSolver
 Boutquin.Numerics.Solvers.IUnbracketedRootSolver.Solve(System.Func<double, double>! objective, double initialGuess) -> Boutquin.Numerics.Solvers.RootSolverResult!
 Boutquin.Numerics.Solvers.IUnbracketedRootSolver<T>
@@ -243,8 +404,12 @@ Boutquin.Numerics.Solvers.LevenbergMarquardtSolver.Solve(System.Func<double[]!, 
 Boutquin.Numerics.Solvers.LevenbergMarquardtSolver.Solve(System.Func<double[]!, double[]!>! residuals, double[]! initialGuess, System.Func<double[]!, double[,]!>? jacobian = null, double[]? lowerBounds = null, double[]? upperBounds = null) -> Boutquin.Numerics.Solvers.MultivariateSolverResult!
 Boutquin.Numerics.Solvers.LevenbergMarquardtSolver<T>
 Boutquin.Numerics.Solvers.LevenbergMarquardtSolver<T>.LevenbergMarquardtSolver(int maxIterations, T functionTolerance, T parameterTolerance, T gradientTolerance, T initialDamping) -> void
-Boutquin.Numerics.Solvers.LevenbergMarquardtSolver<T>.Solve(System.Func<T[]!, T[]!>! residuals, T[]! initialGuess, Boutquin.Numerics.Solvers.LevenbergMarquardtBuffers<T>! buffers, System.Func<T[]!, T[,]!>? jacobian = null, T[]? lowerBounds = null, T[]? upperBounds = null) -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
-Boutquin.Numerics.Solvers.LevenbergMarquardtSolver<T>.Solve(System.Func<T[]!, T[]!>! residuals, T[]! initialGuess, System.Func<T[]!, T[,]!>? jacobian = null, T[]? lowerBounds = null, T[]? upperBounds = null) -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
+Boutquin.Numerics.Solvers.LevenbergMarquardtSolver<T>.Solve(Boutquin.Numerics.Solvers.LmResidualWriter<T>! residuals, System.ReadOnlySpan<T> initialGuess, Boutquin.Numerics.Solvers.LevenbergMarquardtBuffers<T>! buffers, Boutquin.Numerics.Solvers.LmJacobianWriter<T>? jacobian = null, System.ReadOnlySpan<T> lowerBounds = default(System.ReadOnlySpan<T>), System.ReadOnlySpan<T> upperBounds = default(System.ReadOnlySpan<T>)) -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
+Boutquin.Numerics.Solvers.LevenbergMarquardtSolver<T>.Solve(Boutquin.Numerics.Solvers.LmResidualWriter<T>! residuals, System.ReadOnlySpan<T> initialGuess, int residualCount, Boutquin.Numerics.Solvers.LmJacobianWriter<T>? jacobian = null, System.ReadOnlySpan<T> lowerBounds = default(System.ReadOnlySpan<T>), System.ReadOnlySpan<T> upperBounds = default(System.ReadOnlySpan<T>)) -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
+Boutquin.Numerics.Solvers.LevenbergMarquardtSolver<T>.Solve(System.Func<T[]!, T[]!>! residuals, System.ReadOnlySpan<T> initialGuess, Boutquin.Numerics.Solvers.LevenbergMarquardtBuffers<T>! buffers, System.Func<T[]!, T[,]!>? jacobian = null, System.ReadOnlySpan<T> lowerBounds = default(System.ReadOnlySpan<T>), System.ReadOnlySpan<T> upperBounds = default(System.ReadOnlySpan<T>)) -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
+Boutquin.Numerics.Solvers.LevenbergMarquardtSolver<T>.Solve(System.Func<T[]!, T[]!>! residuals, System.ReadOnlySpan<T> initialGuess, System.Func<T[]!, T[,]!>? jacobian = null, System.ReadOnlySpan<T> lowerBounds = default(System.ReadOnlySpan<T>), System.ReadOnlySpan<T> upperBounds = default(System.ReadOnlySpan<T>)) -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
+Boutquin.Numerics.Solvers.LmJacobianWriter<T>
+Boutquin.Numerics.Solvers.LmResidualWriter<T>
 Boutquin.Numerics.Solvers.LmTerminationReason
 Boutquin.Numerics.Solvers.LmTerminationReason.DampingOverflow = 4 -> Boutquin.Numerics.Solvers.LmTerminationReason
 Boutquin.Numerics.Solvers.LmTerminationReason.FunctionToleranceReached = 0 -> Boutquin.Numerics.Solvers.LmTerminationReason
@@ -260,10 +425,13 @@ Boutquin.Numerics.Solvers.MullerSolver<T>.MullerSolver(T tolerance, int maxItera
 Boutquin.Numerics.Solvers.MullerSolver<T>.Solve(System.Func<T, T>! objective, T initialGuess) -> Boutquin.Numerics.Solvers.RootSolverResult<T>!
 Boutquin.Numerics.Solvers.MullerSolver<T>.Solve(System.Func<T, T>! objective, T x0, T x1, T x2) -> Boutquin.Numerics.Solvers.RootSolverResult<T>!
 Boutquin.Numerics.Solvers.MultivariateSolverResult
+Boutquin.Numerics.Solvers.MultivariateSolverResult.<Clone>$() -> Boutquin.Numerics.Solvers.MultivariateSolverResult!
 Boutquin.Numerics.Solvers.MultivariateSolverResult.BoundsActive.get -> bool
 Boutquin.Numerics.Solvers.MultivariateSolverResult.BoundsActive.init -> void
 Boutquin.Numerics.Solvers.MultivariateSolverResult.Converged.get -> bool
 Boutquin.Numerics.Solvers.MultivariateSolverResult.Converged.init -> void
+Boutquin.Numerics.Solvers.MultivariateSolverResult.Deconstruct(out double[]! Parameters, out double FinalCost, out double[]! FinalResiduals, out double[,]? ParameterCovariance, out int Iterations, out bool Converged, out Boutquin.Numerics.Solvers.LmTerminationReason TerminationReason, out bool BoundsActive) -> void
+Boutquin.Numerics.Solvers.MultivariateSolverResult.Equals(Boutquin.Numerics.Solvers.MultivariateSolverResult? other) -> bool
 Boutquin.Numerics.Solvers.MultivariateSolverResult.FinalCost.get -> double
 Boutquin.Numerics.Solvers.MultivariateSolverResult.FinalCost.init -> void
 Boutquin.Numerics.Solvers.MultivariateSolverResult.FinalResiduals.get -> double[]!
@@ -278,10 +446,13 @@ Boutquin.Numerics.Solvers.MultivariateSolverResult.Parameters.init -> void
 Boutquin.Numerics.Solvers.MultivariateSolverResult.TerminationReason.get -> Boutquin.Numerics.Solvers.LmTerminationReason
 Boutquin.Numerics.Solvers.MultivariateSolverResult.TerminationReason.init -> void
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>
+Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.<Clone>$() -> Boutquin.Numerics.Solvers.MultivariateSolverResult<T>!
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.BoundsActive.get -> bool
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.BoundsActive.init -> void
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.Converged.get -> bool
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.Converged.init -> void
+Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.Deconstruct(out T[]! Parameters, out T FinalCost, out T[]! FinalResiduals, out T[,]? ParameterCovariance, out int Iterations, out bool Converged, out Boutquin.Numerics.Solvers.LmTerminationReason TerminationReason, out bool BoundsActive) -> void
+Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.Equals(Boutquin.Numerics.Solvers.MultivariateSolverResult<T>? other) -> bool
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.FinalCost.get -> T
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.FinalCost.init -> void
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.FinalResiduals.get -> T[]!
@@ -295,6 +466,7 @@ Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.Parameters.get -> T[]!
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.Parameters.init -> void
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.TerminationReason.get -> Boutquin.Numerics.Solvers.LmTerminationReason
 Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.TerminationReason.init -> void
+Boutquin.Numerics.Solvers.NelderMeadMinimizer<T>
 Boutquin.Numerics.Solvers.NewtonRaphsonSolver
 Boutquin.Numerics.Solvers.NewtonRaphsonSolver.NewtonRaphsonSolver(double functionTolerance = 1E-12, double bracketTolerance = 1E-12, double stepTolerance = 0, int maxIterations = 50, System.Func<double, double>? derivative = null) -> void
 Boutquin.Numerics.Solvers.NewtonRaphsonSolver.Solve(System.Func<double, double>! objective, double initialGuess) -> Boutquin.Numerics.Solvers.RootSolverResult!
@@ -304,44 +476,54 @@ Boutquin.Numerics.Solvers.NewtonRaphsonSolver<T>.NewtonRaphsonSolver(T functionT
 Boutquin.Numerics.Solvers.NewtonRaphsonSolver<T>.Solve(System.Func<T, T>! objective, T initialGuess) -> Boutquin.Numerics.Solvers.RootSolverResult<T>!
 Boutquin.Numerics.Solvers.NewtonRaphsonSolver<T>.Solve(System.Func<T, T>! objective, T lowerBound, T upperBound) -> Boutquin.Numerics.Solvers.RootSolverResult<T>!
 Boutquin.Numerics.Solvers.OlsResult
+Boutquin.Numerics.Solvers.OlsResult.<Clone>$() -> Boutquin.Numerics.Solvers.OlsResult!
 Boutquin.Numerics.Solvers.OlsResult.Coefficients.get -> double[]!
 Boutquin.Numerics.Solvers.OlsResult.Coefficients.init -> void
 Boutquin.Numerics.Solvers.OlsResult.CovarianceMatrix.get -> double[,]!
 Boutquin.Numerics.Solvers.OlsResult.CovarianceMatrix.init -> void
 Boutquin.Numerics.Solvers.OlsResult.DegreesOfFreedom.get -> int
 Boutquin.Numerics.Solvers.OlsResult.DegreesOfFreedom.init -> void
-Boutquin.Numerics.Solvers.OlsResult.Residuals.get -> double[]!
-Boutquin.Numerics.Solvers.OlsResult.Residuals.init -> void
+Boutquin.Numerics.Solvers.OlsResult.Equals(Boutquin.Numerics.Solvers.OlsResult? other) -> bool
+Boutquin.Numerics.Solvers.OlsResult.OlsResult() -> void
+Boutquin.Numerics.Solvers.OlsResult.RSquared.get -> double
+Boutquin.Numerics.Solvers.OlsResult.RSquared.init -> void
 Boutquin.Numerics.Solvers.OlsResult.ResidualStandardDeviation.get -> double
 Boutquin.Numerics.Solvers.OlsResult.ResidualStandardDeviation.init -> void
 Boutquin.Numerics.Solvers.OlsResult.ResidualSumOfSquares.get -> double
 Boutquin.Numerics.Solvers.OlsResult.ResidualSumOfSquares.init -> void
-Boutquin.Numerics.Solvers.OlsResult.RSquared.get -> double
-Boutquin.Numerics.Solvers.OlsResult.RSquared.init -> void
+Boutquin.Numerics.Solvers.OlsResult.Residuals.get -> double[]!
+Boutquin.Numerics.Solvers.OlsResult.Residuals.init -> void
 Boutquin.Numerics.Solvers.OlsResult.StandardErrors.get -> double[]!
 Boutquin.Numerics.Solvers.OlsResult.StandardErrors.init -> void
 Boutquin.Numerics.Solvers.OlsResult<T>
+Boutquin.Numerics.Solvers.OlsResult<T>.<Clone>$() -> Boutquin.Numerics.Solvers.OlsResult<T>!
 Boutquin.Numerics.Solvers.OlsResult<T>.Coefficients.get -> T[]!
 Boutquin.Numerics.Solvers.OlsResult<T>.Coefficients.init -> void
 Boutquin.Numerics.Solvers.OlsResult<T>.CovarianceMatrix.get -> T[,]!
 Boutquin.Numerics.Solvers.OlsResult<T>.CovarianceMatrix.init -> void
 Boutquin.Numerics.Solvers.OlsResult<T>.DegreesOfFreedom.get -> int
 Boutquin.Numerics.Solvers.OlsResult<T>.DegreesOfFreedom.init -> void
-Boutquin.Numerics.Solvers.OlsResult<T>.Residuals.get -> T[]!
-Boutquin.Numerics.Solvers.OlsResult<T>.Residuals.init -> void
+Boutquin.Numerics.Solvers.OlsResult<T>.Equals(Boutquin.Numerics.Solvers.OlsResult<T>? other) -> bool
+Boutquin.Numerics.Solvers.OlsResult<T>.HasInferentialContent.get -> bool
+Boutquin.Numerics.Solvers.OlsResult<T>.OlsResult() -> void
+Boutquin.Numerics.Solvers.OlsResult<T>.RSquared.get -> T
+Boutquin.Numerics.Solvers.OlsResult<T>.RSquared.init -> void
 Boutquin.Numerics.Solvers.OlsResult<T>.ResidualStandardDeviation.get -> T
 Boutquin.Numerics.Solvers.OlsResult<T>.ResidualStandardDeviation.init -> void
 Boutquin.Numerics.Solvers.OlsResult<T>.ResidualSumOfSquares.get -> T
 Boutquin.Numerics.Solvers.OlsResult<T>.ResidualSumOfSquares.init -> void
-Boutquin.Numerics.Solvers.OlsResult<T>.RSquared.get -> T
-Boutquin.Numerics.Solvers.OlsResult<T>.RSquared.init -> void
+Boutquin.Numerics.Solvers.OlsResult<T>.Residuals.get -> T[]!
+Boutquin.Numerics.Solvers.OlsResult<T>.Residuals.init -> void
 Boutquin.Numerics.Solvers.OlsResult<T>.StandardErrors.get -> T[]!
 Boutquin.Numerics.Solvers.OlsResult<T>.StandardErrors.init -> void
 Boutquin.Numerics.Solvers.OrdinaryLeastSquares
 Boutquin.Numerics.Solvers.OrdinaryLeastSquares<T>
 Boutquin.Numerics.Solvers.RootSolverResult
+Boutquin.Numerics.Solvers.RootSolverResult.<Clone>$() -> Boutquin.Numerics.Solvers.RootSolverResult!
 Boutquin.Numerics.Solvers.RootSolverResult.Converged.get -> bool
 Boutquin.Numerics.Solvers.RootSolverResult.Converged.init -> void
+Boutquin.Numerics.Solvers.RootSolverResult.Deconstruct(out double Root, out bool Converged, out int Iterations, out double FinalResidual, out double EstimatedError) -> void
+Boutquin.Numerics.Solvers.RootSolverResult.Equals(Boutquin.Numerics.Solvers.RootSolverResult? other) -> bool
 Boutquin.Numerics.Solvers.RootSolverResult.EstimatedError.get -> double
 Boutquin.Numerics.Solvers.RootSolverResult.EstimatedError.init -> void
 Boutquin.Numerics.Solvers.RootSolverResult.FinalResidual.get -> double
@@ -352,8 +534,11 @@ Boutquin.Numerics.Solvers.RootSolverResult.Root.get -> double
 Boutquin.Numerics.Solvers.RootSolverResult.Root.init -> void
 Boutquin.Numerics.Solvers.RootSolverResult.RootSolverResult(double Root, bool Converged, int Iterations, double FinalResidual, double EstimatedError) -> void
 Boutquin.Numerics.Solvers.RootSolverResult<T>
+Boutquin.Numerics.Solvers.RootSolverResult<T>.<Clone>$() -> Boutquin.Numerics.Solvers.RootSolverResult<T>!
 Boutquin.Numerics.Solvers.RootSolverResult<T>.Converged.get -> bool
 Boutquin.Numerics.Solvers.RootSolverResult<T>.Converged.init -> void
+Boutquin.Numerics.Solvers.RootSolverResult<T>.Deconstruct(out T Root, out bool Converged, out int Iterations, out T FinalResidual, out T EstimatedError) -> void
+Boutquin.Numerics.Solvers.RootSolverResult<T>.Equals(Boutquin.Numerics.Solvers.RootSolverResult<T>? other) -> bool
 Boutquin.Numerics.Solvers.RootSolverResult<T>.EstimatedError.get -> T
 Boutquin.Numerics.Solvers.RootSolverResult<T>.EstimatedError.init -> void
 Boutquin.Numerics.Solvers.RootSolverResult<T>.FinalResidual.get -> T
@@ -371,7 +556,42 @@ Boutquin.Numerics.Solvers.SecantSolver<T>
 Boutquin.Numerics.Solvers.SecantSolver<T>.SecantSolver(T tolerance, int maxIterations = 50) -> void
 Boutquin.Numerics.Solvers.SecantSolver<T>.Solve(System.Func<T, T>! objective, T initialGuess) -> Boutquin.Numerics.Solvers.RootSolverResult<T>!
 Boutquin.Numerics.Solvers.SecantSolver<T>.Solve(System.Func<T, T>! objective, T p0, T p1) -> Boutquin.Numerics.Solvers.RootSolverResult<T>!
+Boutquin.Numerics.Solvers.SimplexOptions<T>
+Boutquin.Numerics.Solvers.SimplexOptions<T>.<Clone>$() -> Boutquin.Numerics.Solvers.SimplexOptions<T>!
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Contraction.get -> T?
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Contraction.init -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Deconstruct(out int MaxIterations, out T? XTolerance, out T? FTolerance, out T? InitialStep, out T? Reflection, out T? Expansion, out T? Contraction, out T? Shrink) -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Equals(Boutquin.Numerics.Solvers.SimplexOptions<T>? other) -> bool
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Expansion.get -> T?
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Expansion.init -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.FTolerance.get -> T?
+Boutquin.Numerics.Solvers.SimplexOptions<T>.FTolerance.init -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.InitialStep.get -> T?
+Boutquin.Numerics.Solvers.SimplexOptions<T>.InitialStep.init -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.MaxIterations.get -> int
+Boutquin.Numerics.Solvers.SimplexOptions<T>.MaxIterations.init -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Reflection.get -> T?
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Reflection.init -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Shrink.get -> T?
+Boutquin.Numerics.Solvers.SimplexOptions<T>.Shrink.init -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.SimplexOptions(int MaxIterations = 2000, T? XTolerance = null, T? FTolerance = null, T? InitialStep = null, T? Reflection = null, T? Expansion = null, T? Contraction = null, T? Shrink = null) -> void
+Boutquin.Numerics.Solvers.SimplexOptions<T>.XTolerance.get -> T?
+Boutquin.Numerics.Solvers.SimplexOptions<T>.XTolerance.init -> void
+Boutquin.Numerics.Solvers.SimplexResult<T>
+Boutquin.Numerics.Solvers.SimplexResult<T>.<Clone>$() -> Boutquin.Numerics.Solvers.SimplexResult<T>!
+Boutquin.Numerics.Solvers.SimplexResult<T>.Argmin.get -> T[]!
+Boutquin.Numerics.Solvers.SimplexResult<T>.Argmin.init -> void
+Boutquin.Numerics.Solvers.SimplexResult<T>.Converged.get -> bool
+Boutquin.Numerics.Solvers.SimplexResult<T>.Converged.init -> void
+Boutquin.Numerics.Solvers.SimplexResult<T>.Deconstruct(out T[]! Argmin, out T MinValue, out int Iterations, out bool Converged) -> void
+Boutquin.Numerics.Solvers.SimplexResult<T>.Equals(Boutquin.Numerics.Solvers.SimplexResult<T>? other) -> bool
+Boutquin.Numerics.Solvers.SimplexResult<T>.Iterations.get -> int
+Boutquin.Numerics.Solvers.SimplexResult<T>.Iterations.init -> void
+Boutquin.Numerics.Solvers.SimplexResult<T>.MinValue.get -> T
+Boutquin.Numerics.Solvers.SimplexResult<T>.MinValue.init -> void
+Boutquin.Numerics.Solvers.SimplexResult<T>.SimplexResult(T[]! Argmin, T MinValue, int Iterations, bool Converged) -> void
 Boutquin.Numerics.Statistics.DeflatedSharpeRatio
+Boutquin.Numerics.Statistics.DeflatedSharpeRatio<T>
 Boutquin.Numerics.Statistics.DenoisedCovarianceEstimator
 Boutquin.Numerics.Statistics.DenoisedCovarianceEstimator.DenoisedCovarianceEstimator(bool applyLedoitWolfShrinkage = false) -> void
 Boutquin.Numerics.Statistics.DenoisedCovarianceEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
@@ -382,25 +602,44 @@ Boutquin.Numerics.Statistics.DetonedCovarianceEstimator
 Boutquin.Numerics.Statistics.DetonedCovarianceEstimator.DetonedCovarianceEstimator(decimal detoningAlpha = 1) -> void
 Boutquin.Numerics.Statistics.DetonedCovarianceEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
 Boutquin.Numerics.Statistics.DetonedCovarianceEstimator<T>
+Boutquin.Numerics.Statistics.DetonedCovarianceEstimator<T>.DetonedCovarianceEstimator() -> void
 Boutquin.Numerics.Statistics.DetonedCovarianceEstimator<T>.DetonedCovarianceEstimator(T? detoningAlpha = default(T?)) -> void
 Boutquin.Numerics.Statistics.DetonedCovarianceEstimator<T>.Estimate(T[,]! returns) -> T[,]!
 Boutquin.Numerics.Statistics.DistanceCorrelation
+Boutquin.Numerics.Statistics.DistanceCorrelation<T>
 Boutquin.Numerics.Statistics.DoublySparseEstimator
 Boutquin.Numerics.Statistics.DoublySparseEstimator.DoublySparseEstimator(decimal eigenvectorThreshold = 0.1) -> void
 Boutquin.Numerics.Statistics.DoublySparseEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
 Boutquin.Numerics.Statistics.DoublySparseEstimator<T>
-Boutquin.Numerics.Statistics.DoublySparseEstimator<T>.DoublySparseEstimator(T? eigenvectorThreshold = default(T?)) -> void
+Boutquin.Numerics.Statistics.DoublySparseEstimator<T>.DoublySparseEstimator() -> void
+Boutquin.Numerics.Statistics.DoublySparseEstimator<T>.DoublySparseEstimator(T? eigenvectorThreshold = null) -> void
 Boutquin.Numerics.Statistics.DoublySparseEstimator<T>.Estimate(T[,]! returns) -> T[,]!
 Boutquin.Numerics.Statistics.DsrResult
+Boutquin.Numerics.Statistics.DsrResult.<Clone>$() -> Boutquin.Numerics.Statistics.DsrResult!
+Boutquin.Numerics.Statistics.DsrResult.Deconstruct(out decimal DeflatedSharpe, out decimal PValue, out int NumTrials, out decimal ExpectedMaxSharpe) -> void
 Boutquin.Numerics.Statistics.DsrResult.DeflatedSharpe.get -> decimal
 Boutquin.Numerics.Statistics.DsrResult.DeflatedSharpe.init -> void
 Boutquin.Numerics.Statistics.DsrResult.DsrResult(decimal DeflatedSharpe, decimal PValue, int NumTrials, decimal ExpectedMaxSharpe) -> void
+Boutquin.Numerics.Statistics.DsrResult.Equals(Boutquin.Numerics.Statistics.DsrResult? other) -> bool
 Boutquin.Numerics.Statistics.DsrResult.ExpectedMaxSharpe.get -> decimal
 Boutquin.Numerics.Statistics.DsrResult.ExpectedMaxSharpe.init -> void
 Boutquin.Numerics.Statistics.DsrResult.NumTrials.get -> int
 Boutquin.Numerics.Statistics.DsrResult.NumTrials.init -> void
 Boutquin.Numerics.Statistics.DsrResult.PValue.get -> decimal
 Boutquin.Numerics.Statistics.DsrResult.PValue.init -> void
+Boutquin.Numerics.Statistics.DsrResult<T>
+Boutquin.Numerics.Statistics.DsrResult<T>.<Clone>$() -> Boutquin.Numerics.Statistics.DsrResult<T>!
+Boutquin.Numerics.Statistics.DsrResult<T>.Deconstruct(out T DeflatedSharpe, out T PValue, out int NumTrials, out T ExpectedMaxSharpe) -> void
+Boutquin.Numerics.Statistics.DsrResult<T>.DeflatedSharpe.get -> T
+Boutquin.Numerics.Statistics.DsrResult<T>.DeflatedSharpe.init -> void
+Boutquin.Numerics.Statistics.DsrResult<T>.DsrResult(T DeflatedSharpe, T PValue, int NumTrials, T ExpectedMaxSharpe) -> void
+Boutquin.Numerics.Statistics.DsrResult<T>.Equals(Boutquin.Numerics.Statistics.DsrResult<T>? other) -> bool
+Boutquin.Numerics.Statistics.DsrResult<T>.ExpectedMaxSharpe.get -> T
+Boutquin.Numerics.Statistics.DsrResult<T>.ExpectedMaxSharpe.init -> void
+Boutquin.Numerics.Statistics.DsrResult<T>.NumTrials.get -> int
+Boutquin.Numerics.Statistics.DsrResult<T>.NumTrials.init -> void
+Boutquin.Numerics.Statistics.DsrResult<T>.PValue.get -> T
+Boutquin.Numerics.Statistics.DsrResult<T>.PValue.init -> void
 Boutquin.Numerics.Statistics.ExponentiallyWeightedCovarianceEstimator
 Boutquin.Numerics.Statistics.ExponentiallyWeightedCovarianceEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
 Boutquin.Numerics.Statistics.ExponentiallyWeightedCovarianceEstimator.ExponentiallyWeightedCovarianceEstimator(decimal lambda = 0.94) -> void
@@ -409,25 +648,118 @@ Boutquin.Numerics.Statistics.ExponentiallyWeightedCovarianceEstimator<T>.Estimat
 Boutquin.Numerics.Statistics.ExponentiallyWeightedCovarianceEstimator<T>.ExponentiallyWeightedCovarianceEstimator() -> void
 Boutquin.Numerics.Statistics.ExponentiallyWeightedCovarianceEstimator<T>.ExponentiallyWeightedCovarianceEstimator(T lambda) -> void
 Boutquin.Numerics.Statistics.FisherZTransform
-Boutquin.Numerics.Statistics.GeneralizationScore
-Boutquin.Numerics.Statistics.GtScoreResult
-Boutquin.Numerics.Statistics.GtScoreResult.ConsistencyComponent.get -> double
-Boutquin.Numerics.Statistics.GtScoreResult.ConsistencyComponent.init -> void
-Boutquin.Numerics.Statistics.GtScoreResult.DownsideRiskComponent.get -> double
-Boutquin.Numerics.Statistics.GtScoreResult.DownsideRiskComponent.init -> void
-Boutquin.Numerics.Statistics.GtScoreResult.GtScoreResult(double Score, double PerformanceComponent, double SignificanceComponent, double ConsistencyComponent, double DownsideRiskComponent) -> void
-Boutquin.Numerics.Statistics.GtScoreResult.PerformanceComponent.get -> double
-Boutquin.Numerics.Statistics.GtScoreResult.PerformanceComponent.init -> void
-Boutquin.Numerics.Statistics.GtScoreResult.Score.get -> double
-Boutquin.Numerics.Statistics.GtScoreResult.Score.init -> void
-Boutquin.Numerics.Statistics.GtScoreResult.SignificanceComponent.get -> double
-Boutquin.Numerics.Statistics.GtScoreResult.SignificanceComponent.init -> void
+Boutquin.Numerics.Statistics.FisherZTransform<T>
+Boutquin.Numerics.Statistics.GarchFitResult<T>
+Boutquin.Numerics.Statistics.GarchFitResult<T>.<Clone>$() -> Boutquin.Numerics.Statistics.GarchFitResult<T>!
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Alpha.get -> T
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Alpha.init -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Beta.get -> T
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Beta.init -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.ConditionalVariances.get -> T[]!
+Boutquin.Numerics.Statistics.GarchFitResult<T>.ConditionalVariances.init -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Converged.get -> bool
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Converged.init -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Deconstruct(out T Mu, out T Phi, out T Omega, out T Alpha, out T Beta, out T[]! ConditionalVariances, out T[]! StandardizedResiduals, out T LogLikelihood, out bool Converged) -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Equals(Boutquin.Numerics.Statistics.GarchFitResult<T>? other) -> bool
+Boutquin.Numerics.Statistics.GarchFitResult<T>.ForecastVariance(int horizon) -> T
+Boutquin.Numerics.Statistics.GarchFitResult<T>.GarchFitResult(T Mu, T Phi, T Omega, T Alpha, T Beta, T[]! ConditionalVariances, T[]! StandardizedResiduals, T LogLikelihood, bool Converged) -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.LogLikelihood.get -> T
+Boutquin.Numerics.Statistics.GarchFitResult<T>.LogLikelihood.init -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Mu.get -> T
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Mu.init -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Omega.get -> T
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Omega.init -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Phi.get -> T
+Boutquin.Numerics.Statistics.GarchFitResult<T>.Phi.init -> void
+Boutquin.Numerics.Statistics.GarchFitResult<T>.StandardizedResiduals.get -> T[]!
+Boutquin.Numerics.Statistics.GarchFitResult<T>.StandardizedResiduals.init -> void
+Boutquin.Numerics.Statistics.GarchOneOneEstimator<T>
+Boutquin.Numerics.Statistics.GarchOptions<T>
+Boutquin.Numerics.Statistics.GarchOptions<T>.<Clone>$() -> Boutquin.Numerics.Statistics.GarchOptions<T>!
+Boutquin.Numerics.Statistics.GarchOptions<T>.Deconstruct(out bool IncludeAr1Mean, out int MinObservations, out int MaxIterations, out T? Tolerance) -> void
+Boutquin.Numerics.Statistics.GarchOptions<T>.Equals(Boutquin.Numerics.Statistics.GarchOptions<T>? other) -> bool
+Boutquin.Numerics.Statistics.GarchOptions<T>.FixedZeroMean.get -> bool
+Boutquin.Numerics.Statistics.GarchOptions<T>.FixedZeroMean.init -> void
+Boutquin.Numerics.Statistics.GarchOptions<T>.GarchOptions(bool IncludeAr1Mean = false, int MinObservations = 20, int MaxIterations = 5000, T? Tolerance = null) -> void
+Boutquin.Numerics.Statistics.GarchOptions<T>.IncludeAr1Mean.get -> bool
+Boutquin.Numerics.Statistics.GarchOptions<T>.IncludeAr1Mean.init -> void
+Boutquin.Numerics.Statistics.GarchOptions<T>.MaxIterations.get -> int
+Boutquin.Numerics.Statistics.GarchOptions<T>.MaxIterations.init -> void
+Boutquin.Numerics.Statistics.GarchOptions<T>.MinObservations.get -> int
+Boutquin.Numerics.Statistics.GarchOptions<T>.MinObservations.init -> void
+Boutquin.Numerics.Statistics.GarchOptions<T>.Tolerance.get -> T?
+Boutquin.Numerics.Statistics.GarchOptions<T>.Tolerance.init -> void
+Boutquin.Numerics.Statistics.GarchOptions<T>.VarianceTargeting.get -> bool
+Boutquin.Numerics.Statistics.GarchOptions<T>.VarianceTargeting.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.<Clone>$() -> Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>!
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.Deconstruct(out int MaxIterations, out T? Tolerance, out T[,]? Weights) -> void
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.Equals(Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>? other) -> bool
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.GraphicalLassoOptions(int MaxIterations = 100, T? Tolerance = null, T[,]? Weights = null) -> void
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.MaxIterations.get -> int
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.MaxIterations.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.Tolerance.get -> T?
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.Tolerance.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.Weights.get -> T[,]?
+Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.Weights.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.<Clone>$() -> Boutquin.Numerics.Statistics.GraphicalLassoResult<T>!
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Converged.get -> bool
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Converged.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Covariance.get -> T[,]!
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Covariance.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Deconstruct(out T[,]! Precision, out T[,]! Covariance, out T Lambda, out int Iterations, out bool Converged) -> void
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Equals(Boutquin.Numerics.Statistics.GraphicalLassoResult<T>? other) -> bool
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.GraphicalLassoResult(T[,]! Precision, T[,]! Covariance, T Lambda, int Iterations, bool Converged) -> void
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Iterations.get -> int
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Iterations.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Lambda.get -> T
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Lambda.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Precision.get -> T[,]!
+Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Precision.init -> void
+Boutquin.Numerics.Statistics.GraphicalLassoSolver<T>
+Boutquin.Numerics.Statistics.GtInspiredScore
+Boutquin.Numerics.Statistics.GtInspiredScore<T>
+Boutquin.Numerics.Statistics.GtInspiredScoreResult
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.<Clone>$() -> Boutquin.Numerics.Statistics.GtInspiredScoreResult!
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.Deconstruct(out double Score, out double Mu, out double Z, out double RSquared, out double DownsideDeviation) -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.DownsideDeviation.get -> double
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.DownsideDeviation.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.Equals(Boutquin.Numerics.Statistics.GtInspiredScoreResult? other) -> bool
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.GtInspiredScoreResult(double Score, double Mu, double Z, double RSquared, double DownsideDeviation) -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.Mu.get -> double
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.Mu.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.RSquared.get -> double
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.RSquared.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.Score.get -> double
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.Score.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.Z.get -> double
+Boutquin.Numerics.Statistics.GtInspiredScoreResult.Z.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.<Clone>$() -> Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>!
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Deconstruct(out T Score, out T Mu, out T Z, out T RSquared, out T DownsideDeviation) -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.DownsideDeviation.get -> T
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.DownsideDeviation.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Equals(Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>? other) -> bool
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.GtInspiredScoreResult(T Score, T Mu, T Z, T RSquared, T DownsideDeviation) -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Mu.get -> T
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Mu.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.RSquared.get -> T
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.RSquared.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Score.get -> T
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Score.init -> void
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Z.get -> T
+Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Z.init -> void
 Boutquin.Numerics.Statistics.HaircutSharpe
+Boutquin.Numerics.Statistics.HaircutSharpe<T>
 Boutquin.Numerics.Statistics.HaircutSharpeResult
+Boutquin.Numerics.Statistics.HaircutSharpeResult.<Clone>$() -> Boutquin.Numerics.Statistics.HaircutSharpeResult!
 Boutquin.Numerics.Statistics.HaircutSharpeResult.BhyPValue.get -> decimal
 Boutquin.Numerics.Statistics.HaircutSharpeResult.BhyPValue.init -> void
 Boutquin.Numerics.Statistics.HaircutSharpeResult.BonferroniPValue.get -> decimal
 Boutquin.Numerics.Statistics.HaircutSharpeResult.BonferroniPValue.init -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult.Deconstruct(out decimal ObservedSharpe, out decimal HaircutSharpe, out decimal HaircutAmount, out decimal BonferroniPValue, out decimal HolmPValue, out decimal BhyPValue) -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult.Equals(Boutquin.Numerics.Statistics.HaircutSharpeResult? other) -> bool
 Boutquin.Numerics.Statistics.HaircutSharpeResult.HaircutAmount.get -> decimal
 Boutquin.Numerics.Statistics.HaircutSharpeResult.HaircutAmount.init -> void
 Boutquin.Numerics.Statistics.HaircutSharpeResult.HaircutSharpe.get -> decimal
@@ -437,9 +769,27 @@ Boutquin.Numerics.Statistics.HaircutSharpeResult.HolmPValue.get -> decimal
 Boutquin.Numerics.Statistics.HaircutSharpeResult.HolmPValue.init -> void
 Boutquin.Numerics.Statistics.HaircutSharpeResult.ObservedSharpe.get -> decimal
 Boutquin.Numerics.Statistics.HaircutSharpeResult.ObservedSharpe.init -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.<Clone>$() -> Boutquin.Numerics.Statistics.HaircutSharpeResult<T>!
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.BhyPValue.get -> T
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.BhyPValue.init -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.BonferroniPValue.get -> T
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.BonferroniPValue.init -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.Deconstruct(out T ObservedSharpe, out T HaircutSharpe, out T HaircutAmount, out T BonferroniPValue, out T HolmPValue, out T BhyPValue) -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.Equals(Boutquin.Numerics.Statistics.HaircutSharpeResult<T>? other) -> bool
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutAmount.get -> T
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutAmount.init -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutSharpe.get -> T
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutSharpe.init -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutSharpeResult(T ObservedSharpe, T HaircutSharpe, T HaircutAmount, T BonferroniPValue, T HolmPValue, T BhyPValue) -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HolmPValue.get -> T
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HolmPValue.init -> void
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.ObservedSharpe.get -> T
+Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.ObservedSharpe.init -> void
 Boutquin.Numerics.Statistics.ICovarianceEstimator
 Boutquin.Numerics.Statistics.ICovarianceEstimator.Estimate(Boutquin.Numerics.Statistics.ReturnsMatrix returns) -> decimal[,]!
 Boutquin.Numerics.Statistics.ICovarianceEstimator<T>
+Boutquin.Numerics.Statistics.ICovarianceEstimator<T>.Estimate(Boutquin.Numerics.Statistics.ReturnsMatrix<T> returns) -> T[,]!
 Boutquin.Numerics.Statistics.ICovarianceEstimator<T>.Estimate(T[,]! returns) -> T[,]!
 Boutquin.Numerics.Statistics.LedoitWolfConstantCorrelationEstimator
 Boutquin.Numerics.Statistics.LedoitWolfConstantCorrelationEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
@@ -459,16 +809,25 @@ Boutquin.Numerics.Statistics.LedoitWolfSingleFactorEstimator.LedoitWolfSingleFac
 Boutquin.Numerics.Statistics.LedoitWolfSingleFactorEstimator<T>
 Boutquin.Numerics.Statistics.LedoitWolfSingleFactorEstimator<T>.Estimate(T[,]! returns) -> T[,]!
 Boutquin.Numerics.Statistics.LedoitWolfSingleFactorEstimator<T>.LedoitWolfSingleFactorEstimator() -> void
+Boutquin.Numerics.Statistics.LowerTailDependence<T>
+Boutquin.Numerics.Statistics.LowerTailDependenceEstimator
+Boutquin.Numerics.Statistics.LowerTailDependenceEstimator.Conditional = 0 -> Boutquin.Numerics.Statistics.LowerTailDependenceEstimator
+Boutquin.Numerics.Statistics.LowerTailDependenceEstimator.EmpiricalCopula = 1 -> Boutquin.Numerics.Statistics.LowerTailDependenceEstimator
 Boutquin.Numerics.Statistics.MinimumTrackRecordLength
+Boutquin.Numerics.Statistics.MinimumTrackRecordLength<T>
 Boutquin.Numerics.Statistics.NercomeCovarianceEstimator
 Boutquin.Numerics.Statistics.NercomeCovarianceEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
+Boutquin.Numerics.Statistics.NercomeCovarianceEstimator.NercomeCovarianceEstimator() -> void
 Boutquin.Numerics.Statistics.NercomeCovarianceEstimator.NercomeCovarianceEstimator(decimal splitFraction = 0.5) -> void
 Boutquin.Numerics.Statistics.NercomeCovarianceEstimator.SplitFraction.get -> decimal
 Boutquin.Numerics.Statistics.NercomeCovarianceEstimator<T>
 Boutquin.Numerics.Statistics.NercomeCovarianceEstimator<T>.Estimate(T[,]! returns) -> T[,]!
-Boutquin.Numerics.Statistics.NercomeCovarianceEstimator<T>.NercomeCovarianceEstimator(T? splitFraction = default(T?)) -> void
+Boutquin.Numerics.Statistics.NercomeCovarianceEstimator<T>.NercomeCovarianceEstimator() -> void
+Boutquin.Numerics.Statistics.NercomeCovarianceEstimator<T>.NercomeCovarianceEstimator(T? splitFraction) -> void
+Boutquin.Numerics.Statistics.NercomeCovarianceEstimator<T>.NercomeCovarianceEstimator(T? splitFraction, int replications, ulong seed) -> void
 Boutquin.Numerics.Statistics.NercomeCovarianceEstimator<T>.SplitFraction.get -> T
 Boutquin.Numerics.Statistics.NeweyWestVariance
+Boutquin.Numerics.Statistics.NeweyWestVariance<T>
 Boutquin.Numerics.Statistics.OracleApproximatingShrinkageEstimator
 Boutquin.Numerics.Statistics.OracleApproximatingShrinkageEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
 Boutquin.Numerics.Statistics.OracleApproximatingShrinkageEstimator.OracleApproximatingShrinkageEstimator() -> void
@@ -476,6 +835,9 @@ Boutquin.Numerics.Statistics.OracleApproximatingShrinkageEstimator<T>
 Boutquin.Numerics.Statistics.OracleApproximatingShrinkageEstimator<T>.Estimate(T[,]! returns) -> T[,]!
 Boutquin.Numerics.Statistics.OracleApproximatingShrinkageEstimator<T>.OracleApproximatingShrinkageEstimator() -> void
 Boutquin.Numerics.Statistics.PboResult
+Boutquin.Numerics.Statistics.PboResult.<Clone>$() -> Boutquin.Numerics.Statistics.PboResult!
+Boutquin.Numerics.Statistics.PboResult.Deconstruct(out decimal Pbo, out decimal LogitMedian, out System.Collections.Generic.IReadOnlyList<decimal>! LogitValues) -> void
+Boutquin.Numerics.Statistics.PboResult.Equals(Boutquin.Numerics.Statistics.PboResult? other) -> bool
 Boutquin.Numerics.Statistics.PboResult.LogitMedian.get -> decimal
 Boutquin.Numerics.Statistics.PboResult.LogitMedian.init -> void
 Boutquin.Numerics.Statistics.PboResult.LogitValues.get -> System.Collections.Generic.IReadOnlyList<decimal>!
@@ -483,6 +845,17 @@ Boutquin.Numerics.Statistics.PboResult.LogitValues.init -> void
 Boutquin.Numerics.Statistics.PboResult.Pbo.get -> decimal
 Boutquin.Numerics.Statistics.PboResult.Pbo.init -> void
 Boutquin.Numerics.Statistics.PboResult.PboResult(decimal Pbo, decimal LogitMedian, System.Collections.Generic.IReadOnlyList<decimal>! LogitValues) -> void
+Boutquin.Numerics.Statistics.PboResult<T>
+Boutquin.Numerics.Statistics.PboResult<T>.<Clone>$() -> Boutquin.Numerics.Statistics.PboResult<T>!
+Boutquin.Numerics.Statistics.PboResult<T>.Deconstruct(out T Pbo, out T LogitMedian, out System.Collections.Generic.IReadOnlyList<T>! LogitValues) -> void
+Boutquin.Numerics.Statistics.PboResult<T>.Equals(Boutquin.Numerics.Statistics.PboResult<T>? other) -> bool
+Boutquin.Numerics.Statistics.PboResult<T>.LogitMedian.get -> T
+Boutquin.Numerics.Statistics.PboResult<T>.LogitMedian.init -> void
+Boutquin.Numerics.Statistics.PboResult<T>.LogitValues.get -> System.Collections.Generic.IReadOnlyList<T>!
+Boutquin.Numerics.Statistics.PboResult<T>.LogitValues.init -> void
+Boutquin.Numerics.Statistics.PboResult<T>.Pbo.get -> T
+Boutquin.Numerics.Statistics.PboResult<T>.Pbo.init -> void
+Boutquin.Numerics.Statistics.PboResult<T>.PboResult(T Pbo, T LogitMedian, System.Collections.Generic.IReadOnlyList<T>! LogitValues) -> void
 Boutquin.Numerics.Statistics.PearsonCorrelation
 Boutquin.Numerics.Statistics.PearsonCorrelation<T>
 Boutquin.Numerics.Statistics.PoetCovarianceEstimator
@@ -493,9 +866,12 @@ Boutquin.Numerics.Statistics.PoetCovarianceEstimator.ThresholdMultiplier.get -> 
 Boutquin.Numerics.Statistics.PoetCovarianceEstimator<T>
 Boutquin.Numerics.Statistics.PoetCovarianceEstimator<T>.Estimate(T[,]! returns) -> T[,]!
 Boutquin.Numerics.Statistics.PoetCovarianceEstimator<T>.NumFactors.get -> int
-Boutquin.Numerics.Statistics.PoetCovarianceEstimator<T>.PoetCovarianceEstimator(int numFactors = 1, T? thresholdMultiplier = default(T?)) -> void
+Boutquin.Numerics.Statistics.PoetCovarianceEstimator<T>.PoetCovarianceEstimator() -> void
+Boutquin.Numerics.Statistics.PoetCovarianceEstimator<T>.PoetCovarianceEstimator(int numFactors = 1, T? thresholdMultiplier = null) -> void
+Boutquin.Numerics.Statistics.PoetCovarianceEstimator<T>.PoetCovarianceEstimator(int numFactors) -> void
 Boutquin.Numerics.Statistics.PoetCovarianceEstimator<T>.ThresholdMultiplier.get -> T
 Boutquin.Numerics.Statistics.ProbabilityOfBacktestOverfitting
+Boutquin.Numerics.Statistics.ProbabilityOfBacktestOverfitting<T>
 Boutquin.Numerics.Statistics.QuadraticInverseShrinkageEstimator
 Boutquin.Numerics.Statistics.QuadraticInverseShrinkageEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
 Boutquin.Numerics.Statistics.QuadraticInverseShrinkageEstimator.QuadraticInverseShrinkageEstimator() -> void
@@ -505,16 +881,16 @@ Boutquin.Numerics.Statistics.QuadraticInverseShrinkageEstimator<T>.QuadraticInve
 Boutquin.Numerics.Statistics.RankCorrelation
 Boutquin.Numerics.Statistics.RankCorrelation<T>
 Boutquin.Numerics.Statistics.ReturnsMatrix
-Boutquin.Numerics.Statistics.ReturnsMatrix.Assets.get -> int
 Boutquin.Numerics.Statistics.ReturnsMatrix.AsTimeByAsset() -> decimal[,]!
+Boutquin.Numerics.Statistics.ReturnsMatrix.Assets.get -> int
 Boutquin.Numerics.Statistics.ReturnsMatrix.Observations.get -> int
 Boutquin.Numerics.Statistics.ReturnsMatrix.ReturnsMatrix() -> void
 Boutquin.Numerics.Statistics.ReturnsMatrix.ReturnsMatrix(decimal[,]! timeByAsset) -> void
 Boutquin.Numerics.Statistics.ReturnsMatrix.ReturnsMatrix(decimal[]![]! assetMajor) -> void
 Boutquin.Numerics.Statistics.ReturnsMatrix.this[int time, int asset].get -> decimal
 Boutquin.Numerics.Statistics.ReturnsMatrix<T>
-Boutquin.Numerics.Statistics.ReturnsMatrix<T>.Assets.get -> int
 Boutquin.Numerics.Statistics.ReturnsMatrix<T>.AsTimeByAsset() -> T[,]!
+Boutquin.Numerics.Statistics.ReturnsMatrix<T>.Assets.get -> int
 Boutquin.Numerics.Statistics.ReturnsMatrix<T>.Observations.get -> int
 Boutquin.Numerics.Statistics.ReturnsMatrix<T>.ReturnsMatrix() -> void
 Boutquin.Numerics.Statistics.ReturnsMatrix<T>.ReturnsMatrix(T[,]! timeByAsset) -> void
@@ -526,6 +902,32 @@ Boutquin.Numerics.Statistics.SampleCovarianceEstimator.SampleCovarianceEstimator
 Boutquin.Numerics.Statistics.SampleCovarianceEstimator<T>
 Boutquin.Numerics.Statistics.SampleCovarianceEstimator<T>.Estimate(T[,]! returns) -> T[,]!
 Boutquin.Numerics.Statistics.SampleCovarianceEstimator<T>.SampleCovarianceEstimator() -> void
+Boutquin.Numerics.Statistics.SampleExcessKurtosis
+Boutquin.Numerics.Statistics.SampleExcessKurtosis<T>
+Boutquin.Numerics.Statistics.SampleSkewness
+Boutquin.Numerics.Statistics.SampleSkewness<T>
+Boutquin.Numerics.Statistics.TailOptions<T>
+Boutquin.Numerics.Statistics.TailOptions<T>.<Clone>$() -> Boutquin.Numerics.Statistics.TailOptions<T>!
+Boutquin.Numerics.Statistics.TailOptions<T>.Deconstruct(out T[]? Quantiles, out bool UseGarchFilter, out Boutquin.Numerics.Statistics.LowerTailDependenceEstimator Estimator) -> void
+Boutquin.Numerics.Statistics.TailOptions<T>.Equals(Boutquin.Numerics.Statistics.TailOptions<T>? other) -> bool
+Boutquin.Numerics.Statistics.TailOptions<T>.Estimator.get -> Boutquin.Numerics.Statistics.LowerTailDependenceEstimator
+Boutquin.Numerics.Statistics.TailOptions<T>.Estimator.init -> void
+Boutquin.Numerics.Statistics.TailOptions<T>.Quantiles.get -> T[]?
+Boutquin.Numerics.Statistics.TailOptions<T>.Quantiles.init -> void
+Boutquin.Numerics.Statistics.TailOptions<T>.TailOptions(T[]? Quantiles = null, bool UseGarchFilter = false, Boutquin.Numerics.Statistics.LowerTailDependenceEstimator Estimator = Boutquin.Numerics.Statistics.LowerTailDependenceEstimator.Conditional) -> void
+Boutquin.Numerics.Statistics.TailOptions<T>.UseGarchFilter.get -> bool
+Boutquin.Numerics.Statistics.TailOptions<T>.UseGarchFilter.init -> void
+Boutquin.Numerics.Statistics.TailResult<T>
+Boutquin.Numerics.Statistics.TailResult<T>.<Clone>$() -> Boutquin.Numerics.Statistics.TailResult<T>!
+Boutquin.Numerics.Statistics.TailResult<T>.Deconstruct(out T Lambda, out T[]! Threshold, out int[]! JointCount) -> void
+Boutquin.Numerics.Statistics.TailResult<T>.Equals(Boutquin.Numerics.Statistics.TailResult<T>? other) -> bool
+Boutquin.Numerics.Statistics.TailResult<T>.JointCount.get -> int[]!
+Boutquin.Numerics.Statistics.TailResult<T>.JointCount.init -> void
+Boutquin.Numerics.Statistics.TailResult<T>.Lambda.get -> T
+Boutquin.Numerics.Statistics.TailResult<T>.Lambda.init -> void
+Boutquin.Numerics.Statistics.TailResult<T>.TailResult(T Lambda, T[]! Threshold, int[]! JointCount) -> void
+Boutquin.Numerics.Statistics.TailResult<T>.Threshold.get -> T[]!
+Boutquin.Numerics.Statistics.TailResult<T>.Threshold.init -> void
 Boutquin.Numerics.Statistics.TracyWidomDenoisedCovarianceEstimator
 Boutquin.Numerics.Statistics.TracyWidomDenoisedCovarianceEstimator.Estimate(decimal[,]! returns) -> decimal[,]!
 Boutquin.Numerics.Statistics.TracyWidomDenoisedCovarianceEstimator.TracyWidomDenoisedCovarianceEstimator() -> void
@@ -566,11 +968,112 @@ Boutquin.Numerics.Statistics.WelfordMoments<T>.Reset() -> void
 Boutquin.Numerics.Statistics.WelfordMoments<T>.StdDev.get -> T
 Boutquin.Numerics.Statistics.WelfordMoments<T>.Variance.get -> T
 Boutquin.Numerics.Statistics.WelfordMoments<T>.WelfordMoments() -> void
+override Boutquin.Numerics.LinearAlgebra.EigenResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.LinearAlgebra.EigenResult.GetHashCode() -> int
+override Boutquin.Numerics.LinearAlgebra.EigenResult.ToString() -> string!
+override Boutquin.Numerics.LinearAlgebra.EigenResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.LinearAlgebra.EigenResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.LinearAlgebra.EigenResult<T>.ToString() -> string!
+override Boutquin.Numerics.LinearAlgebra.PcaResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.LinearAlgebra.PcaResult.GetHashCode() -> int
+override Boutquin.Numerics.LinearAlgebra.PcaResult.ToString() -> string!
+override Boutquin.Numerics.LinearAlgebra.PcaResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.LinearAlgebra.PcaResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.LinearAlgebra.PcaResult<T>.ToString() -> string!
+override Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.GetHashCode() -> int
+override Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.ToString() -> string!
+override Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.ToString() -> string!
+override Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.GetHashCode() -> int
+override Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.ToString() -> string!
+override Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.ToString() -> string!
+override Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.GetHashCode() -> int
+override Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.ToString() -> string!
+override Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.ToString() -> string!
+override Boutquin.Numerics.Solvers.MultivariateSolverResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.Solvers.MultivariateSolverResult.GetHashCode() -> int
+override Boutquin.Numerics.Solvers.MultivariateSolverResult.ToString() -> string!
+override Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.ToString() -> string!
+override Boutquin.Numerics.Solvers.OlsResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.Solvers.OlsResult.GetHashCode() -> int
+override Boutquin.Numerics.Solvers.OlsResult.ToString() -> string!
+override Boutquin.Numerics.Solvers.OlsResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Solvers.OlsResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Solvers.OlsResult<T>.ToString() -> string!
+override Boutquin.Numerics.Solvers.RootSolverResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.Solvers.RootSolverResult.GetHashCode() -> int
+override Boutquin.Numerics.Solvers.RootSolverResult.ToString() -> string!
+override Boutquin.Numerics.Solvers.RootSolverResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Solvers.RootSolverResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Solvers.RootSolverResult<T>.ToString() -> string!
+override Boutquin.Numerics.Solvers.SimplexOptions<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Solvers.SimplexOptions<T>.GetHashCode() -> int
+override Boutquin.Numerics.Solvers.SimplexOptions<T>.ToString() -> string!
+override Boutquin.Numerics.Solvers.SimplexResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Solvers.SimplexResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Solvers.SimplexResult<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.DsrResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.DsrResult.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.DsrResult.ToString() -> string!
+override Boutquin.Numerics.Statistics.DsrResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.DsrResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.DsrResult<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.GarchFitResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.GarchFitResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.GarchFitResult<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.GarchOptions<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.GarchOptions<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.GarchOptions<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.GtInspiredScoreResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.GtInspiredScoreResult.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.GtInspiredScoreResult.ToString() -> string!
+override Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.HaircutSharpeResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.HaircutSharpeResult.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.HaircutSharpeResult.ToString() -> string!
+override Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.PboResult.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.PboResult.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.PboResult.ToString() -> string!
+override Boutquin.Numerics.Statistics.PboResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.PboResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.PboResult<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.TailOptions<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.TailOptions<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.TailOptions<T>.ToString() -> string!
+override Boutquin.Numerics.Statistics.TailResult<T>.Equals(object? obj) -> bool
+override Boutquin.Numerics.Statistics.TailResult<T>.GetHashCode() -> int
+override Boutquin.Numerics.Statistics.TailResult<T>.ToString() -> string!
 static Boutquin.Numerics.Distributions.CumulativeNormal.Evaluate(double x) -> double
+static Boutquin.Numerics.Distributions.CumulativeNormal<T>.Evaluate(T x) -> T
 static Boutquin.Numerics.Distributions.InverseNormal.Evaluate(double p) -> double
+static Boutquin.Numerics.Distributions.InverseNormal<T>.Evaluate(T p) -> T
 static Boutquin.Numerics.Distributions.NormalDistribution.Cdf(double x) -> double
 static Boutquin.Numerics.Distributions.NormalDistribution.InverseCdf(double p) -> double
 static Boutquin.Numerics.Distributions.NormalDistribution.Pdf(double x) -> double
+static Boutquin.Numerics.Distributions.NormalDistribution<T>.Cdf(T x) -> T
+static Boutquin.Numerics.Distributions.NormalDistribution<T>.InverseCdf(T p) -> T
+static Boutquin.Numerics.Distributions.NormalDistribution<T>.Pdf(T x) -> T
 static Boutquin.Numerics.Interpolation.InterpolatorFactory.Create(Boutquin.Numerics.Interpolation.InterpolatorKind kind) -> Boutquin.Numerics.Interpolation.IInterpolator!
 static Boutquin.Numerics.Interpolation.InterpolatorFactory<T>.Create(Boutquin.Numerics.Interpolation.InterpolatorKind kind) -> Boutquin.Numerics.Interpolation.IInterpolator<T>!
 static Boutquin.Numerics.Interpolation.SplineBoundary.CreateClamped(double leftSlope, double rightSlope) -> Boutquin.Numerics.Interpolation.SplineBoundary!
@@ -578,12 +1081,15 @@ static Boutquin.Numerics.Interpolation.SplineBoundary.ModifiedNotAKnot.get -> Bo
 static Boutquin.Numerics.Interpolation.SplineBoundary.Natural.get -> Boutquin.Numerics.Interpolation.SplineBoundary!
 static Boutquin.Numerics.Interpolation.SplineBoundary.NotAKnot.get -> Boutquin.Numerics.Interpolation.SplineBoundary!
 static Boutquin.Numerics.Interpolation.SplineBoundary.QSpline.get -> Boutquin.Numerics.Interpolation.SplineBoundary!
+static Boutquin.Numerics.Interpolation.SplineBoundary.RevisedNotAKnot.get -> Boutquin.Numerics.Interpolation.SplineBoundary!
 static Boutquin.Numerics.Interpolation.SplineBoundary<T>.CreateClamped(T leftSlope, T rightSlope) -> Boutquin.Numerics.Interpolation.SplineBoundary<T>!
 static Boutquin.Numerics.Interpolation.SplineBoundary<T>.ModifiedNotAKnot.get -> Boutquin.Numerics.Interpolation.SplineBoundary<T>!
 static Boutquin.Numerics.Interpolation.SplineBoundary<T>.Natural.get -> Boutquin.Numerics.Interpolation.SplineBoundary<T>!
 static Boutquin.Numerics.Interpolation.SplineBoundary<T>.NotAKnot.get -> Boutquin.Numerics.Interpolation.SplineBoundary<T>!
 static Boutquin.Numerics.Interpolation.SplineBoundary<T>.QSpline.get -> Boutquin.Numerics.Interpolation.SplineBoundary<T>!
+static Boutquin.Numerics.Interpolation.SplineBoundary<T>.RevisedNotAKnot.get -> Boutquin.Numerics.Interpolation.SplineBoundary<T>!
 static Boutquin.Numerics.Interpolation.TwoPointLinearInterpolator.Interpolate(double x0, double y0, double x1, double y1, double x) -> double
+static Boutquin.Numerics.Interpolation.TwoPointLinearInterpolator<T>.Interpolate(T x0, T y0, T x1, T y1, T x) -> T
 static Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition.Decompose(decimal[,]! a) -> decimal[,]!
 static Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition.DecomposePivoted(decimal[,]! a, decimal tolerance = 0, int? maxRank = null) -> Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult!
 static Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition.Solve(decimal[,]! lower, decimal[]! b) -> decimal[]!
@@ -591,284 +1097,178 @@ static Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition<T>.Decompose(T[,]! 
 static Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition<T>.DecomposePivoted(T[,]! a) -> Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>!
 static Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition<T>.DecomposePivoted(T[,]! a, T tolerance, int? maxRank) -> Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>!
 static Boutquin.Numerics.LinearAlgebra.CholeskyDecomposition<T>.Solve(T[,]! lower, T[]! b) -> T[]!
+static Boutquin.Numerics.LinearAlgebra.EigenResult.operator !=(Boutquin.Numerics.LinearAlgebra.EigenResult? left, Boutquin.Numerics.LinearAlgebra.EigenResult? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.EigenResult.operator ==(Boutquin.Numerics.LinearAlgebra.EigenResult? left, Boutquin.Numerics.LinearAlgebra.EigenResult? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.EigenResult<T>.operator !=(Boutquin.Numerics.LinearAlgebra.EigenResult<T>? left, Boutquin.Numerics.LinearAlgebra.EigenResult<T>? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.EigenResult<T>.operator ==(Boutquin.Numerics.LinearAlgebra.EigenResult<T>? left, Boutquin.Numerics.LinearAlgebra.EigenResult<T>? right) -> bool
 static Boutquin.Numerics.LinearAlgebra.GaussianElimination.Solve(decimal[,]! a, decimal[]! b, int? seed = null) -> decimal[]!
 static Boutquin.Numerics.LinearAlgebra.GaussianElimination<T>.Solve(T[,]! a, T[]! b, int? seed = null) -> T[]!
 static Boutquin.Numerics.LinearAlgebra.JacobiEigenDecomposition.Decompose(decimal[,]! matrix) -> Boutquin.Numerics.LinearAlgebra.EigenResult!
 static Boutquin.Numerics.LinearAlgebra.JacobiEigenDecomposition<T>.Decompose(T[,]! matrix) -> Boutquin.Numerics.LinearAlgebra.EigenResult<T>!
-static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection.EigenClip(decimal[,]! a, decimal tolerance = 0) -> decimal[,]!
+static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection.EigenClip(decimal[,]! a, decimal eigenvalueFloor = 0) -> decimal[,]!
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection.Higham(decimal[,]! a) -> decimal[,]!
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection.Higham(decimal[,]! a, int maxIterations, decimal tolerance) -> decimal[,]!
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection.IsPsd(decimal[,]! a) -> bool
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection.IsPsd(decimal[,]! a, decimal tolerance) -> bool
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection<T>.EigenClip(T[,]! a) -> T[,]!
-static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection<T>.EigenClip(T[,]! a, T tolerance) -> T[,]!
+static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection<T>.EigenClip(T[,]! a, T eigenvalueFloor) -> T[,]!
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection<T>.Higham(T[,]! a) -> T[,]!
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection<T>.Higham(T[,]! a, int maxIterations, T tolerance) -> T[,]!
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection<T>.IsPsd(T[,]! a) -> bool
 static Boutquin.Numerics.LinearAlgebra.NearestPsdProjection<T>.IsPsd(T[,]! a, T tolerance) -> bool
+static Boutquin.Numerics.LinearAlgebra.PcaResult.operator !=(Boutquin.Numerics.LinearAlgebra.PcaResult? left, Boutquin.Numerics.LinearAlgebra.PcaResult? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.PcaResult.operator ==(Boutquin.Numerics.LinearAlgebra.PcaResult? left, Boutquin.Numerics.LinearAlgebra.PcaResult? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.PcaResult<T>.operator !=(Boutquin.Numerics.LinearAlgebra.PcaResult<T>? left, Boutquin.Numerics.LinearAlgebra.PcaResult<T>? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.PcaResult<T>.operator ==(Boutquin.Numerics.LinearAlgebra.PcaResult<T>? left, Boutquin.Numerics.LinearAlgebra.PcaResult<T>? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.operator !=(Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult? left, Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult.operator ==(Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult? left, Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.operator !=(Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>? left, Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>? right) -> bool
+static Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>.operator ==(Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>? left, Boutquin.Numerics.LinearAlgebra.PivotedCholeskyResult<T>? right) -> bool
 static Boutquin.Numerics.LinearAlgebra.PrincipalComponentAnalysis.Decompose(decimal[,]! covarianceMatrix) -> Boutquin.Numerics.LinearAlgebra.PcaResult!
 static Boutquin.Numerics.LinearAlgebra.PrincipalComponentAnalysis.FromReturns(Boutquin.Numerics.Statistics.ReturnsMatrix returns, bool standardize = false) -> Boutquin.Numerics.LinearAlgebra.PcaResult!
 static Boutquin.Numerics.LinearAlgebra.PrincipalComponentAnalysis<T>.Decompose(T[,]! covarianceMatrix) -> Boutquin.Numerics.LinearAlgebra.PcaResult<T>!
 static Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine.FromSeed(int simulationCount = 1000, int? seed = null) -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine!
+static Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.FromSeed(int simulationCount = 1000, int? seed = null) -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>!
+static Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.operator !=(Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult? left, Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult? right) -> bool
+static Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult.operator ==(Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult? left, Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult? right) -> bool
+static Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.operator !=(Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>? left, Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>? right) -> bool
+static Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.operator ==(Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>? left, Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>? right) -> bool
 static Boutquin.Numerics.MonteCarlo.BootstrapResampler.FromSeed(int blockSize, int? seed = null) -> Boutquin.Numerics.MonteCarlo.BootstrapResampler!
+static Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.FromSeed(int blockSize, int? seed = null) -> Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>!
 static Boutquin.Numerics.MonteCarlo.FastDoubleBootstrap.FromSeed(int outerCount, int? seed = null) -> Boutquin.Numerics.MonteCarlo.FastDoubleBootstrap!
+static Boutquin.Numerics.MonteCarlo.HarrellDavisPercentile.Compute<T>(System.ReadOnlySpan<T> sorted, double p) -> T
 static Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler.FromSeed(int blockSize, int? seed = null) -> Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler!
+static Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>.FromSeed(int blockSize, int? seed = null) -> Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>!
+static Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.operator !=(Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult? left, Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult? right) -> bool
+static Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult.operator ==(Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult? left, Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult? right) -> bool
+static Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.operator !=(Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>? left, Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>? right) -> bool
+static Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.operator ==(Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>? left, Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>? right) -> bool
+static Boutquin.Numerics.MonteCarlo.Percentile.Compute<T>(System.ReadOnlySpan<T> sorted, double p) -> T
+static Boutquin.Numerics.MonteCarlo.PolitisWhiteBlockLength.EstimateDouble(System.ReadOnlySpan<double> series) -> double
 static Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler.FromSeed(double meanBlockLength, int? seed = null) -> Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler!
+static Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.FromSeed(double meanBlockLength, int? seed = null) -> Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>!
+static Boutquin.Numerics.MonteCarlo.Subsampler.Run<T>(System.ReadOnlySpan<T> series, int subsampleLength, System.Func<System.ReadOnlySpan<T>, T>! statistic) -> T[]!
 static Boutquin.Numerics.MonteCarlo.Subsampler.SuggestSubsampleLength(int seriesLength) -> int
 static Boutquin.Numerics.MonteCarlo.WildBootstrapResampler.FromSeed(Boutquin.Numerics.MonteCarlo.WildBootstrapWeights weights, int? seed = null) -> Boutquin.Numerics.MonteCarlo.WildBootstrapResampler!
-static Boutquin.Numerics.Solvers.OrdinaryLeastSquares.Fit(double[,]! x, double[]! y, bool includeIntercept = true) -> Boutquin.Numerics.Solvers.OlsResult!
-static Boutquin.Numerics.Solvers.OrdinaryLeastSquares<T>.Fit(T[,]! x, T[]! y, bool includeIntercept = true) -> Boutquin.Numerics.Solvers.OlsResult<T>!
+static Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>.FromSeed(Boutquin.Numerics.MonteCarlo.WildBootstrapWeights weights, int? seed = null) -> Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>!
+static Boutquin.Numerics.Solvers.ActiveSetQpSolver.SolveMeanVariance(decimal[,]! covariance, System.ReadOnlySpan<decimal> means, decimal riskAversion, decimal minWeight, decimal maxWeight) -> decimal[]!
+static Boutquin.Numerics.Solvers.ActiveSetQpSolver.SolveMinVariance(decimal[,]! covariance, decimal minWeight, decimal maxWeight) -> decimal[]!
+static Boutquin.Numerics.Solvers.ActiveSetQpSolver<T>.SolveMeanVariance(T[,]! covariance, System.ReadOnlySpan<T> means, T riskAversion, T minWeight, T maxWeight) -> T[]!
+static Boutquin.Numerics.Solvers.ActiveSetQpSolver<T>.SolveMinVariance(T[,]! covariance, T minWeight, T maxWeight) -> T[]!
+static Boutquin.Numerics.Solvers.MultivariateSolverResult.operator !=(Boutquin.Numerics.Solvers.MultivariateSolverResult? left, Boutquin.Numerics.Solvers.MultivariateSolverResult? right) -> bool
+static Boutquin.Numerics.Solvers.MultivariateSolverResult.operator ==(Boutquin.Numerics.Solvers.MultivariateSolverResult? left, Boutquin.Numerics.Solvers.MultivariateSolverResult? right) -> bool
+static Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.operator !=(Boutquin.Numerics.Solvers.MultivariateSolverResult<T>? left, Boutquin.Numerics.Solvers.MultivariateSolverResult<T>? right) -> bool
+static Boutquin.Numerics.Solvers.MultivariateSolverResult<T>.operator ==(Boutquin.Numerics.Solvers.MultivariateSolverResult<T>? left, Boutquin.Numerics.Solvers.MultivariateSolverResult<T>? right) -> bool
+static Boutquin.Numerics.Solvers.NelderMeadMinimizer<T>.Minimize(System.Func<T[]!, T>! objective, T[]! initialGuess, Boutquin.Numerics.Solvers.SimplexOptions<T>? options = null) -> Boutquin.Numerics.Solvers.SimplexResult<T>!
+static Boutquin.Numerics.Solvers.OlsResult.operator !=(Boutquin.Numerics.Solvers.OlsResult? left, Boutquin.Numerics.Solvers.OlsResult? right) -> bool
+static Boutquin.Numerics.Solvers.OlsResult.operator ==(Boutquin.Numerics.Solvers.OlsResult? left, Boutquin.Numerics.Solvers.OlsResult? right) -> bool
+static Boutquin.Numerics.Solvers.OlsResult<T>.operator !=(Boutquin.Numerics.Solvers.OlsResult<T>? left, Boutquin.Numerics.Solvers.OlsResult<T>? right) -> bool
+static Boutquin.Numerics.Solvers.OlsResult<T>.operator ==(Boutquin.Numerics.Solvers.OlsResult<T>? left, Boutquin.Numerics.Solvers.OlsResult<T>? right) -> bool
+static Boutquin.Numerics.Solvers.OrdinaryLeastSquares.Fit(double[,]! x, System.ReadOnlySpan<double> y, bool includeIntercept = true) -> Boutquin.Numerics.Solvers.OlsResult!
+static Boutquin.Numerics.Solvers.OrdinaryLeastSquares<T>.Fit(T[,]! x, System.ReadOnlySpan<T> y, bool includeIntercept = true) -> Boutquin.Numerics.Solvers.OlsResult<T>!
+static Boutquin.Numerics.Solvers.RootSolverResult.operator !=(Boutquin.Numerics.Solvers.RootSolverResult? left, Boutquin.Numerics.Solvers.RootSolverResult? right) -> bool
+static Boutquin.Numerics.Solvers.RootSolverResult.operator ==(Boutquin.Numerics.Solvers.RootSolverResult? left, Boutquin.Numerics.Solvers.RootSolverResult? right) -> bool
+static Boutquin.Numerics.Solvers.RootSolverResult<T>.operator !=(Boutquin.Numerics.Solvers.RootSolverResult<T>? left, Boutquin.Numerics.Solvers.RootSolverResult<T>? right) -> bool
+static Boutquin.Numerics.Solvers.RootSolverResult<T>.operator ==(Boutquin.Numerics.Solvers.RootSolverResult<T>? left, Boutquin.Numerics.Solvers.RootSolverResult<T>? right) -> bool
+static Boutquin.Numerics.Solvers.SimplexOptions<T>.operator !=(Boutquin.Numerics.Solvers.SimplexOptions<T>? left, Boutquin.Numerics.Solvers.SimplexOptions<T>? right) -> bool
+static Boutquin.Numerics.Solvers.SimplexOptions<T>.operator ==(Boutquin.Numerics.Solvers.SimplexOptions<T>? left, Boutquin.Numerics.Solvers.SimplexOptions<T>? right) -> bool
+static Boutquin.Numerics.Solvers.SimplexResult<T>.operator !=(Boutquin.Numerics.Solvers.SimplexResult<T>? left, Boutquin.Numerics.Solvers.SimplexResult<T>? right) -> bool
+static Boutquin.Numerics.Solvers.SimplexResult<T>.operator ==(Boutquin.Numerics.Solvers.SimplexResult<T>? left, Boutquin.Numerics.Solvers.SimplexResult<T>? right) -> bool
 static Boutquin.Numerics.Statistics.DeflatedSharpeRatio.Compute(decimal observedSharpe, int numTrials, decimal backTestYears, decimal skewness, decimal kurtosis, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.DsrResult!
-static Boutquin.Numerics.Statistics.DeflatedSharpeRatio.ComputeFromReturns(decimal[]! returns, int numTrials, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.DsrResult!
+static Boutquin.Numerics.Statistics.DeflatedSharpeRatio.ComputeFromReturns(System.ReadOnlySpan<decimal> returns, int numTrials, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.DsrResult!
+static Boutquin.Numerics.Statistics.DeflatedSharpeRatio<T>.Compute(T observedSharpe, int numTrials, T backTestYears, T skewness, T kurtosis, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.DsrResult<T>!
+static Boutquin.Numerics.Statistics.DeflatedSharpeRatio<T>.ComputeFromReturns(System.ReadOnlySpan<T> returns, int numTrials, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.DsrResult<T>!
+static Boutquin.Numerics.Statistics.DeflatedSharpeRatio<T>.ComputeWithTrialMoments(T observedSharpe, int numTrials, T trialSharpeMean, T trialSharpeVariance, T backTestYears, T skewness, T kurtosis, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.DsrResult<T>!
+static Boutquin.Numerics.Statistics.DeflatedSharpeRatio<T>.ComputeWithTrialVariance(T observedSharpe, int numTrials, T trialSharpeVariance, T backTestYears, T skewness, T kurtosis, int tradingDaysPerYear) -> Boutquin.Numerics.Statistics.DsrResult<T>!
 static Boutquin.Numerics.Statistics.DistanceCorrelation.Compute(System.ReadOnlySpan<double> x, System.ReadOnlySpan<double> y) -> double
+static Boutquin.Numerics.Statistics.DistanceCorrelation<T>.Compute(System.ReadOnlySpan<T> x, System.ReadOnlySpan<T> y) -> T
+static Boutquin.Numerics.Statistics.DsrResult.operator !=(Boutquin.Numerics.Statistics.DsrResult? left, Boutquin.Numerics.Statistics.DsrResult? right) -> bool
+static Boutquin.Numerics.Statistics.DsrResult.operator ==(Boutquin.Numerics.Statistics.DsrResult? left, Boutquin.Numerics.Statistics.DsrResult? right) -> bool
+static Boutquin.Numerics.Statistics.DsrResult<T>.operator !=(Boutquin.Numerics.Statistics.DsrResult<T>? left, Boutquin.Numerics.Statistics.DsrResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.DsrResult<T>.operator ==(Boutquin.Numerics.Statistics.DsrResult<T>? left, Boutquin.Numerics.Statistics.DsrResult<T>? right) -> bool
 static Boutquin.Numerics.Statistics.FisherZTransform.ConfidenceInterval(double r, int n, double confidenceLevel = 0.95) -> (double Lower, double Upper)
 static Boutquin.Numerics.Statistics.FisherZTransform.Forward(double r) -> double
 static Boutquin.Numerics.Statistics.FisherZTransform.Inverse(double z) -> double
-static Boutquin.Numerics.Statistics.GeneralizationScore.Compute(System.ReadOnlySpan<double> returns, int subPeriodCount = 12, double tradingDaysPerYear = 252, double performanceWeight = 0.3, double significanceWeight = 0.3, double consistencyWeight = 0.2, double downsideWeight = 0.2) -> Boutquin.Numerics.Statistics.GtScoreResult!
+static Boutquin.Numerics.Statistics.FisherZTransform<T>.ConfidenceInterval(T r, int n, double confidenceLevel = 0.95) -> (T Lower, T Upper)
+static Boutquin.Numerics.Statistics.FisherZTransform<T>.Forward(T r) -> T
+static Boutquin.Numerics.Statistics.FisherZTransform<T>.Inverse(T z) -> T
+static Boutquin.Numerics.Statistics.GarchFitResult<T>.operator !=(Boutquin.Numerics.Statistics.GarchFitResult<T>? left, Boutquin.Numerics.Statistics.GarchFitResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GarchFitResult<T>.operator ==(Boutquin.Numerics.Statistics.GarchFitResult<T>? left, Boutquin.Numerics.Statistics.GarchFitResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GarchOneOneEstimator<T>.Fit(T[]! returns, Boutquin.Numerics.Statistics.GarchOptions<T>? options = null) -> Boutquin.Numerics.Statistics.GarchFitResult<T>!
+static Boutquin.Numerics.Statistics.GarchOptions<T>.operator !=(Boutquin.Numerics.Statistics.GarchOptions<T>? left, Boutquin.Numerics.Statistics.GarchOptions<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GarchOptions<T>.operator ==(Boutquin.Numerics.Statistics.GarchOptions<T>? left, Boutquin.Numerics.Statistics.GarchOptions<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.operator !=(Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>? left, Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>.operator ==(Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>? left, Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.operator !=(Boutquin.Numerics.Statistics.GraphicalLassoResult<T>? left, Boutquin.Numerics.Statistics.GraphicalLassoResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GraphicalLassoResult<T>.operator ==(Boutquin.Numerics.Statistics.GraphicalLassoResult<T>? left, Boutquin.Numerics.Statistics.GraphicalLassoResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GraphicalLassoSolver<T>.Solve(T[,]! sampleCovariance, T lambda, Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>? options = null) -> Boutquin.Numerics.Statistics.GraphicalLassoResult<T>!
+static Boutquin.Numerics.Statistics.GraphicalLassoSolver<T>.SolveWithBic(T[,]! sampleCovariance, int nObservations, T[]! lambdaGrid, Boutquin.Numerics.Statistics.GraphicalLassoOptions<T>? options = null) -> Boutquin.Numerics.Statistics.GraphicalLassoResult<T>!
+static Boutquin.Numerics.Statistics.GtInspiredScore.Compute(System.ReadOnlySpan<double> returns, double benchmarkMean = 0) -> Boutquin.Numerics.Statistics.GtInspiredScoreResult!
+static Boutquin.Numerics.Statistics.GtInspiredScore<T>.Compute(System.ReadOnlySpan<T> returns) -> Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>!
+static Boutquin.Numerics.Statistics.GtInspiredScore<T>.Compute(System.ReadOnlySpan<T> returns, T benchmarkMean) -> Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>!
+static Boutquin.Numerics.Statistics.GtInspiredScore<T>.Compute(System.ReadOnlySpan<T> returns, T benchmarkMean, T epsilon) -> Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>!
+static Boutquin.Numerics.Statistics.GtInspiredScore<T>.Compute(System.ReadOnlySpan<T> returns, T benchmarkMean, T epsilon, int minimumObservations) -> Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>!
+static Boutquin.Numerics.Statistics.GtInspiredScoreResult.operator !=(Boutquin.Numerics.Statistics.GtInspiredScoreResult? left, Boutquin.Numerics.Statistics.GtInspiredScoreResult? right) -> bool
+static Boutquin.Numerics.Statistics.GtInspiredScoreResult.operator ==(Boutquin.Numerics.Statistics.GtInspiredScoreResult? left, Boutquin.Numerics.Statistics.GtInspiredScoreResult? right) -> bool
+static Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.operator !=(Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>? left, Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>.operator ==(Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>? left, Boutquin.Numerics.Statistics.GtInspiredScoreResult<T>? right) -> bool
 static Boutquin.Numerics.Statistics.HaircutSharpe.Compute(decimal observedSharpe, int numTrials, decimal backTestYears, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.HaircutSharpeResult!
+static Boutquin.Numerics.Statistics.HaircutSharpe<T>.AdjustPValues(System.ReadOnlySpan<T> pValues) -> (T[]! Bonferroni, T[]! Holm, T[]! Bhy)
+static Boutquin.Numerics.Statistics.HaircutSharpe<T>.Compute(T observedSharpe, int numTrials, T backTestYears, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.HaircutSharpeResult<T>!
+static Boutquin.Numerics.Statistics.HaircutSharpe<T>.ComputePanel(System.ReadOnlySpan<T> observedSharpes, T backTestYears, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.HaircutSharpeResult<T>![]!
+static Boutquin.Numerics.Statistics.HaircutSharpeResult.operator !=(Boutquin.Numerics.Statistics.HaircutSharpeResult? left, Boutquin.Numerics.Statistics.HaircutSharpeResult? right) -> bool
+static Boutquin.Numerics.Statistics.HaircutSharpeResult.operator ==(Boutquin.Numerics.Statistics.HaircutSharpeResult? left, Boutquin.Numerics.Statistics.HaircutSharpeResult? right) -> bool
+static Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.operator !=(Boutquin.Numerics.Statistics.HaircutSharpeResult<T>? left, Boutquin.Numerics.Statistics.HaircutSharpeResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.operator ==(Boutquin.Numerics.Statistics.HaircutSharpeResult<T>? left, Boutquin.Numerics.Statistics.HaircutSharpeResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.LowerTailDependence<T>.Estimate(System.ReadOnlySpan<T> x, System.ReadOnlySpan<T> y, Boutquin.Numerics.Statistics.TailOptions<T>? options = null) -> Boutquin.Numerics.Statistics.TailResult<T>!
+static Boutquin.Numerics.Statistics.LowerTailDependence<T>.EstimateMatrix(T[]![]! columns, Boutquin.Numerics.Statistics.TailOptions<T>? options = null) -> T[,]!
 static Boutquin.Numerics.Statistics.MinimumTrackRecordLength.Compute(double observedSharpe, double benchmarkSharpe = 0, double skewness = 0, double kurtosis = 3, double significanceLevel = 0.05, int tradingDaysPerYear = 252) -> double
+static Boutquin.Numerics.Statistics.MinimumTrackRecordLength<T>.Compute(T observedSharpe) -> T
+static Boutquin.Numerics.Statistics.MinimumTrackRecordLength<T>.Compute(T observedSharpe, T benchmarkSharpe, T skewness, T kurtosis, double significanceLevel, int tradingDaysPerYear) -> T
+static Boutquin.Numerics.Statistics.MinimumTrackRecordLength<T>.Compute(T observedSharpe, double significanceLevel, int tradingDaysPerYear) -> T
 static Boutquin.Numerics.Statistics.NeweyWestVariance.AutomaticLags(int t) -> int
-static Boutquin.Numerics.Statistics.NeweyWestVariance.MeanVariance(decimal[]! series, int lags) -> decimal
-static Boutquin.Numerics.Statistics.PearsonCorrelation.Compute(decimal[]! x, decimal[]! y, int start, int end) -> decimal
+static Boutquin.Numerics.Statistics.NeweyWestVariance.MeanVariance(System.ReadOnlySpan<decimal> series, int lags) -> decimal
+static Boutquin.Numerics.Statistics.NeweyWestVariance<T>.AutomaticLags(int t) -> int
+static Boutquin.Numerics.Statistics.NeweyWestVariance<T>.LongRunCovariance(T[,]! instruments, System.ReadOnlySpan<T> residuals, System.ReadOnlySpan<T> weights, int? pilotLags = null) -> (T[,]! Covariance, int Lags)
+static Boutquin.Numerics.Statistics.NeweyWestVariance<T>.MeanVariance(System.ReadOnlySpan<T> series, int lags) -> T
+static Boutquin.Numerics.Statistics.NeweyWestVariance<T>.MeanVarianceAutomatic(System.ReadOnlySpan<T> series, int? pilotLags = null) -> T
+static Boutquin.Numerics.Statistics.PboResult.operator !=(Boutquin.Numerics.Statistics.PboResult? left, Boutquin.Numerics.Statistics.PboResult? right) -> bool
+static Boutquin.Numerics.Statistics.PboResult.operator ==(Boutquin.Numerics.Statistics.PboResult? left, Boutquin.Numerics.Statistics.PboResult? right) -> bool
+static Boutquin.Numerics.Statistics.PboResult<T>.operator !=(Boutquin.Numerics.Statistics.PboResult<T>? left, Boutquin.Numerics.Statistics.PboResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.PboResult<T>.operator ==(Boutquin.Numerics.Statistics.PboResult<T>? left, Boutquin.Numerics.Statistics.PboResult<T>? right) -> bool
 static Boutquin.Numerics.Statistics.PearsonCorrelation.Compute(System.ReadOnlySpan<decimal> x, System.ReadOnlySpan<decimal> y) -> decimal
-static Boutquin.Numerics.Statistics.PearsonCorrelation.Rolling(decimal[]! returnsA, decimal[]! returnsB, int windowSize) -> decimal[]!
+static Boutquin.Numerics.Statistics.PearsonCorrelation.Rolling(System.ReadOnlySpan<decimal> returnsA, System.ReadOnlySpan<decimal> returnsB, int windowSize) -> decimal[]!
 static Boutquin.Numerics.Statistics.PearsonCorrelation<T>.Compute(System.ReadOnlySpan<T> x, System.ReadOnlySpan<T> y) -> T
-static Boutquin.Numerics.Statistics.PearsonCorrelation<T>.Compute(T[]! x, T[]! y, int start, int end) -> T
-static Boutquin.Numerics.Statistics.PearsonCorrelation<T>.Rolling(T[]! returnsA, T[]! returnsB, int windowSize) -> T[]!
+static Boutquin.Numerics.Statistics.PearsonCorrelation<T>.Rolling(System.ReadOnlySpan<T> returnsA, System.ReadOnlySpan<T> returnsB, int windowSize) -> T[]!
 static Boutquin.Numerics.Statistics.ProbabilityOfBacktestOverfitting.Compute(decimal[,]! returns, int splitCount = 16) -> Boutquin.Numerics.Statistics.PboResult!
+static Boutquin.Numerics.Statistics.ProbabilityOfBacktestOverfitting<T>.Compute(T[,]! returns, int splitCount = 16) -> Boutquin.Numerics.Statistics.PboResult<T>!
 static Boutquin.Numerics.Statistics.RankCorrelation.KendallTauB(System.ReadOnlySpan<decimal> x, System.ReadOnlySpan<decimal> y) -> decimal
 static Boutquin.Numerics.Statistics.RankCorrelation.Spearman(System.ReadOnlySpan<decimal> x, System.ReadOnlySpan<decimal> y) -> decimal
 static Boutquin.Numerics.Statistics.RankCorrelation<T>.KendallTauB(System.ReadOnlySpan<T> x, System.ReadOnlySpan<T> y) -> T
 static Boutquin.Numerics.Statistics.RankCorrelation<T>.Spearman(System.ReadOnlySpan<T> x, System.ReadOnlySpan<T> y) -> T
 static Boutquin.Numerics.Statistics.ReturnsMatrix.implicit operator Boutquin.Numerics.Statistics.ReturnsMatrix(decimal[,]! timeByAsset) -> Boutquin.Numerics.Statistics.ReturnsMatrix
 static Boutquin.Numerics.Statistics.ReturnsMatrix.implicit operator Boutquin.Numerics.Statistics.ReturnsMatrix(decimal[]![]! assetMajor) -> Boutquin.Numerics.Statistics.ReturnsMatrix
+static Boutquin.Numerics.Statistics.SampleExcessKurtosis.Compute(System.ReadOnlySpan<decimal> values) -> decimal
+static Boutquin.Numerics.Statistics.SampleExcessKurtosis<T>.Compute(System.ReadOnlySpan<T> values) -> T
+static Boutquin.Numerics.Statistics.SampleSkewness.Compute(System.ReadOnlySpan<decimal> values) -> decimal
+static Boutquin.Numerics.Statistics.SampleSkewness<T>.Compute(System.ReadOnlySpan<T> values) -> T
+static Boutquin.Numerics.Statistics.TailOptions<T>.operator !=(Boutquin.Numerics.Statistics.TailOptions<T>? left, Boutquin.Numerics.Statistics.TailOptions<T>? right) -> bool
+static Boutquin.Numerics.Statistics.TailOptions<T>.operator ==(Boutquin.Numerics.Statistics.TailOptions<T>? left, Boutquin.Numerics.Statistics.TailOptions<T>? right) -> bool
+static Boutquin.Numerics.Statistics.TailResult<T>.operator !=(Boutquin.Numerics.Statistics.TailResult<T>? left, Boutquin.Numerics.Statistics.TailResult<T>? right) -> bool
+static Boutquin.Numerics.Statistics.TailResult<T>.operator ==(Boutquin.Numerics.Statistics.TailResult<T>? left, Boutquin.Numerics.Statistics.TailResult<T>? right) -> bool
 static Boutquin.Numerics.Statistics.WelfordMoments.Combine(Boutquin.Numerics.Statistics.WelfordMoments! left, Boutquin.Numerics.Statistics.WelfordMoments! right) -> Boutquin.Numerics.Statistics.WelfordMoments!
 static Boutquin.Numerics.Statistics.WelfordMoments.Compute(System.ReadOnlySpan<decimal> values) -> (decimal Mean, decimal Variance)
 static Boutquin.Numerics.Statistics.WelfordMoments<T>.Combine(Boutquin.Numerics.Statistics.WelfordMoments<T>! left, Boutquin.Numerics.Statistics.WelfordMoments<T>! right) -> Boutquin.Numerics.Statistics.WelfordMoments<T>!
 static Boutquin.Numerics.Statistics.WelfordMoments<T>.Compute(System.ReadOnlySpan<T> values) -> (T Mean, T Variance)
 static readonly Boutquin.Numerics.Interpolation.FlatForwardInterpolator.Instance -> Boutquin.Numerics.Interpolation.FlatForwardInterpolator!
-static readonly Boutquin.Numerics.Interpolation.LinearInterpolator.Instance -> Boutquin.Numerics.Interpolation.LinearInterpolator!
-static readonly Boutquin.Numerics.Interpolation.LogLinearInterpolator.Instance -> Boutquin.Numerics.Interpolation.LogLinearInterpolator!
-static readonly Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator.Instance -> Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator!
-static readonly Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator.Instance -> Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator!
-Boutquin.Numerics.Distributions.CumulativeNormal<T>
-static Boutquin.Numerics.Distributions.CumulativeNormal<T>.Evaluate(T x) -> T
-Boutquin.Numerics.Distributions.InverseNormal<T>
-static Boutquin.Numerics.Distributions.InverseNormal<T>.Evaluate(T p) -> T
-Boutquin.Numerics.Distributions.NormalDistribution<T>
-static Boutquin.Numerics.Distributions.NormalDistribution<T>.Cdf(T x) -> T
-static Boutquin.Numerics.Distributions.NormalDistribution<T>.InverseCdf(T p) -> T
-static Boutquin.Numerics.Distributions.NormalDistribution<T>.Pdf(T x) -> T
-Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>
-Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>.CubicSplineInterpolator(System.Collections.Generic.IReadOnlyList<T>! xs, System.Collections.Generic.IReadOnlyList<T>! ys) -> void
-Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>.CubicSplineInterpolator(System.Collections.Generic.IReadOnlyList<T>! xs, System.Collections.Generic.IReadOnlyList<T>! ys, Boutquin.Numerics.Interpolation.SplineBoundary! boundary) -> void
-Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>.CubicSplineInterpolator(System.Collections.Generic.IReadOnlyList<T>! xs, System.Collections.Generic.IReadOnlyList<T>! ys, Boutquin.Numerics.Interpolation.SplineBoundary<T>! boundary) -> void
-Boutquin.Numerics.Interpolation.CubicSplineInterpolator<T>.Interpolate(T x) -> T
-Boutquin.Numerics.Interpolation.FlatForwardInterpolator<T>
 static readonly Boutquin.Numerics.Interpolation.FlatForwardInterpolator<T>.Instance -> Boutquin.Numerics.Interpolation.FlatForwardInterpolator<T>!
-Boutquin.Numerics.Interpolation.FlatForwardInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
-Boutquin.Numerics.Interpolation.FlatForwardInterpolator<T>.Name.get -> string!
-Boutquin.Numerics.Interpolation.IInterpolator<T>
-Boutquin.Numerics.Interpolation.IInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
-Boutquin.Numerics.Interpolation.IInterpolator<T>.Name.get -> string!
-Boutquin.Numerics.Interpolation.LinearInterpolator<T>
+static readonly Boutquin.Numerics.Interpolation.LinearInterpolator.Instance -> Boutquin.Numerics.Interpolation.LinearInterpolator!
 static readonly Boutquin.Numerics.Interpolation.LinearInterpolator<T>.Instance -> Boutquin.Numerics.Interpolation.LinearInterpolator<T>!
-Boutquin.Numerics.Interpolation.LinearInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
-Boutquin.Numerics.Interpolation.LinearInterpolator<T>.Name.get -> string!
-Boutquin.Numerics.Interpolation.LogLinearInterpolator<T>
+static readonly Boutquin.Numerics.Interpolation.LogLinearInterpolator.Instance -> Boutquin.Numerics.Interpolation.LogLinearInterpolator!
 static readonly Boutquin.Numerics.Interpolation.LogLinearInterpolator<T>.Instance -> Boutquin.Numerics.Interpolation.LogLinearInterpolator<T>!
-Boutquin.Numerics.Interpolation.LogLinearInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
-Boutquin.Numerics.Interpolation.LogLinearInterpolator<T>.Name.get -> string!
-Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>
-static readonly Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>.Instance -> Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>!
-Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
-Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>.Name.get -> string!
-Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator<T>
+static readonly Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator.Instance -> Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator!
 static readonly Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator<T>.Instance -> Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator<T>!
-Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator<T>.Interpolate(T x, System.ReadOnlySpan<T> xs, System.ReadOnlySpan<T> ys) -> T
-Boutquin.Numerics.Interpolation.MonotoneConvexInterpolator<T>.Name.get -> string!
-Boutquin.Numerics.Interpolation.MonotoneCubicSpline<T>
-Boutquin.Numerics.Interpolation.MonotoneCubicSpline<T>.Interpolate(T x) -> T
-Boutquin.Numerics.Interpolation.MonotoneCubicSpline<T>.MonotoneCubicSpline(System.Collections.Generic.IReadOnlyList<T>! xs, System.Collections.Generic.IReadOnlyList<T>! ys) -> void
-Boutquin.Numerics.Interpolation.TwoPointLinearInterpolator<T>
-static Boutquin.Numerics.Interpolation.TwoPointLinearInterpolator<T>.Interpolate(T x0, T y0, T x1, T y1, T x) -> T
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.BootstrapMonteCarloEngine(int simulationCount, Boutquin.Numerics.Random.IRandomSource! random) -> void
-static Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.FromSeed(int simulationCount = 1000, int? seed = null) -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>!
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.Run(T[]! observations, System.Func<T[]!, T>! statistic) -> Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>!
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.RunMulti(T[]! observations, int statisticCount, System.Action<T[]!, T[]!>! statisticWriter, System.Collections.Generic.IReadOnlyList<string!>? names = null) -> Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>!
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloEngine<T>.SimulationCount.get -> int
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.BootstrapMonteCarloResult(int SimulationCount, System.Collections.Generic.IReadOnlyList<T>! Statistics, T Median, T Percentile5, T Percentile95, T Mean) -> void
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Mean.get -> T
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Mean.init -> void
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Median.get -> T
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Median.init -> void
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Percentile5.get -> T
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Percentile5.init -> void
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Percentile95.get -> T
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Percentile95.init -> void
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.SimulationCount.get -> int
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.SimulationCount.init -> void
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Statistics.get -> System.Collections.Generic.IReadOnlyList<T>!
-Boutquin.Numerics.MonteCarlo.BootstrapMonteCarloResult<T>.Statistics.init -> void
-Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>
-Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.BlockSize.get -> int
-Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.BootstrapResampler(int blockSize, Boutquin.Numerics.Random.IRandomSource! random) -> void
-static Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.FromSeed(int blockSize, int? seed = null) -> Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>!
-Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.Resample(T[]! source) -> T[]!
-Boutquin.Numerics.MonteCarlo.BootstrapResampler<T>.ResamplePaired(T[]! sourceA, T[]! sourceB) -> (T[]! A, T[]! B)
-Boutquin.Numerics.MonteCarlo.HaltonSequence<T>
-Boutquin.Numerics.MonteCarlo.HaltonSequence<T>.Dimension.get -> int
-Boutquin.Numerics.MonteCarlo.HaltonSequence<T>.HaltonSequence(int dimension, long skip = 0) -> void
-Boutquin.Numerics.MonteCarlo.HaltonSequence<T>.Next() -> T[]!
-static Boutquin.Numerics.MonteCarlo.HarrellDavisPercentile.Compute<T>(T[]! sorted, double p) -> T
-Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>
-Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>.BlockSize.get -> int
-static Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>.FromSeed(int blockSize, int? seed = null) -> Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>!
-Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>.MovingBlockBootstrapResampler(int blockSize, Boutquin.Numerics.Random.IRandomSource! random) -> void
-Boutquin.Numerics.MonteCarlo.MovingBlockBootstrapResampler<T>.Resample(T[]! source) -> T[]!
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Means.get -> System.Collections.Generic.IReadOnlyList<T>!
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Means.init -> void
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Medians.get -> System.Collections.Generic.IReadOnlyList<T>!
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Medians.init -> void
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.MultiStatisticBootstrapResult(int SimulationCount, System.Collections.Generic.IReadOnlyList<string!>! Names, System.Collections.Generic.IReadOnlyList<T[]!>! Statistics, System.Collections.Generic.IReadOnlyList<T>! Means, System.Collections.Generic.IReadOnlyList<T>! Medians, System.Collections.Generic.IReadOnlyList<T>! Percentile5s, System.Collections.Generic.IReadOnlyList<T>! Percentile95s) -> void
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Names.get -> System.Collections.Generic.IReadOnlyList<string!>!
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Names.init -> void
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Percentile5s.get -> System.Collections.Generic.IReadOnlyList<T>!
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Percentile5s.init -> void
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Percentile95s.get -> System.Collections.Generic.IReadOnlyList<T>!
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Percentile95s.init -> void
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.SimulationCount.get -> int
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.SimulationCount.init -> void
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Statistics.get -> System.Collections.Generic.IReadOnlyList<T[]!>!
-Boutquin.Numerics.MonteCarlo.MultiStatisticBootstrapResult<T>.Statistics.init -> void
-static Boutquin.Numerics.MonteCarlo.Percentile.Compute<T>(T[]! sorted, T p) -> T
-static Boutquin.Numerics.MonteCarlo.PolitisWhiteBlockLength.Estimate<T>(T[]! series) -> double
-static Boutquin.Numerics.MonteCarlo.PolitisWhiteBlockLength.EstimateDouble(double[]! series) -> double
-Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>
-Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.Add(T observation) -> void
-Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.Count.get -> long
-Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.Estimate.get -> T
-Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.Percentile.get -> double
-Boutquin.Numerics.MonteCarlo.PSquareEstimator<T>.PSquareEstimator(double percentile) -> void
-Boutquin.Numerics.MonteCarlo.SobolSequence<T>
-Boutquin.Numerics.MonteCarlo.SobolSequence<T>.Dimension.get -> int
-Boutquin.Numerics.MonteCarlo.SobolSequence<T>.Next() -> T[]!
-Boutquin.Numerics.MonteCarlo.SobolSequence<T>.SobolSequence(int dimension, long skip = 0) -> void
-Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>
-static Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.FromSeed(double meanBlockLength, int? seed = null) -> Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>!
-Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.MeanBlockLength.get -> double
-Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.Resample(T[]! source) -> T[]!
-Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.ResamplePaired(T[]! sourceA, T[]! sourceB) -> (T[]! A, T[]! B)
-Boutquin.Numerics.MonteCarlo.StationaryBootstrapResampler<T>.StationaryBootstrapResampler(double meanBlockLength, Boutquin.Numerics.Random.IRandomSource! random) -> void
-static Boutquin.Numerics.MonteCarlo.Subsampler.Run<T>(T[]! series, int subsampleLength, System.Func<System.ReadOnlySpan<T>, T>! statistic) -> T[]!
-Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>
-static Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>.FromSeed(Boutquin.Numerics.MonteCarlo.WildBootstrapWeights weights, int? seed = null) -> Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>!
-Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>.Resample(T[]! residuals) -> T[]!
-Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>.Weights.get -> Boutquin.Numerics.MonteCarlo.WildBootstrapWeights
-Boutquin.Numerics.MonteCarlo.WildBootstrapResampler<T>.WildBootstrapResampler(Boutquin.Numerics.MonteCarlo.WildBootstrapWeights weights, Boutquin.Numerics.Random.IRandomSource! random) -> void
-Boutquin.Numerics.Random.GaussianSampler<T>
-Boutquin.Numerics.Random.GaussianSampler<T>.GaussianSampler(Boutquin.Numerics.Random.IRandomSource! source) -> void
-Boutquin.Numerics.Random.GaussianSampler<T>.Next() -> T
-Boutquin.Numerics.Random.GaussianSampler<T>.Next(T mean, T stdDev) -> T
-Boutquin.Numerics.Random.GaussianSampler<T>.NextBatch(int count) -> T[]!
-Boutquin.Numerics.Random.IRandomSource<T>
-Boutquin.Numerics.Random.IRandomSource<T>.NextT() -> T
-Boutquin.Numerics.Random.Pcg64RandomSource<T>
-Boutquin.Numerics.Random.Pcg64RandomSource<T>.NextULong() -> ulong
-Boutquin.Numerics.Random.Pcg64RandomSource<T>.Pcg64RandomSource(ulong seed) -> void
-Boutquin.Numerics.Random.Pcg64RandomSource<T>.Pcg64RandomSource(ulong seed, ulong streamId) -> void
-Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource<T>
-Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource<T>.Jump() -> void
-Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource<T>.NextULong() -> ulong
-Boutquin.Numerics.Random.Xoshiro256StarStarRandomSource<T>.Xoshiro256StarStarRandomSource(ulong seed) -> void
-Boutquin.Numerics.Statistics.DeflatedSharpeRatio<T>
-static Boutquin.Numerics.Statistics.DeflatedSharpeRatio<T>.Compute(T observedSharpe, int numTrials, T backTestYears, T skewness, T kurtosis, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.DsrResult<T>!
-static Boutquin.Numerics.Statistics.DeflatedSharpeRatio<T>.ComputeFromReturns(T[]! returns, int numTrials, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.DsrResult<T>!
-Boutquin.Numerics.Statistics.DistanceCorrelation<T>
-static Boutquin.Numerics.Statistics.DistanceCorrelation<T>.Compute(System.ReadOnlySpan<T> x, System.ReadOnlySpan<T> y) -> T
-Boutquin.Numerics.Statistics.DsrResult<T>
-Boutquin.Numerics.Statistics.DsrResult<T>.DeflatedSharpe.get -> T
-Boutquin.Numerics.Statistics.DsrResult<T>.DeflatedSharpe.init -> void
-Boutquin.Numerics.Statistics.DsrResult<T>.DsrResult(T DeflatedSharpe, T PValue, int NumTrials, T ExpectedMaxSharpe) -> void
-Boutquin.Numerics.Statistics.DsrResult<T>.ExpectedMaxSharpe.get -> T
-Boutquin.Numerics.Statistics.DsrResult<T>.ExpectedMaxSharpe.init -> void
-Boutquin.Numerics.Statistics.DsrResult<T>.NumTrials.get -> int
-Boutquin.Numerics.Statistics.DsrResult<T>.NumTrials.init -> void
-Boutquin.Numerics.Statistics.DsrResult<T>.PValue.get -> T
-Boutquin.Numerics.Statistics.DsrResult<T>.PValue.init -> void
-Boutquin.Numerics.Statistics.FisherZTransform<T>
-static Boutquin.Numerics.Statistics.FisherZTransform<T>.ConfidenceInterval(T r, int n, T confidenceLevel) -> (T Lower, T Upper)
-static Boutquin.Numerics.Statistics.FisherZTransform<T>.Forward(T r) -> T
-static Boutquin.Numerics.Statistics.FisherZTransform<T>.Inverse(T z) -> T
-Boutquin.Numerics.Statistics.GeneralizationScore<T>
-static Boutquin.Numerics.Statistics.GeneralizationScore<T>.Compute(System.ReadOnlySpan<T> returns, int subPeriodCount, T tradingDaysPerYear, T performanceWeight, T significanceWeight, T consistencyWeight, T downsideWeight) -> Boutquin.Numerics.Statistics.GtScoreResult<T>!
-Boutquin.Numerics.Statistics.GtScoreResult<T>
-Boutquin.Numerics.Statistics.GtScoreResult<T>.ConsistencyComponent.get -> T
-Boutquin.Numerics.Statistics.GtScoreResult<T>.ConsistencyComponent.init -> void
-Boutquin.Numerics.Statistics.GtScoreResult<T>.DownsideRiskComponent.get -> T
-Boutquin.Numerics.Statistics.GtScoreResult<T>.DownsideRiskComponent.init -> void
-Boutquin.Numerics.Statistics.GtScoreResult<T>.GtScoreResult(T Score, T PerformanceComponent, T SignificanceComponent, T ConsistencyComponent, T DownsideRiskComponent) -> void
-Boutquin.Numerics.Statistics.GtScoreResult<T>.PerformanceComponent.get -> T
-Boutquin.Numerics.Statistics.GtScoreResult<T>.PerformanceComponent.init -> void
-Boutquin.Numerics.Statistics.GtScoreResult<T>.Score.get -> T
-Boutquin.Numerics.Statistics.GtScoreResult<T>.Score.init -> void
-Boutquin.Numerics.Statistics.GtScoreResult<T>.SignificanceComponent.get -> T
-Boutquin.Numerics.Statistics.GtScoreResult<T>.SignificanceComponent.init -> void
-Boutquin.Numerics.Statistics.HaircutSharpe<T>
-static Boutquin.Numerics.Statistics.HaircutSharpe<T>.Compute(T observedSharpe, int numTrials, T backTestYears, int tradingDaysPerYear = 252) -> Boutquin.Numerics.Statistics.HaircutSharpeResult<T>!
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.BhyPValue.get -> T
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.BhyPValue.init -> void
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.BonferroniPValue.get -> T
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.BonferroniPValue.init -> void
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutAmount.get -> T
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutAmount.init -> void
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutSharpe.get -> T
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutSharpe.init -> void
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HaircutSharpeResult(T ObservedSharpe, T HaircutSharpe, T HaircutAmount, T BonferroniPValue, T HolmPValue, T BhyPValue) -> void
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HolmPValue.get -> T
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.HolmPValue.init -> void
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.ObservedSharpe.get -> T
-Boutquin.Numerics.Statistics.HaircutSharpeResult<T>.ObservedSharpe.init -> void
-Boutquin.Numerics.Statistics.MinimumTrackRecordLength<T>
-static Boutquin.Numerics.Statistics.MinimumTrackRecordLength<T>.Compute(T observedSharpe, T benchmarkSharpe, T skewness, T kurtosis, T significanceLevel, int tradingDaysPerYear) -> T
-Boutquin.Numerics.Statistics.NeweyWestVariance<T>
-static Boutquin.Numerics.Statistics.NeweyWestVariance<T>.AutomaticLags(int t) -> int
-static Boutquin.Numerics.Statistics.NeweyWestVariance<T>.MeanVariance(T[]! series, int lags) -> T
-Boutquin.Numerics.Statistics.PboResult<T>
-Boutquin.Numerics.Statistics.PboResult<T>.LogitMedian.get -> T
-Boutquin.Numerics.Statistics.PboResult<T>.LogitMedian.init -> void
-Boutquin.Numerics.Statistics.PboResult<T>.LogitValues.get -> System.Collections.Generic.IReadOnlyList<T>!
-Boutquin.Numerics.Statistics.PboResult<T>.LogitValues.init -> void
-Boutquin.Numerics.Statistics.PboResult<T>.Pbo.get -> T
-Boutquin.Numerics.Statistics.PboResult<T>.Pbo.init -> void
-Boutquin.Numerics.Statistics.PboResult<T>.PboResult(T Pbo, T LogitMedian, System.Collections.Generic.IReadOnlyList<T>! LogitValues) -> void
-Boutquin.Numerics.Statistics.ProbabilityOfBacktestOverfitting<T>
-static Boutquin.Numerics.Statistics.ProbabilityOfBacktestOverfitting<T>.Compute(T[,]! returns, int splitCount = 16) -> Boutquin.Numerics.Statistics.PboResult<T>!
-Boutquin.Numerics.Statistics.SampleExcessKurtosis
-static Boutquin.Numerics.Statistics.SampleExcessKurtosis.Compute(System.ReadOnlySpan<decimal> values) -> decimal
-Boutquin.Numerics.Statistics.SampleExcessKurtosis<T>
-static Boutquin.Numerics.Statistics.SampleExcessKurtosis<T>.Compute(System.ReadOnlySpan<T> values) -> T
-Boutquin.Numerics.Statistics.SampleSkewness
-static Boutquin.Numerics.Statistics.SampleSkewness.Compute(System.ReadOnlySpan<decimal> values) -> decimal
-Boutquin.Numerics.Statistics.SampleSkewness<T>
-static Boutquin.Numerics.Statistics.SampleSkewness<T>.Compute(System.ReadOnlySpan<T> values) -> T
-Boutquin.Numerics.Collections.RollingWindow<T>
-Boutquin.Numerics.Collections.RollingWindow<T>.Add(T item) -> void
-Boutquin.Numerics.Collections.RollingWindow<T>.Capacity.get -> int
-Boutquin.Numerics.Collections.RollingWindow<T>.Clear() -> void
-Boutquin.Numerics.Collections.RollingWindow<T>.Count.get -> int
-Boutquin.Numerics.Collections.RollingWindow<T>.GetEnumerator() -> System.Collections.Generic.IEnumerator<T>!
-Boutquin.Numerics.Collections.RollingWindow<T>.IsFull.get -> bool
-Boutquin.Numerics.Collections.RollingWindow<T>.RollingWindow(int capacity) -> void
-Boutquin.Numerics.Collections.RollingWindow<T>.this[int index].get -> T
-Boutquin.Numerics.Collections.RollingWindow<T>.ToArray() -> T[]!
-Boutquin.Numerics.Solvers.ActiveSetQpSolver
-static Boutquin.Numerics.Solvers.ActiveSetQpSolver.SolveMeanVariance(decimal[,]! covariance, decimal[]! means, decimal riskAversion, decimal minWeight, decimal maxWeight) -> decimal[]!
-static Boutquin.Numerics.Solvers.ActiveSetQpSolver.SolveMinVariance(decimal[,]! covariance, decimal minWeight, decimal maxWeight) -> decimal[]!
-Boutquin.Numerics.Solvers.ActiveSetQpSolver<T>
-static Boutquin.Numerics.Solvers.ActiveSetQpSolver<T>.SolveMeanVariance(T[,]! covariance, T[]! means, T riskAversion, T minWeight, T maxWeight) -> T[]!
-static Boutquin.Numerics.Solvers.ActiveSetQpSolver<T>.SolveMinVariance(T[,]! covariance, T minWeight, T maxWeight) -> T[]!
+static readonly Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator.Instance -> Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator!
+static readonly Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>.Instance -> Boutquin.Numerics.Interpolation.MonotoneCubicInterpolator<T>!
+virtual Boutquin.Numerics.Solvers.LmJacobianWriter<T>.Invoke(System.ReadOnlySpan<T> parameters, System.Span<T> jacobian) -> void
+virtual Boutquin.Numerics.Solvers.LmResidualWriter<T>.Invoke(System.ReadOnlySpan<T> parameters, System.Span<T> residuals) -> void

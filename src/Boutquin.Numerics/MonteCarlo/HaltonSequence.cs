@@ -37,7 +37,12 @@ namespace Boutquin.Numerics.MonteCarlo;
 /// instead.
 /// </para>
 /// <para>
-/// Tier C: Primes designed for double lattice; cast to/from double internally.
+/// Tier C: Evaluates the radical inverse in double, then converts the result to T.
+/// The ordinary integer prime bases do not impose this precision ceiling.
+/// </para>
+/// <para>
+/// Not thread-safe: holds mutable advancement state. Instantiate one instance
+/// per thread; do not share across concurrent consumers.
 /// </para>
 /// </remarks>
 public sealed class HaltonSequence<T>
@@ -54,7 +59,7 @@ public sealed class HaltonSequence<T>
 
     /// <summary>Creates a Halton sequence over the given dimension.</summary>
     /// <param name="dimension">Number of dimensions (1 ≤ d ≤ 50).</param>
-    /// <param name="skip">Number of leading points to skip (default 0). Skipping the first ~64 points is a common QMC practice to reduce low-index correlation artifacts.</param>
+    /// <param name="skip">Number of leading points to skip (default 0). Must lie in <c>[0, long.MaxValue - 1)</c> so the sequence can yield at least one representable point. Skipping the first ~64 points is a common QMC practice to reduce low-index correlation artifacts.</param>
     public HaltonSequence(int dimension, long skip = 0)
     {
         if (dimension < 1 || dimension > s_primes.Length)
@@ -63,9 +68,10 @@ public sealed class HaltonSequence<T>
                 nameof(dimension), dimension, $"Dimension must lie in [1, {s_primes.Length}].");
         }
 
-        if (skip < 0)
+        if (skip < 0 || skip >= long.MaxValue - 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(skip), skip, "Skip must be non-negative.");
+            throw new ArgumentOutOfRangeException(
+                nameof(skip), skip, "Skip must be non-negative and leave room for a representable point.");
         }
 
         _dimension = dimension;
@@ -80,14 +86,60 @@ public sealed class HaltonSequence<T>
     /// </summary>
     public T[] Next()
     {
-        _index++;
         var result = new T[_dimension];
-        for (var d = 0; d < _dimension; d++)
+        Next(result);
+        return result;
+    }
+
+    /// <summary>
+    /// Writes the next d-dimensional Halton point into <paramref name="destination"/>, with
+    /// each coordinate in [0, 1). Allocation-free alternative to <see cref="Next()"/> for hot
+    /// quasi-Monte-Carlo loops.
+    /// </summary>
+    /// <param name="destination">
+    /// Target span; must have length at least <see cref="Dimension"/>. Only the first
+    /// <see cref="Dimension"/> elements are written.
+    /// </param>
+    /// <exception cref="ArgumentException"><paramref name="destination"/> is shorter than <see cref="Dimension"/>.</exception>
+    public void Next(Span<T> destination)
+    {
+        if (destination.Length < _dimension)
         {
-            result[d] = T.CreateChecked(RadicalInverse(_index, s_primes[d]));
+            throw new ArgumentException(
+                $"Destination span must have length at least {_dimension}.", nameof(destination));
         }
 
-        return result;
+        if (_index >= long.MaxValue - 1)
+        {
+            throw new InvalidOperationException("The Halton sequence has exhausted its representable point range.");
+        }
+
+        _index++;
+        for (var d = 0; d < _dimension; d++)
+        {
+            var coordinate = T.CreateChecked(RadicalInverse(_index, s_primes[d]));
+            // The double sum or conversion to T can round a value below one up to one.
+            destination[d] = coordinate < T.One ? coordinate : LargestBelowOne();
+        }
+    }
+
+    private static T LargestBelowOne()
+    {
+        var step = T.One / T.CreateChecked(2);
+        var previous = T.Zero;
+        while (step > T.Zero)
+        {
+            var candidate = T.One - step;
+            if (candidate >= T.One)
+            {
+                break;
+            }
+
+            previous = candidate;
+            step /= T.CreateChecked(2);
+        }
+
+        return previous;
     }
 
     private static double RadicalInverse(long n, int b)
@@ -125,6 +177,10 @@ public sealed class HaltonSequence<T>
 /// <para>
 /// Tier C: Delegates to <see cref="HaltonSequence{T}"/> with T = <see cref="double"/>.
 /// </para>
+/// <para>
+/// Not thread-safe: holds mutable advancement state. Instantiate one instance
+/// per thread; do not share across concurrent consumers.
+/// </para>
 /// </remarks>
 public sealed class HaltonSequence
 {
@@ -132,7 +188,7 @@ public sealed class HaltonSequence
 
     /// <summary>Creates a Halton sequence over the given dimension.</summary>
     /// <param name="dimension">Number of dimensions (1 ≤ d ≤ 50).</param>
-    /// <param name="skip">Number of leading points to skip (default 0). Skipping the first ~64 points is a common QMC practice to reduce low-index correlation artifacts.</param>
+    /// <param name="skip">Number of leading points to skip (default 0). Must lie in <c>[0, long.MaxValue - 1)</c> so the sequence can yield at least one representable point. Skipping the first ~64 points is a common QMC practice to reduce low-index correlation artifacts.</param>
     public HaltonSequence(int dimension, long skip = 0)
     {
         _impl = new HaltonSequence<double>(dimension, skip);
@@ -145,4 +201,11 @@ public sealed class HaltonSequence
     /// Returns the next d-dimensional Halton point, with each coordinate in [0, 1).
     /// </summary>
     public double[] Next() => _impl.Next();
+
+    /// <summary>
+    /// Writes the next d-dimensional Halton point into <paramref name="destination"/>.
+    /// Allocation-free alternative to <see cref="Next()"/> for hot loops.
+    /// </summary>
+    /// <param name="destination">Target span; must have length at least <see cref="Dimension"/>.</param>
+    public void Next(Span<double> destination) => _impl.Next(destination);
 }

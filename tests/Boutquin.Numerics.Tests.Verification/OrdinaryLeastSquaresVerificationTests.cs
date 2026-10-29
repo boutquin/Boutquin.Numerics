@@ -21,17 +21,16 @@ namespace Boutquin.Numerics.Tests.Verification;
 /// <summary>
 /// Python cross-checks for <see cref="OrdinaryLeastSquares"/> against
 /// ``statsmodels.api.OLS``. Closes the reference-verification loop on the
-/// OLS estimator shipped via ``feature-nist-strd-expansion.md`` (which
-/// covered NIST StRD only). See
+/// OLS estimator beyond the NIST StRD coverage that shipped earlier. See
 /// <c>tests/Verification/generate_ols_vectors.py</c> for the reference
 /// generator.
 /// </summary>
 /// <remarks>
 /// Three regimes (well-conditioned, polynomial degree 5, no-intercept)
 /// exercise the common-case quick-path, the moderately-conditioned pivoting
-/// path, and the uncentred-R² branch respectively. Tolerances match the
-/// spec's §2.1 — 1e-10 relative on coefficients (NIST Longley bar for
-/// well-conditioned problems), 1e-8 relative on derived quantities.
+/// path, and the uncentred-R² branch respectively. Tolerances are 1e-10
+/// relative on coefficients (NIST Longley bar for well-conditioned problems)
+/// and 1e-8 relative on derived quantities.
 /// </remarks>
 public sealed class OrdinaryLeastSquaresVerificationTests : CrossLanguageVerificationBase
 {

@@ -28,6 +28,69 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers;
 public sealed class OrdinaryLeastSquaresTests
 {
     [Fact]
+    public void Fit_JointlyTinyDesignAndResponse_PreservesInference()
+    {
+        const double scale = 1e-160;
+        var result = OrdinaryLeastSquares<double>.Fit(
+            new[,] { { scale }, { scale } }, new[] { -scale, scale }, false);
+
+        result.CovarianceMatrix[0, 0].Should().BeApproximately(1, 2e-5);
+        result.StandardErrors[0].Should().BeApproximately(1, 2e-5);
+    }
+
+    [Theory]
+    [InlineData(1e-200)]
+    [InlineData(1e-250)]
+    public void Fit_SaturatedTinyDesign_ReturnsZeroInference(double scale)
+    {
+        var result = OrdinaryLeastSquares<double>.Fit(new[,] { { scale } }, new[] { 2 * scale }, false);
+
+        result.Coefficients[0].Should().Be(2);
+        result.DegreesOfFreedom.Should().Be(0);
+        result.ResidualSumOfSquares.Should().Be(0);
+        result.CovarianceMatrix[0, 0].Should().Be(0);
+        result.StandardErrors[0].Should().Be(0);
+    }
+
+    [Fact]
+    public void GenericResult_CopiesInferenceArraysOnBothEdges()
+    {
+        var coefficients = new[] { 1.25 };
+        var errors = new[] { 2.5 };
+        var residuals = new[] { -3.75 };
+        var covariance = new[,] { { 6.25 } };
+        var result = new OlsResult<double>
+        {
+            Coefficients = coefficients,
+            StandardErrors = errors,
+            Residuals = residuals,
+            CovarianceMatrix = covariance,
+            ResidualSumOfSquares = 1.0,
+            ResidualStandardDeviation = 1.0,
+            DegreesOfFreedom = 1,
+            RSquared = 0.5,
+        };
+
+        coefficients[0] = 99.0;
+        errors[0] = 99.0;
+        residuals[0] = 99.0;
+        covariance[0, 0] = 99.0;
+        result.Coefficients[0].Should().Be(1.25);
+        result.StandardErrors[0].Should().Be(2.5);
+        result.Residuals[0].Should().Be(-3.75);
+        result.CovarianceMatrix[0, 0].Should().Be(6.25);
+
+        result.Coefficients[0] = 88.0;
+        result.StandardErrors[0] = 88.0;
+        result.Residuals[0] = 88.0;
+        result.CovarianceMatrix[0, 0] = 88.0;
+        result.Coefficients[0].Should().Be(1.25);
+        result.StandardErrors[0].Should().Be(2.5);
+        result.Residuals[0].Should().Be(-3.75);
+        result.CovarianceMatrix[0, 0].Should().Be(6.25);
+    }
+
+    [Fact]
     public void Fit_SimpleLinear_RecoversExactSlopeAndIntercept()
     {
         // y = 2 + 3·x over a perfect fit. Coefficients must be exact to round-off.
@@ -60,6 +123,20 @@ public sealed class OrdinaryLeastSquaresTests
         result.DegreesOfFreedom.Should().Be(3);
         // Uncentred R² definition when no intercept: 1 − RSS/Σy².
         result.RSquared.Should().BeApproximately(1.0, 1e-12);
+    }
+
+    [Fact]
+    public void Fit_FiniteDesignBeyondDecimalRange_RecoversExactSlope()
+    {
+        var x = new double[,] { { 1e30 }, { 2e30 }, { 3e30 } };
+        var y = new[] { 1e30, 2e30, 3e30 };
+
+        OlsResult<double>? result = null;
+        FluentActions.Invoking(() => result = OrdinaryLeastSquares<double>.Fit(x, y, includeIntercept: false))
+            .Should().NotThrow();
+
+        result!.Coefficients[0].Should().BeApproximately(1.0, 1e-12);
+        double.IsFinite(result.ResidualSumOfSquares).Should().BeTrue();
     }
 
     [Fact]
@@ -174,10 +251,10 @@ public sealed class OrdinaryLeastSquaresTests
     }
 
     [Fact]
-    public void Fit_RejectsNullResponse()
+    public void Fit_RejectsEmptyResponse()
     {
-        FluentActions.Invoking(() => OrdinaryLeastSquares.Fit(new double[1, 1], null!))
-            .Should().Throw<ArgumentNullException>();
+        FluentActions.Invoking(() => OrdinaryLeastSquares.Fit(new double[1, 1], ReadOnlySpan<double>.Empty))
+            .Should().Throw<ArgumentException>();
     }
 
     [Fact]

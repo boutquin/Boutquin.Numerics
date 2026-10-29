@@ -38,11 +38,20 @@ namespace Boutquin.Numerics.Tests.Verification;
 /// </remarks>
 public sealed class QpSolverVerificationTests : CrossLanguageVerificationBase
 {
+    private static void AssertExpectedCases(System.Text.Json.JsonElement cases)
+    {
+        Assert.Equal(
+            ["meanvar:meanvar_3asset_unconstrained", "meanvar:meanvar_5asset_boxed", "minvar:minvar_3asset_boxed", "minvar:minvar_3asset_unconstrained", "minvar:minvar_5asset_moderate_corr"],
+            cases.EnumerateArray().Select(c => $"{c.GetProperty("kind").GetString()}:{c.GetProperty("name").GetString()}").OrderBy(identity => identity).ToArray());
+    }
+
     [Fact]
     public void ActiveSetQpSolver_MinVar_MatchesSlsqp()
     {
         using var doc = LoadVector("qp_solver");
         var cases = doc.RootElement.GetProperty("cases");
+        Assert.Equal(3, cases.EnumerateArray().Count(c => c.GetProperty("kind").GetString() == "minvar"));
+        AssertExpectedCases(cases);
 
         foreach (var c in cases.EnumerateArray())
         {
@@ -72,6 +81,8 @@ public sealed class QpSolverVerificationTests : CrossLanguageVerificationBase
     {
         using var doc = LoadVector("qp_solver");
         var cases = doc.RootElement.GetProperty("cases");
+        Assert.Equal(2, cases.EnumerateArray().Count(c => c.GetProperty("kind").GetString() == "meanvar"));
+        AssertExpectedCases(cases);
 
         foreach (var c in cases.EnumerateArray())
         {

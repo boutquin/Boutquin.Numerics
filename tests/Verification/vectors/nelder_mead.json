@@ -1,0 +1,68 @@
+{
+  "description": "Nelder-Mead minimiser reference vectors (scipy.optimize.minimize, method='Nelder-Mead')",
+  "cases": [
+    {
+      "name": "rosenbrock",
+      "x0": [
+        0.0,
+        0.0
+      ],
+      "argmin": [
+        1.0000000014249906,
+        1.00000000277125
+      ],
+      "fmin": 2.650458998741964e-18,
+      "iterations": 110,
+      "converged": true,
+      "precision": 0.0001,
+      "expected_argmin": [
+        1.0,
+        1.0
+      ],
+      "expected_fmin": 0.0
+    },
+    {
+      "name": "sphere_3d",
+      "x0": [
+        1.0,
+        2.0,
+        -1.0
+      ],
+      "argmin": [
+        4.5763743199388496e-10,
+        -4.954985309104543e-09,
+        -1.331649101923714e-09
+      ],
+      "fmin": 2.6534600763258034e-17,
+      "iterations": 134,
+      "converged": true,
+      "precision": 1e-06,
+      "expected_argmin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected_fmin": 0.0
+    },
+    {
+      "name": "beale",
+      "x0": [
+        0.0,
+        0.0
+      ],
+      "argmin": [
+        2.9999999971296827,
+        0.49999999910483833
+      ],
+      "fmin": 2.094555720566967e-18,
+      "iterations": 114,
+      "converged": true,
+      "precision": 0.001,
+      "expected_argmin": [
+        3.0,
+        0.5
+      ],
+      "expected_fmin": 0.0
+    }
+  ]
+}

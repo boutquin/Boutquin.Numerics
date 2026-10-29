@@ -12,7 +12,8 @@ of the following Python references:
   two-point distribution with atoms at ``−(√5−1)/2`` and ``(√5+1)/2``.
 * ``wild_rademacher`` — ±1 Rademacher weights via scipy's equivalent.
 * ``fast_double_bootstrap`` — Davidson-MacKinnon 2007 two-stage
-  reference p-value, hand-ported into numpy.
+  reference p-value, written in numpy from the FDB definition (right
+  tail uses the ``(1 - p1)``-quantile of the inner distribution).
 * ``subsampler`` — direct numpy port of the Politis-Romano-Wolf
   subsampling distribution; the C# ``Subsampler`` is deterministic so
   the comparison is bit-identical.
@@ -79,7 +80,7 @@ def reference_stationary_bootstrap_band(
     bs = StationaryBootstrap(mean_block_length, series, seed=rng)
     means = np.empty(trials)
     for b, (pos, _) in enumerate(bs.bootstrap(trials)):
-        resample = pos[0][0]
+        resample = pos[0]
         means[b] = float(resample.mean())
 
     return {
@@ -107,7 +108,7 @@ def reference_moving_block_band(
     bs = MovingBlockBootstrap(block_size, series, seed=rng)
     means = np.empty(trials)
     for b, (pos, _) in enumerate(bs.bootstrap(trials)):
-        resample = pos[0][0]
+        resample = pos[0]
         means[b] = float(resample.mean())
 
     return {
@@ -174,26 +175,31 @@ def reference_fast_double_bootstrap(
     outer_count: int,
     seed: int,
     tail: str = "right",
+    null_mean: float = 0.0,
 ) -> float:
-    """Two-stage FDB p-value for the "absolute mean deviation" statistic.
+    """Fast-double-bootstrap p-value of the signed sample mean under
+    H0: mean = ``null_mean``.
 
-    Reference: Davidson & MacKinnon (2007), "Improving the Reliability of
-    Bootstrap Tests with the Fast Double Bootstrap", CSDA 51(7),
-    3259–3281.
+    Written from the FDB definition (Davidson & MacKinnon 2007, CSDA
+    51(7), 3259-3281, as restated in Davidson 2023 §4), not ported from
+    the C# engine:
 
-    Verbatim port of the C# ``FastDoubleBootstrap.PValue`` algorithm.
-    The ``tail`` argument selects the C# ``PValueTail`` convention:
-      * ``"right"`` — fraction of outer ≥ target (classical FDB).
-      * ``"left"`` — fraction of outer ≤ target.
-      * ``"two"`` — ``min(2·min(right, left), 1)`` (standard bilateral
-        p-value under symmetry).
+    1. The bootstrap DGP must respect the null. For resampling a location
+       statistic, the null-imposed DGP of a sample is its empirical law
+       shifted to mean ``null_mean``.
+    2. For b = 1..B draw an outer sample from the null-imposed DGP of the
+       observations and compute ``tau_star[b]``; draw ONE inner sample from the
+       null-imposed DGP of that outer sample and compute ``tau_2star[b]``.
+    3. ``p1`` = proportion of ``tau_star`` strictly beyond ``observed`` in the chosen tail.
+    4. Right-rejecting test: ``Q`` = the ``(1 - p1)``-quantile of
+       ``tau_2star``; left-rejecting test: ``Q`` = the ``p1``-quantile.
+    5. FDB p-value = proportion of ``tau_star`` strictly beyond ``Q`` in the chosen tail.
 
-    Both the outer <c>p*</c> and the final rank apply the same tail
-    convention — mixing tails silently inverts the p-value.
-
-    Statistic: ``mean(sample)`` — the (signed) sample mean. Using the
-    signed statistic exposes both tails of the bootstrap distribution,
-    giving the test a non-trivial left-tail probability.
+    Strict comparisons (``>`` / ``<``) exclude ties at both stages, following
+    Davidson 2023 §4, algorithm steps 4/6 and its right-tail remark.
+    Quantiles use ``np.quantile``'s default linear method.
+    ``tail="two"`` folds the two one-sided FDB p-values:
+    ``min(2 * min(p_right, p_left), 1)``.
     """
 
     if tail not in ("right", "left", "two"):
@@ -202,53 +208,33 @@ def reference_fast_double_bootstrap(
     rng = np.random.default_rng(seed)
     n = observations.size
 
-    def statistic(sample: np.ndarray) -> float:
-        return float(sample.mean())
+    def null_dgp(sample: np.ndarray) -> np.ndarray:
+        return sample - sample.mean() + null_mean
 
-    def tail_pvalue(sorted_dist: np.ndarray, target: float) -> float:
-        right = float(np.sum(sorted_dist >= target)) / sorted_dist.size
-        left = float(np.sum(sorted_dist <= target)) / sorted_dist.size
-        if tail == "right":
-            return right
-        if tail == "left":
-            return left
-        # two-sided: min(2·min(right, left), 1), with the cap matching the C#.
-        return min(2.0 * min(right, left), 1.0)
-
-    outer_stats = np.empty(outer_count)
-    inner_stats = np.empty(outer_count)
+    population = null_dgp(observations)
+    tau_star = np.empty(outer_count)
+    tau_2star = np.empty(outer_count)
     for b in range(outer_count):
-        outer_idx = rng.integers(0, n, size=n)
-        outer = observations[outer_idx]
-        outer_stats[b] = statistic(outer)
+        outer = population[rng.integers(0, n, size=n)]
+        tau_star[b] = float(outer.mean())
+        inner = null_dgp(outer)[rng.integers(0, n, size=n)]
+        tau_2star[b] = float(inner.mean())
 
-        inner_idx = rng.integers(0, n, size=n)
-        inner = outer[inner_idx]
-        inner_stats[b] = statistic(inner)
+    def right_fdb() -> float:
+        p1 = float(np.mean(tau_star > observed))
+        q = float(np.quantile(tau_2star, 1.0 - p1))
+        return float(np.mean(tau_star > q))
 
-    sorted_outer = np.sort(outer_stats)
-    sorted_inner = np.sort(inner_stats)
+    def left_fdb() -> float:
+        p1 = float(np.mean(tau_star < observed))
+        q = float(np.quantile(tau_2star, p1))
+        return float(np.mean(tau_star < q))
 
-    # p* = rank of observed in outer under the chosen tail.
-    p_star = tail_pvalue(sorted_outer, observed)
-
-    # q* = linear-interp percentile at rank p* in sorted_inner — matches
-    # the C# ``Percentile.Compute`` convention.
-    if outer_count <= 1:
-        q_star = float(sorted_inner[0])
-    else:
-        rank = p_star * (outer_count - 1)
-        lo = int(np.floor(rank))
-        hi = int(np.ceil(rank))
-        if lo == hi:
-            q_star = float(sorted_inner[lo])
-        else:
-            frac = rank - lo
-            q_star = float(
-                sorted_inner[lo] + frac * (sorted_inner[hi] - sorted_inner[lo])
-            )
-
-    return tail_pvalue(sorted_outer, q_star)
+    if tail == "right":
+        return right_fdb()
+    if tail == "left":
+        return left_fdb()
+    return min(2.0 * min(right_fdb(), left_fdb()), 1.0)
 
 
 # =====================================================================
@@ -297,6 +283,12 @@ def reference_politis_white_block_length(series: np.ndarray) -> dict:
         "stationary_block_length": float(df["stationary"].iloc[0]),
         "circular_block_length": float(df["circular"].iloc[0]),
     }
+
+
+def reference_politis_white_paper(series: np.ndarray) -> float:
+    """Complete corrected author listing; field name retained for compatibility."""
+    from generate_ppw2009_vectors import author_estimate
+    return author_estimate(series)
 
 
 # =====================================================================
@@ -352,6 +344,20 @@ def generate() -> None:
         fdb_series, observed=fdb_observed, outer_count=2000, seed=20260505, tail="two"
     )
 
+    # FDB at an upper-tail observed statistic (sample mean + 2 standard errors).
+    # At the centre the right- and left-tail quantiles coincide near the median,
+    # so only an off-centre observation distinguishes the (1 - p1)-quantile from
+    # the p1-quantile.
+    fdb_observed_upper = float(
+        fdb_series.mean() + 2.0 * fdb_series.std(ddof=1) / np.sqrt(fdb_series.size)
+    )
+    fdb_upper = {
+        f"pvalue_{key}_upper": reference_fast_double_bootstrap(
+            fdb_series, observed=fdb_observed_upper, outer_count=2000, seed=20260505, tail=tail
+        )
+        for key, tail in (("right_tail", "right"), ("left_tail", "left"), ("two_sided", "two"))
+    }
+
     # Subsampler — deterministic; 200-obs series, b = ⌈T^(2/3)⌉ ≈ 35.
     sub_series = _build_ar1_series(seed=20260506, n=200, rho=0.2)
     sub_b = int(np.ceil(sub_series.size ** (2.0 / 3.0)))
@@ -361,6 +367,12 @@ def generate() -> None:
     # comfortably above the trivial value of 1.
     pw_series = _build_ar1_series(seed=20260507, n=512, rho=0.4)
     pw_result = reference_politis_white_block_length(pw_series)
+    pw_result["paper_stationary_block_length"] = reference_politis_white_paper(pw_series)
+
+    # Negatively autocorrelated companion: odd-lag autocovariances are negative,
+    # so the signed G of PW 2004 eq. 8 differs from a sum of |rho(k)|.
+    pw_negative_series = _build_ar1_series(seed=20260509, n=512, rho=-0.4)
+    pw_negative_block = reference_politis_white_paper(pw_negative_series)
 
     save_vector(
         "bootstrap",
@@ -397,6 +409,8 @@ def generate() -> None:
                 "pvalue_right_tail": fdb_pvalue_right,
                 "pvalue_left_tail": fdb_pvalue_left,
                 "pvalue_two_sided": fdb_pvalue_two,
+                "observed_upper": fdb_observed_upper,
+                **fdb_upper,
             },
             "subsampler": {
                 "series": sub_series.tolist(),
@@ -406,6 +420,10 @@ def generate() -> None:
             "politis_white": {
                 "series": pw_series.tolist(),
                 **pw_result,
+            },
+            "politis_white_negative": {
+                "series": pw_negative_series.tolist(),
+                "paper_stationary_block_length": pw_negative_block,
             },
         },
     )

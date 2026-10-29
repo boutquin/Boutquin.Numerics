@@ -75,9 +75,8 @@ public sealed class MovingBlockBootstrapResampler<T>
     public int BlockSize => _blockSize;
 
     /// <summary>Resamples a series using non-wrapping blocks.</summary>
-    public T[] Resample(T[] source)
+    public T[] Resample(ReadOnlySpan<T> source)
     {
-        ArgumentNullException.ThrowIfNull(source);
         if (source.Length < _blockSize)
         {
             throw new ArgumentException(
@@ -125,7 +124,11 @@ public sealed class MovingBlockBootstrapResampler<T>
 /// this is the safer default.
 /// </para>
 /// <para>
-/// Tier A: Delegates to <see cref="MovingBlockBootstrapResampler{T}"/> with T = <see cref="decimal"/>.
+/// <b>Working type: <see cref="decimal"/>.</b> This non-generic facade delegates
+/// to <see cref="MovingBlockBootstrapResampler{T}"/> instantiated at
+/// <see cref="decimal"/>; inputs and outputs are <see cref="decimal"/>. For
+/// <see cref="double"/>-precision resampling, use the generic
+/// <see cref="MovingBlockBootstrapResampler{T}"/> with <c>T = double</c>. (Tier A.)
 /// </para>
 /// </remarks>
 public sealed class MovingBlockBootstrapResampler
@@ -150,5 +153,5 @@ public sealed class MovingBlockBootstrapResampler
     public int BlockSize => _impl.BlockSize;
 
     /// <summary>Resamples a series using non-wrapping blocks.</summary>
-    public decimal[] Resample(decimal[] source) => _impl.Resample(source);
+    public decimal[] Resample(ReadOnlySpan<decimal> source) => _impl.Resample(source);
 }

@@ -82,6 +82,39 @@ public sealed class ExponentiallyWeightedCovarianceEstimatorTests
         ewma[0, 0].Should().BeGreaterThan(sample[0, 0]);
     }
 
+    [Fact]
+    public void Estimate_DecimalWeightRecurrencePreservesCallerPrecision()
+    {
+        const decimal lambda = 0.1234567890123456789012345678m;
+        var returns = new decimal[25, 1];
+        for (var i = 0; i < returns.GetLength(0); i++)
+        {
+            returns[i, 0] = (i % 7 - 3) / 10m;
+        }
+
+        var actual = new ExponentiallyWeightedCovarianceEstimator<decimal>(lambda)
+            .Estimate(returns)[0, 0];
+
+        // Independent 150-digit weighted-variance oracle:
+        // 0.001590536173264875843459508004006116130740869669...
+        // Permit two decimal ULPs for the different stable reduction orders.
+        actual.Should().BeApproximately(0.0015905361732648758434595080m, 0.0000000000000000000000000002m);
+    }
+
+    [Fact]
+    public void Estimate_LargeDecimalTranslationPreservesWeightedCovariance()
+    {
+        const decimal offset = 10000000000000000000000000000m;
+        var centered = new decimal[,] { { -1m }, { 0m }, { 1m } };
+        var translated = new decimal[,] { { offset - 1m }, { offset }, { offset + 1m } };
+        var estimator = new ExponentiallyWeightedCovarianceEstimator<decimal>();
+
+        var expected = estimator.Estimate(centered)[0, 0];
+        var actual = estimator.Estimate(translated)[0, 0];
+
+        actual.Should().BeApproximately(expected, 0.000000000000000000000001m);
+    }
+
     private static decimal[,] GenerateReturns(int t, int n, int seed)
     {
         var rng = new System.Random(seed);

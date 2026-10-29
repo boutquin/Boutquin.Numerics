@@ -5,6 +5,7 @@
     <AssemblyName>Boutquin.Numerics.Tests.Unit</AssemblyName>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CS1591;CA2007;BNU0001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Boutquin.Numerics/Boutquin.Numerics.csproj" />
@@ -18,5 +19,19 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="../Verification/vectors/paper_rmt.json">
+      <Link>Verification/vectors/paper_rmt.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="../Verification/qp-corpus/*.json">
+      <Link>Verification/qp-corpus/%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="../Verification/qp-corpus/*.txt">
+      <Link>Verification/qp-corpus/%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

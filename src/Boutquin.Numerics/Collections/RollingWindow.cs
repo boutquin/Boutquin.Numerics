@@ -23,6 +23,13 @@ using System.Collections.Generic;
 /// A fixed-capacity circular buffer that drops the oldest element when full.
 /// Elements are maintained in chronological (insertion) order.
 /// </summary>
+/// <remarks>
+/// Adding at capacity overwrites the oldest item. Indexing and enumeration visit retained
+/// items from oldest to newest; enumeration reads the live buffer, not a snapshot.
+/// This mutable collection is not thread-safe; callers must synchronize access and
+/// avoid mutation during enumeration. Adds and indexed reads take O(1) time;
+/// enumeration takes O(Count) time and storage is O(Capacity).
+/// </remarks>
 /// <typeparam name="T">The type of elements stored in the window.</typeparam>
 public sealed class RollingWindow<T> : IEnumerable<T>
 {
@@ -69,7 +76,10 @@ public sealed class RollingWindow<T> : IEnumerable<T>
         {
             if (index < 0 || index >= _count)
             {
-                throw new ArgumentOutOfRangeException(nameof(index), index, $"Index must be between 0 and {_count - 1}.");
+                var message = _count == 0
+                    ? "The window is empty."
+                    : $"Index must be between 0 and {_count - 1}.";
+                throw new ArgumentOutOfRangeException(nameof(index), index, message);
             }
 
             // The oldest element starts at (_head - _count + Capacity) % Capacity
@@ -100,11 +110,18 @@ public sealed class RollingWindow<T> : IEnumerable<T>
     public T[] ToArray()
     {
         var result = new T[_count];
-        for (var i = 0; i < _count; i++)
+        if (_count == 0)
         {
-            result[i] = this[i];
+            return result;
         }
 
+        var start = (_head - _count + Capacity) % Capacity;
+        var firstLen = Math.Min(_count, Capacity - start);
+        Array.Copy(_buffer, start, result, 0, firstLen);
+        if (_count > firstLen)
+        {
+            Array.Copy(_buffer, 0, result, firstLen, _count - firstLen);
+        }
         return result;
     }
 

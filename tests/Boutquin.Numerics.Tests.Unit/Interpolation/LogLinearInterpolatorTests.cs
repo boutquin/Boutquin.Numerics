@@ -27,6 +27,14 @@ public sealed class LogLinearInterpolatorTests
     private readonly LogLinearInterpolator _sut = LogLinearInterpolator.Instance;
 
     [Fact]
+    public void Interpolate_WideFiniteSpan_PreservesLogMidpoint()
+    {
+        double[] xs = [-1e308, 1e308];
+        double[] ys = [1, 4];
+        _sut.Interpolate(0, xs, ys).Should().BeApproximately(2, 1e-12);
+    }
+
+    [Fact]
     public void Interpolate_AtNode_ReturnsExactValue()
     {
         var result = _sut.Interpolate(1.0, s_xs, s_ys);
@@ -66,6 +74,20 @@ public sealed class LogLinearInterpolatorTests
         double[] ys = [-0.01, 0.02];
         var result = _sut.Interpolate(1.5, xs, ys);
         double.IsNaN(result).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Interpolate_NonFiniteTarget_IsRejected(double target)
+    {
+        double[] xs = [0, 1, 2];
+        double[] ys = [1, 0.9, 0.8];
+
+        Action act = () => _sut.Interpolate(target, xs, ys);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("x");
     }
 
     [Fact]

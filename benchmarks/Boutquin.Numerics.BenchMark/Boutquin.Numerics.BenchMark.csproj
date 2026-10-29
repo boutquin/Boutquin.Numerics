@@ -12,7 +12,7 @@
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <!-- CA1515 (make class internal) fires on every BenchmarkDotNet class; the
          benchmarks must be public for BenchmarkDotNet's dynamic runner. -->
-    <NoWarn>$(NoWarn);CA1515;CA1707;CA1812;CA1822;CA5394;CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CA1515;CA1707;CA1812;CA1822;CA5394;CS1591;BNU0001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Boutquin.Numerics/Boutquin.Numerics.csproj" />

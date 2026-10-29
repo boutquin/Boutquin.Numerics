@@ -105,30 +105,64 @@ def reference_two_point_linear(x0: float, y0: float, x1: float, y1: float, x: fl
     return float(y0 + (x - x0) / (x1 - x0) * (y1 - y0))
 
 
+def _hagan_west_deviation(g_left: float, g_right: float, x: float) -> float:
+    """Pointwise forward deviation g(x) = f(t) - F_i on one interval, x in [0, 1].
+
+    Hagan & West (2006), "Enforcing Monotonicity and Convexity": the basic
+    quadratic of eq. 47 in sector (i), the flat-then-quadratic of eqs. 49-50
+    in sector (ii), the quadratic-then-flat of eqs. 51-52 in sector (iii), and
+    the two quadratics of eqs. 53-56 in sector (iv). The sector boundaries are
+    read from the paper's list of regions (i)-(iv).
+    """
+
+    a, b = g_left, g_right
+    if a == 0.0 and b == 0.0:
+        return 0.0  # footnote 7: flat curve
+    if (a > 0 and -2 * a <= b <= -a / 2) or (a < 0 and -a / 2 <= b <= -2 * a):
+        # sector (i), eq. 47
+        return a * (1 - 4 * x + 3 * x * x) + b * (-2 * x + 3 * x * x)
+    if (a < 0 and b > -2 * a) or (a > 0 and b < -2 * a):
+        # sector (ii), eqs. 49-50
+        eta = (b + 2 * a) / (b - a)
+        return a if x <= eta else a + (b - a) * ((x - eta) / (1 - eta)) ** 2
+    if (a > 0 and -a / 2 < b < 0) or (a < 0 and 0 < b < -a / 2):
+        # sector (iii), eqs. 51-52
+        eta = 3 * b / (b - a)
+        return b + (a - b) * ((eta - x) / eta) ** 2 if x < eta else b
+    # sector (iv), eqs. 53-56
+    eta = b / (a + b)
+    big_a = -a * b / (a + b)
+    if x < eta:
+        return big_a + (a - big_a) * ((eta - x) / eta) ** 2
+    if x == eta:
+        return big_a
+    return big_a + (b - big_a) * ((x - eta) / (1 - eta)) ** 2
+
+
 def reference_monotone_convex(x: float, xs: list[float], ys: list[float]) -> float:
-    """Hagan-West (2006) monotone-convex interpolation — paper-faithful port.
+    """Hagan-West (2006) monotone-convex interpolation, written from the paper.
 
     Paper: Hagan, P. S. and West, G. (2006), "Interpolation Methods for
-    Curve Construction", Applied Mathematical Finance 13(2), pp. 89-129.
-    Equations used: §2.3 (Eq. 2.2 — time-weighted tangents, Eq. 2.5 —
-    linear boundary extrapolation) and §2.4 (Eq. 2.7 — non-negativity
-    clamp). The per-segment integration of the cubic forward polynomial
-    follows the closed-form integration of Eq. 2.6 (quadratic basis in u)
-    over u ∈ [0, t], producing a cubic in u.
+    Curve Construction", Applied Mathematical Finance 13(2), pp. 89-129. The
+    paper has no numbered sections, so the citations are equation numbers:
+    node forwards eq. 30 (interior) and eqs. 31-32 (ends); positivity bounds
+    eqs. 60-62; the monotonicity/convexity sectors eqs. 45-56; the NCR as the
+    integral of the forward, eq. 37 and eq. 81. The amelioration step
+    (eqs. 63-80) is not applied, matching the C# class.
 
     Input convention (shared with C# ``MonotoneConvexInterpolator``):
     ``xs[0] = 0, ys[0] = 0`` is the virtual origin; ``xs[1..]`` are actual
-    node times (year fractions) and ``ys[i] = −ln P(xs[i])`` are NCR
+    node times (year fractions) and ``ys[i] = -ln P(xs[i])`` are NCR
     values. Flat extrapolation outside the node range.
 
-    No scipy or statsmodels routine exists for Hagan-West — this is a
-    finance-specific curve-construction method. The reference is a
-    hand-port from the paper; it shares no code with the C# implementation
-    (different language, different array-indexing idiom, different loop
-    structure), so a shared bug would require a co-incident misreading
-    of the paper. Unit-test invariants (monotonicity, non-negative
-    forwards, flat extrapolation) further guard against that.
+    Independence from the C# code: the forward deviation is evaluated
+    pointwise from the paper's piecewise definitions and integrated
+    numerically with ``scipy.integrate.quad`` (split at the sector
+    breakpoint), whereas the C# class uses closed-form integrals. A shared
+    error would need the same misreading of the paper's sector table.
     """
+
+    from scipy import integrate
 
     xs_arr = np.asarray(xs, dtype=float)
     ys_arr = np.asarray(ys, dtype=float)
@@ -138,60 +172,66 @@ def reference_monotone_convex(x: float, xs: list[float], ys: list[float]) -> flo
     if x >= xs_arr[-1]:
         return float(ys_arr[-1])
 
-    n = xs_arr.size
+    n = xs_arr.size - 1  # t_0 = 0, ..., t_n
 
-    # Step 1: segment widths h[j] and discrete forwards F[j] for j ∈ [1, n-1].
-    # (Hagan-West §2.2; index 0 is unused and left at 0.)
-    h = [0.0] * n
-    f_seg = [0.0] * n
-    for j in range(1, n):
-        h[j] = xs_arr[j] - xs_arr[j - 1]
-        f_seg[j] = (ys_arr[j] - ys_arr[j - 1]) / h[j]
+    # Discrete forwards f_i^d on [t_{i-1}, t_i], i = 1..n.
+    t = xs_arr
+    fd = {i: (ys_arr[i] - ys_arr[i - 1]) / (t[i] - t[i - 1]) for i in range(1, n + 1)}
 
-    # Step 2: instantaneous forward tangents g[i] at each node.
-    # Interior: Hagan-West Eq. 2.2 — time-weighted average of adjacent
-    # segment forwards, with weights opposite of the usual convention
-    # (the weight on F[i+1] is the LEFT segment width h[i]).
-    g = [0.0] * n
-    for i in range(1, n - 1):
-        g[i] = (h[i] * f_seg[i + 1] + h[i + 1] * f_seg[i]) / (h[i] + h[i + 1])
-
-    # Boundary extrapolation — Hagan-West Eq. 2.5. Two-point formula
-    # reduces to g[·] = F[1] / F[n-1] when only one interior segment exists.
-    if n >= 3:
-        g[0] = (3.0 * f_seg[1] - g[1]) / 2.0
-        g[n - 1] = (3.0 * f_seg[n - 1] - g[n - 2]) / 2.0
+    # Node forwards: eq. 30 (interior), eqs. 31-32 (ends).
+    f = {}
+    for i in range(1, n):
+        f[i] = ((t[i] - t[i - 1]) / (t[i + 1] - t[i - 1])) * fd[i + 1] + (
+            (t[i + 1] - t[i]) / (t[i + 1] - t[i - 1])
+        ) * fd[i]
+    if n == 1:
+        f[0] = f[1] = fd[1]
     else:
-        g[0] = f_seg[1]
-        g[n - 1] = f_seg[n - 1]
+        f[0] = fd[1] - 0.5 * (f[1] - fd[1])
+        f[n] = fd[n] - 0.5 * (f[n - 1] - fd[n])
 
-    # Step 3: non-negativity clamp — Hagan-West §2.4 Eq. 2.7. Each g[i]
-    # is pinned to [0, min(2·F[left], 2·F[right])]. Boundary nodes see
-    # only one adjacent segment.
-    g[0] = max(0.0, min(g[0], 2.0 * f_seg[1]))
-    for i in range(1, n - 1):
-        limit = min(2.0 * f_seg[i], 2.0 * f_seg[i + 1])
-        g[i] = max(0.0, min(g[i], limit)) if limit > 0.0 else 0.0
-    g[n - 1] = max(0.0, min(g[n - 1], 2.0 * f_seg[n - 1]))
+    # Positivity bounds, eqs. 60-62, bound(a, x, b) = min(max(a, x), b).
+    def bound(lo: float, v: float, hi: float) -> float:
+        return min(max(lo, v), hi)
 
-    # Step 4: locate the bracket segment [xs[k-1], xs[k]] containing x.
-    k = 1
-    while k < n and x > xs_arr[k]:
-        k += 1
-    # Loop invariant: xs[k-1] < x <= xs[k] when the function reaches this point
-    # (the boundary checks at the top ruled out x <= xs[0] and x >= xs[-1]).
+    f[0] = bound(0.0, f[0], 2 * fd[1])
+    for i in range(1, n):
+        f[i] = bound(0.0, f[i], 2 * min(fd[i], fd[i + 1]))
+    f[n] = bound(0.0, f[n], 2 * fd[n])
 
-    # Step 5: integrate the cubic forward polynomial (Hagan-West Eq. 2.6
-    # integrated in closed form over u ∈ [0, t]) to obtain NCR increment.
-    u = (x - xs_arr[k - 1]) / h[k]
-    u2 = u * u
-    u3 = u2 * u
-    delta_r = h[k] * (
-        f_seg[k] * u
-        + (g[k - 1] - f_seg[k]) * (u - 2.0 * u2 + u3)
-        + (g[k] - f_seg[k]) * (-u2 + u3)
+    # Interval i with t_{i-1} < x <= t_i.
+    i = int(np.searchsorted(t, x, side="left"))
+    width = t[i] - t[i - 1]
+    u = (x - t[i - 1]) / width
+    g_left = f[i - 1] - fd[i]
+    g_right = f[i] - fd[i]
+
+    # Breakpoint of the piecewise definition, so quad integrates smooth pieces.
+    points = []
+    a, b = g_left, g_right
+    if (a < 0 and b > -2 * a) or (a > 0 and b < -2 * a):
+        points = [(b + 2 * a) / (b - a)]
+    elif (a > 0 and -a / 2 < b < 0) or (a < 0 and 0 < b < -a / 2):
+        points = [3 * b / (b - a)]
+    elif not (a == 0.0 and b == 0.0) and not (
+        (a > 0 and -2 * a <= b <= -a / 2) or (a < 0 and -a / 2 <= b <= -2 * a)
+    ):
+        points = [b / (a + b)]
+    points = [p for p in points if 0.0 < p < u]
+
+    integral, _ = integrate.quad(
+        lambda s: _hagan_west_deviation(g_left, g_right, s),
+        0.0,
+        u,
+        points=points or None,
+        epsabs=1e-14,
+        epsrel=1e-12,
+        limit=200,
     )
-    return float(ys_arr[k - 1] + delta_r)
+
+    # eq. 81: r(t)t = r_{i-1}t_{i-1} + f_i^d (t - t_{i-1}) + integral of g, and eq. 37
+    # rescales the integral from x units to time units.
+    return float(ys_arr[i - 1] + fd[i] * (x - t[i - 1]) + width * integral)
 
 
 # =====================================================================
@@ -255,8 +295,8 @@ def generate() -> None:
     # shaped NCR node array: xs[0]=0, ys[0]=0 is the virtual origin; the
     # remaining nodes encode NCR = −ln(DF) for an upward-sloping curve.
     # Query points exercise three distinct segments plus two near-boundary
-    # locations where the interior tangent formula meets the §2.5 boundary
-    # extrapolation.
+    # locations where the interior node forwards (eq. 30) meet the boundary
+    # forwards (eqs. 31-32).
     import math
     mc_discounts = [1.0, 0.995, 0.97, 0.83, 0.68, 0.25]
     mc_xs = [0.0, 0.25, 1.0, 5.0, 10.0, 30.0]

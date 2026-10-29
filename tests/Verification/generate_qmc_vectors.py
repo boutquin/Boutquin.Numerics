@@ -11,11 +11,8 @@ def generate() -> None:
     dim = 4
     points = 16
 
-    # Skip-0 Sobol sequence (SciPy emits the [0, 0, ..., 0] point first
-    # when scramble=False; the reference C# implementation follows the
-    # Joe-Kuo convention which starts at (1/2, ...) for the first non-
-    # origin point. We compare the discrepancy and the per-dimension
-    # empirical mean — both should converge to 0.5 as points grow.)
+    # Both reference arrays include author index zero. Native Sobol emits it;
+    # native Halton starts at index one, so its verifier selects rows1 onward.
     sobol = qmc.Sobol(d=dim, scramble=False)
     sobol_pts = sobol.random_base2(m=int.bit_length(points) - 1)
 
@@ -31,6 +28,20 @@ def generate() -> None:
             "halton": halton_pts.tolist(),
             "sobol_dim_means": sobol_pts.mean(axis=0).tolist(),
             "halton_dim_means": halton_pts.mean(axis=0).tolist(),
+        },
+    )
+
+    # Pin every embedded Sobol direction row and recurrence bits well beyond
+    # the first 16 points. These values come directly from SciPy's independent
+    # unscrambled Joe-Kuo D(6) implementation, including its origin point.
+    extended_indices = [1, 2, 31, 32, 63, 64, 127, 128, 255, 256, 511, 512, 1023]
+    sobol32 = qmc.Sobol(d=32, scramble=False, bits=30).random_base2(m=10)
+    save_vector(
+        "qmc_sobol_extended",
+        {
+            "dimension": 32,
+            "indices": extended_indices,
+            "sobol": sobol32[extended_indices].tolist(),
         },
     )
 

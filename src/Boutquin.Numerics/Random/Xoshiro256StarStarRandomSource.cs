@@ -19,9 +19,9 @@ using System.Numerics;
 namespace Boutquin.Numerics.Random;
 
 /// <summary>
-/// xoshiro256** — 256-bit state, 64-bit output. Period 2^256 − 1. Passes
-/// BigCrush. Marginally faster than PCG-64 on modern CPUs; slightly lower
-/// equidistribution (2-dimensional vs PCG's stream-independence guarantee).
+/// xoshiro256** — 256-bit state, 64-bit output. The nonzero-state engine has
+/// period 2^256 − 1 and is 4-dimensionally equidistributed (Blackman-Vigna 2018).
+/// Use <see cref="Jump"/> to place stream starts 2^128 state transitions apart.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -31,9 +31,11 @@ namespace Boutquin.Numerics.Random;
 /// <para>
 /// Seeds are expanded from a single 64-bit value via SplitMix64 (Vigna's
 /// recommended seed-expansion routine) so that zero and low-weight seeds
-/// still produce full-quality state. The <see cref="Jump"/> method advances
-/// the generator by 2^128 steps, partitioning the output stream for parallel
-/// simulation without correlation.
+/// produce a nonzero state. Only a subset of the 256-bit states is reachable
+/// from this 64-bit seed. The authors report empirical test results for their
+/// generators; these are not a reproduction of BigCrush by this implementation.
+/// The <see cref="Jump"/> method advances the generator by 2^128 steps.
+/// Separated, nonoverlapping stream segments do not prove statistical independence.
 /// </para>
 /// </remarks>
 public sealed class Xoshiro256StarStarRandomSource : IRandomSource
@@ -73,21 +75,21 @@ public sealed class Xoshiro256StarStarRandomSource : IRandomSource
     /// <summary>
     /// Advances the generator state by 2^128 calls to <see cref="NextULong"/>
     /// in O(64²) operations, without producing intermediate output. Used to
-    /// spawn independent streams for parallel Monte Carlo: the parent thread
-    /// seeds, each child thread <see cref="Jump"/>s before consuming, and the
-    /// non-overlap of the 2^128-period segments guarantees statistical
-    /// independence up to the full <c>2^256 − 1</c> period.
+    /// place parallel stream starts 2^128 transitions apart. Keep each segment
+    /// shorter than that distance and account for wraparound at the full
+    /// <c>2^256 − 1</c> period when assigning segments. Nonoverlap does not
+    /// establish statistical independence.
     /// </summary>
     /// <remarks>
-    /// The four-word jump polynomial below is the characteristic polynomial of
-    /// the xoshiro256 LFSR evaluated at <c>T^(2^128)</c>, reducing 2^128
-    /// individual state transitions to a single matrix-vector multiply in
-    /// GF(2). The constants are from Blackman &amp; Vigna 2018 (arXiv:1805.01407);
+    /// The four-word jump polynomial encodes <c>x^(2^128)</c> modulo the
+    /// characteristic polynomial of the xoshiro256 state transition over GF(2).
+    /// Evaluating it at the transition matrix advances the state by 2^128 steps.
+    /// The constants come from the authors' <c>xoshiro256starstar.c</c> jump routine;
     /// changing them invalidates the 2^128 advance and must not be done.
     /// </remarks>
     public void Jump()
     {
-        // Jump polynomial from Blackman-Vigna 2018, arXiv:1805.01407.
+        // Jump polynomial from the authors' xoshiro256starstar.c.
         // Encodes T^(2^128) in GF(2) where T is the xoshiro256 state-transition
         // matrix; XORing contributions from set bits effects the advance.
         var jump = new ulong[]
@@ -155,10 +157,10 @@ public sealed class Xoshiro256StarStarRandomSource<T> : IRandomSource<T>
     /// <summary>
     /// Advances the generator state by 2^128 calls to <see cref="IRandomSource.NextULong"/>
     /// in O(64²) operations, without producing intermediate output. Used to
-    /// spawn independent streams for parallel Monte Carlo: the parent thread
-    /// seeds, each child thread <see cref="Jump"/>s before consuming, and the
-    /// non-overlap of the 2^128-period segments guarantees statistical
-    /// independence up to the full <c>2^256 − 1</c> period.
+    /// place parallel stream starts 2^128 transitions apart. Keep each segment
+    /// shorter than that distance and account for wraparound at the full
+    /// <c>2^256 − 1</c> period when assigning segments. Nonoverlap does not
+    /// establish statistical independence.
     /// </summary>
     public void Jump() => _inner.Jump();
 }

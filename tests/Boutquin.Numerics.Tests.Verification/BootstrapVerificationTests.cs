@@ -79,11 +79,11 @@ public sealed class BootstrapVerificationTests : CrossLanguageVerificationBase
         using var doc = LoadVector("bootstrap");
         var block = doc.RootElement.GetProperty("stationary_bootstrap");
         var meanBlock = block.GetProperty("mean_block_length").GetDouble();
-        var sampleMean = block.GetProperty("sample_mean").GetDouble();
+        var referenceMean = block.GetProperty("mean_of_means").GetDouble();
         var pythonStd = block.GetProperty("mean_std").GetDouble();
 
         var series = GetDecimalArray(doc.RootElement.GetProperty("ar1_series").GetProperty("values"));
-        var (meanOfMeans, _) = RunResampleManyAndMeasure(
+        var (meanOfMeans, stdOfMeans) = RunResampleManyAndMeasure(
             () =>
             {
                 var resampler = StationaryBootstrapResampler.FromSeed(meanBlock, seed: 20260502);
@@ -92,11 +92,12 @@ public sealed class BootstrapVerificationTests : CrossLanguageVerificationBase
                     .ToArray();
             });
 
-        // SE of the mean-of-means = std/√trials; accept within 4·SE so the
-        // test fails at < 1/15000 under the null. pythonStd is the Python-
-        // measured std of the resampled means at the 5000-trial budget.
-        var se = pythonStd / Math.Sqrt(BootstrapTrials);
-        Math.Abs(meanOfMeans - sampleMean).Should().BeLessThan(4.0 * se);
+        // Independent PCG and arch streams each estimate the mean; combine
+        // their sampling errors. The spread itself is checked below.
+        var se = pythonStd * Math.Sqrt(1.0 / BootstrapTrials + 1.0 / block.GetProperty("trials").GetInt32());
+        Math.Abs(meanOfMeans - referenceMean).Should().BeLessThan(5.0 * se);
+        Math.Abs(stdOfMeans - pythonStd).Should().BeLessThan(0.15 * pythonStd,
+            "the resampled means must have the spread measured by the independent arch reference");
     }
 
     /// <summary>
@@ -108,11 +109,11 @@ public sealed class BootstrapVerificationTests : CrossLanguageVerificationBase
         using var doc = LoadVector("bootstrap");
         var block = doc.RootElement.GetProperty("moving_block_bootstrap");
         var blockSize = block.GetProperty("block_size").GetInt32();
-        var sampleMean = block.GetProperty("sample_mean").GetDouble();
+        var referenceMean = block.GetProperty("mean_of_means").GetDouble();
         var pythonStd = block.GetProperty("mean_std").GetDouble();
 
         var series = GetDecimalArray(doc.RootElement.GetProperty("ar1_series").GetProperty("values"));
-        var (meanOfMeans, _) = RunResampleManyAndMeasure(
+        var (meanOfMeans, stdOfMeans) = RunResampleManyAndMeasure(
             () =>
             {
                 var resampler = MovingBlockBootstrapResampler.FromSeed(blockSize, seed: 20260503);
@@ -121,8 +122,10 @@ public sealed class BootstrapVerificationTests : CrossLanguageVerificationBase
                     .ToArray();
             });
 
-        var se = pythonStd / Math.Sqrt(BootstrapTrials);
-        Math.Abs(meanOfMeans - sampleMean).Should().BeLessThan(4.0 * se);
+        var se = pythonStd * Math.Sqrt(1.0 / BootstrapTrials + 1.0 / block.GetProperty("trials").GetInt32());
+        Math.Abs(meanOfMeans - referenceMean).Should().BeLessThan(5.0 * se);
+        Math.Abs(stdOfMeans - pythonStd).Should().BeLessThan(0.15 * pythonStd,
+            "the resampled means must have the spread measured by the independent arch reference");
     }
 
     /// <summary>
@@ -191,34 +194,62 @@ public sealed class BootstrapVerificationTests : CrossLanguageVerificationBase
     /// <summary>
     /// Fast-Double Bootstrap — the C# FDB p-value and the numpy reference
     /// FDB p-value on the same series + observed statistic should agree
-    /// within 2% absolute (p-values have inherent resolution 1/outerCount;
+    /// within 8% absolute (p-values have inherent resolution 1/outerCount;
     /// different RNG streams contribute an O(1/√outerCount) drift).
-    /// Covers all three <see cref="PValueTail"/> conventions.
+    /// Covers all three <see cref="PValueTail"/> conventions, at the sample
+    /// mean and at an upper-tail observed statistic (mean + 2 SE). The numpy
+    /// reference is written from the FDB definition (right tail takes the
+    /// <c>(1 − p̂₁)</c>-quantile of the inner distribution), not ported from C#.
+    /// The signed mean is not invariant to the tested location, so both sides
+    /// impose H₀: μ = 0 on the outer and on every inner bootstrap DGP by
+    /// recentring the sample to mean zero.
     /// </summary>
     [Theory]
-    [InlineData(PValueTail.RightTail, "pvalue_right_tail")]
-    [InlineData(PValueTail.LeftTail, "pvalue_left_tail")]
-    [InlineData(PValueTail.TwoSided, "pvalue_two_sided")]
-    public void FastDoubleBootstrap_PValue_MatchesReferenceWithin2Percent(PValueTail tail, string referenceKey)
+    [InlineData(PValueTail.RightTail, "observed", "pvalue_right_tail")]
+    [InlineData(PValueTail.LeftTail, "observed", "pvalue_left_tail")]
+    [InlineData(PValueTail.TwoSided, "observed", "pvalue_two_sided")]
+    [InlineData(PValueTail.RightTail, "observed_upper", "pvalue_right_tail_upper")]
+    [InlineData(PValueTail.LeftTail, "observed_upper", "pvalue_left_tail_upper")]
+    [InlineData(PValueTail.TwoSided, "observed_upper", "pvalue_two_sided_upper")]
+    public void FastDoubleBootstrap_PValue_MatchesReferenceWithin8Percent(
+        PValueTail tail, string observedKey, string referenceKey)
     {
         using var doc = LoadVector("bootstrap");
         var fdb = doc.RootElement.GetProperty("fast_double_bootstrap");
         var series = GetDecimalArray(fdb.GetProperty("series"));
-        var observed = (decimal)fdb.GetProperty("observed").GetDouble();
+        var observed = (decimal)fdb.GetProperty(observedKey).GetDouble();
         var outerCount = fdb.GetProperty("outer_count").GetInt32();
         var expected = fdb.GetProperty(referenceKey).GetDouble();
 
         var engine = FastDoubleBootstrap.FromSeed(outerCount, seed: 20260701);
-        var pValue = (double)engine.PValue(series, observed, static s =>
-        {
-            decimal sum = 0m;
-            for (var i = 0; i < s.Length; i++)
+        var pValue = (double)engine.PValueImposingNull(
+            series,
+            observed,
+            static s =>
             {
-                sum += s[i];
-            }
+                decimal sum = 0m;
+                for (var i = 0; i < s.Length; i++)
+                {
+                    sum += s[i];
+                }
 
-            return sum / s.Length;
-        }, tail);
+                return sum / s.Length;
+            },
+            static s =>
+            {
+                decimal sum = 0m;
+                for (var i = 0; i < s.Length; i++)
+                {
+                    sum += s[i];
+                }
+
+                var mean = sum / s.Length;
+                for (var i = 0; i < s.Length; i++)
+                {
+                    s[i] -= mean;
+                }
+            },
+            tail);
 
         // p-value resolution: ±1/outerCount = ±0.0005 at 2000 outer replications;
         // RNG-stream drift between Numerics' Pcg64 and numpy's BitGenerator
@@ -226,8 +257,9 @@ public sealed class BootstrapVerificationTests : CrossLanguageVerificationBase
         // absolute tolerance gives a comfortable safety margin on top of that
         // while still catching any convention-level disagreement (left/right
         // swap, tie mis-counting) — those drift the p-value by at least ~0.3.
-        // Two-sided p-values land near 0 (observed near median → p* clamps
-        // to 1 → q* at the inner extreme); same absolute bound applies.
+        // At the upper-tail observed statistic the right-tail FDB p-value is
+        // near 0 and the left-tail one near 1; taking the wrong inner quantile
+        // swaps them, which the same absolute bound catches.
         Math.Abs(pValue - expected).Should().BeLessThan(0.08);
     }
 
@@ -263,23 +295,29 @@ public sealed class BootstrapVerificationTests : CrossLanguageVerificationBase
     }
 
     /// <summary>
-    /// Politis-White — C# estimate and arch's ``optimal_block_length``
-    /// agree within ±2 per spec §2.3. Both are implementations of the
-    /// same Politis-White 2004 (Patton 2009 correction) formula; the
-    /// integer rounding and the lag-window cutoff can differ by one or
-    /// two units.
+    /// Politis-White — the C# estimate matches a numpy implementation written
+    /// from Politis-White 2004 (signed autocovariances in G, eq. 8) and the
+    /// Patton-Politis-White 2009 correction (D_SB = 2·g(0)²) to 1e-10, on a
+    /// positively and a negatively autocorrelated AR(1) series.
+    /// <c>arch.bootstrap.optimal_block_length</c> values stay in the vector
+    /// for reference but are not asserted: arch applies the same G and D_SB
+    /// formulas. The fixture's paper_stationary_block_length field now uses
+    /// the complete corrected companion listing: common truncated rows,
+    /// separate column means and upper-only cap B_max.
     /// </summary>
-    [Fact]
-    public void PolitisWhiteBlockLength_MatchesArchWithinTwo()
+    [Theory]
+    [InlineData("politis_white")]
+    [InlineData("politis_white_negative")]
+    public void PolitisWhiteBlockLength_MatchesPaperReference(string vectorKey)
     {
         using var doc = LoadVector("bootstrap");
-        var pw = doc.RootElement.GetProperty("politis_white");
+        var pw = doc.RootElement.GetProperty(vectorKey);
         var series = GetDoubleArray(pw.GetProperty("series"));
-        var expectedStationary = pw.GetProperty("stationary_block_length").GetDouble();
+        var expected = pw.GetProperty("paper_stationary_block_length").GetDouble();
 
-        var actual = PolitisWhiteBlockLength.Estimate(series);
+        var actual = PolitisWhiteBlockLength.EstimateDouble(series);
 
-        Math.Abs(actual - expectedStationary).Should().BeLessThanOrEqualTo(2.0);
+        AssertScalarWithin(actual, expected, PrecisionExact, vectorKey);
     }
 
     // ---------------------------------------------------------------------

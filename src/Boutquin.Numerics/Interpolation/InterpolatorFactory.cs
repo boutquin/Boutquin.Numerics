@@ -37,6 +37,11 @@ namespace Boutquin.Numerics.Interpolation;
 /// on <see cref="IInterpolator"/>. Construct it directly instead.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use InterpolatorFactory<T> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class InterpolatorFactory
 {
     /// <summary>
@@ -49,6 +54,7 @@ public static class InterpolatorFactory
     /// Thrown when <paramref name="kind"/> is <see cref="InterpolatorKind.CubicSpline"/>,
     /// which requires pre-construction with data points.
     /// </exception>
+#pragma warning disable BNU0001
     public static IInterpolator Create(InterpolatorKind kind) => kind switch
     {
         InterpolatorKind.Linear => LinearInterpolator.Instance,
@@ -61,6 +67,7 @@ public static class InterpolatorFactory
             "Create it directly via new CubicSplineInterpolator(xs, ys)."),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, $"Unknown interpolator kind: {kind}."),
     };
+#pragma warning restore BNU0001
 }
 
 /// <summary>
@@ -76,8 +83,13 @@ public static class InterpolatorFactory
 /// <see cref="NotSupportedException"/> at runtime. Use <see cref="InterpolatorKind.Linear"/>
 /// or <see cref="InterpolatorKind.MonotoneCubic"/> for non-IEEE754 types.
 /// </para>
+/// <para>
+/// <see cref="InterpolatorKind.CubicSpline"/> is unsupported by this factory and
+/// the non-generic <see cref="InterpolatorFactory"/>. It requires node data at
+/// construction for every boundary condition. Construct it directly instead.
+/// </para>
 /// </remarks>
-public static class InterpolatorFactory<T> where T : IFloatingPoint<T>
+public static class InterpolatorFactory<T> where T : unmanaged, IFloatingPoint<T>
 {
     /// <summary>
     /// Returns the singleton <see cref="IInterpolator{T}"/> for the specified kind.
@@ -111,8 +123,16 @@ public static class InterpolatorFactory<T> where T : IFloatingPoint<T>
                 : (IInterpolator<T>)(object)FlatForwardInterpolator<float>.Instance;
         }
 
+        if (typeof(T) == typeof(Half))
+        {
+            return kind == InterpolatorKind.LogLinear
+                ? (IInterpolator<T>)(object)LogLinearInterpolator<Half>.Instance
+                : (IInterpolator<T>)(object)FlatForwardInterpolator<Half>.Instance;
+        }
+
         throw new NotSupportedException(
-            $"{kind} requires IFloatingPointIeee754<T>, but {typeof(T).Name} does not implement it. " +
+            $"{kind} requires IFloatingPointIeee754<T>. The factory only has registered implementations " +
+            $"for double, float, and Half; {typeof(T).Name} is not supported. " +
             "Use InterpolatorKind.Linear or InterpolatorKind.MonotoneCubic instead.");
     }
 }

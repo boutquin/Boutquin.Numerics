@@ -32,7 +32,7 @@ public class InterpolationBenchmarks
     private double[] _xs = null!;
     private double[] _ys = null!;
     private double[] _queries = null!;
-    private CubicSplineInterpolator _spline = null!;
+    private CubicSplineInterpolator<double> _spline = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -52,7 +52,7 @@ public class InterpolationBenchmarks
             _queries[i] = rng.NextDouble() * (KnotCount - 1);
         }
 
-        _spline = new CubicSplineInterpolator(_xs, _ys);
+        _spline = new CubicSplineInterpolator<double>(_xs, _ys);
     }
 
     [Benchmark(Baseline = true)]
@@ -63,7 +63,7 @@ public class InterpolationBenchmarks
         var acc = 0.0;
         for (var i = 0; i < _queries.Length; i++)
         {
-            acc += LinearInterpolator.Instance.Interpolate(_queries[i], xs, ys);
+            acc += LinearInterpolator<double>.Instance.Interpolate(_queries[i], xs, ys);
         }
 
         return acc;
@@ -77,7 +77,7 @@ public class InterpolationBenchmarks
         var acc = 0.0;
         for (var i = 0; i < _queries.Length; i++)
         {
-            acc += MonotoneCubicInterpolator.Instance.Interpolate(_queries[i], xs, ys);
+            acc += MonotoneCubicInterpolator<double>.Instance.Interpolate(_queries[i], xs, ys);
         }
 
         return acc;
@@ -96,5 +96,5 @@ public class InterpolationBenchmarks
     }
 
     [Benchmark]
-    public CubicSplineInterpolator CubicSplineBuild() => new(_xs, _ys);
+    public CubicSplineInterpolator<double> CubicSplineBuild() => new(_xs, _ys);
 }

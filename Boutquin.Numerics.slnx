@@ -7,7 +7,13 @@
     <Project Path="tests/Boutquin.Numerics.Tests.Unit/Boutquin.Numerics.Tests.Unit.csproj" />
     <Project Path="tests/Boutquin.Numerics.Tests.Verification/Boutquin.Numerics.Tests.Verification.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Boutquin.Numerics.StressRunner/Boutquin.Numerics.StressRunner.csproj" />
+  </Folder>
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/Boutquin.Numerics.BenchMark/Boutquin.Numerics.BenchMark.csproj" />
+  </Folder>
+  <Folder Name="/examples/">
+    <Project Path="examples/Boutquin.Numerics.Examples/Boutquin.Numerics.Examples.csproj" />
   </Folder>
 </Solution>

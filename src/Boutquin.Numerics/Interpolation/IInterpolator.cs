@@ -29,10 +29,22 @@ namespace Boutquin.Numerics.Interpolation;
 /// </remarks>
 public interface IInterpolator<T> where T : IFloatingPoint<T>
 {
-    /// <inheritdoc cref="IInterpolator.Name"/>
+    /// <summary>
+    /// Human-readable identifier for the interpolation scheme (e.g., "Linear",
+    /// "LogLinear", "MonotoneCubic"). Intended for diagnostics, logging, and
+    /// configuration round-tripping; not used for dispatch.
+    /// </summary>
     string Name { get; }
 
-    /// <inheritdoc cref="IInterpolator.Interpolate"/>
+    /// <summary>
+    /// Evaluates the interpolant at <paramref name="x"/> given node arrays
+    /// <paramref name="xs"/> (strictly increasing x-coordinates) and
+    /// <paramref name="ys"/> (corresponding y-values).
+    /// </summary>
+    /// <param name="x">Finite target x-coordinate. Non-finite values are rejected with <see cref="ArgumentOutOfRangeException"/>; behavior outside <c>[xs[0], xs[^1]]</c> is per-implementation (typically flat extrapolation).</param>
+    /// <param name="xs">Strictly-increasing node x-coordinates.</param>
+    /// <param name="ys">Node y-values. Must have the same length as <paramref name="xs"/>; positivity constraints may apply per-implementation.</param>
+    /// <returns>The interpolated y-value at <paramref name="x"/>.</returns>
     T Interpolate(T x, ReadOnlySpan<T> xs, ReadOnlySpan<T> ys);
 }
 
@@ -60,14 +72,18 @@ public interface IInterpolator<T> where T : IFloatingPoint<T>
 /// <list type="bullet">
 ///   <item>Continuity class — <see cref="LinearInterpolator"/>, <see cref="LogLinearInterpolator"/>,
 ///         <see cref="FlatForwardInterpolator"/> are C⁰; <see cref="MonotoneCubicInterpolator"/>
-///         is C¹ with monotonicity preservation; <see cref="MonotoneConvexInterpolator"/> is C¹
-///         with non-negative-forward-rate guarantee; <see cref="CubicSplineInterpolator"/> is C².</item>
+///         is C¹ with monotonicity preservation; <see cref="MonotoneConvexInterpolator"/> is
+///         continuous in NCR, with possible forward-rate jumps at axis-sector knots, and
+///         non-negative forward rates for finite, non-decreasing NCR nodes;
+///         <see cref="CubicSplineInterpolator"/> is C².</item>
 ///   <item>Domain constraints on y — <see cref="LogLinearInterpolator"/> and
 ///         <see cref="FlatForwardInterpolator"/> require strictly positive y-values;
+///         <see cref="MonotoneConvexInterpolator"/> requires non-decreasing NCR values;
 ///         other implementations accept any finite values.</item>
-///   <item>Extrapolation — all current stateless implementations clamp to the
-///         boundary (flat extrapolation); <see cref="CubicSplineInterpolator"/>
-///         extrapolates along the nearest cubic segment.</item>
+///   <item>Extrapolation — linear, log-linear, flat-forward and monotone-cubic
+///         implementations clamp to the boundary. <see cref="MonotoneConvexInterpolator"/>
+///         continues the endpoint forward; <see cref="CubicSplineInterpolator"/>
+///         continues the nearest cubic segment.</item>
 ///   <item>State — stateless implementations (<see cref="LinearInterpolator"/>,
 ///         <see cref="LogLinearInterpolator"/>, <see cref="FlatForwardInterpolator"/>,
 ///         <see cref="MonotoneCubicInterpolator"/>, <see cref="MonotoneConvexInterpolator"/>) are
@@ -91,7 +107,7 @@ public interface IInterpolator
     /// <paramref name="xs"/> (strictly increasing x-coordinates) and
     /// <paramref name="ys"/> (corresponding y-values).
     /// </summary>
-    /// <param name="x">Target x-coordinate. Behavior outside <c>[xs[0], xs[^1]]</c> is per-implementation (typically flat extrapolation).</param>
+    /// <param name="x">Finite target x-coordinate. Non-finite values are rejected with <see cref="ArgumentOutOfRangeException"/>; behavior outside <c>[xs[0], xs[^1]]</c> is per-implementation (typically flat extrapolation).</param>
     /// <param name="xs">Strictly-increasing node x-coordinates.</param>
     /// <param name="ys">Node y-values. Must have the same length as <paramref name="xs"/>; positivity constraints may apply per-implementation.</param>
     /// <returns>The interpolated y-value at <paramref name="x"/>.</returns>

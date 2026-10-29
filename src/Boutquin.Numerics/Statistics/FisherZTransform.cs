@@ -21,16 +21,21 @@ namespace Boutquin.Numerics.Statistics;
 
 /// <summary>
 /// Confidence interval for a Pearson correlation coefficient via the
-/// Fisher z-transform (Fisher 1915). The transform <c>z = atanh(r)</c>
+/// Fisher z-transform. The transform <c>z = atanh(r)</c>
 /// is approximately normal with variance <c>1/(n−3)</c>, allowing a
 /// symmetric Gaussian CI in the z-domain to be back-transformed via
 /// <c>tanh</c> into an asymmetric CI on r ∈ (−1, 1).
 /// </summary>
 /// <typeparam name="T">Floating-point type.</typeparam>
 /// <remarks>
-/// Reference: Fisher, R. A. (1915). "Frequency Distribution of the Values
-/// of the Correlation Coefficient in Samples from an Indefinitely Large
-/// Population." Biometrika, 10(4), 507–521.
+/// Reference: Press et al. (2007), Numerical Recipes, third edition, §14.5,
+/// equations 14.5.6–8, for the transform and approximate variance 1/(n−3).
+/// Fisher (1915), p.521, mentions the transform but does not derive this interval.
+/// The normal approximation assumes a joint distribution near binormal and
+/// moderately large samples (Numerical Recipes describes approximately N >= 10).
+/// The API's n >= 4 requirement only makes the standard error finite; it does not
+/// establish exact small-sample coverage. The interval is the selected uncorrected
+/// approximation, rather than the source's bias-corrected significance tests.
 /// <para>
 /// Tier B: Fully transcendental computation.
 /// </para>
@@ -41,8 +46,12 @@ public static class FisherZTransform<T>
     /// <summary>Forward transform z = atanh(r) = 0.5·ln((1+r)/(1−r)).</summary>
     public static T Forward(T r)
     {
-        var half = T.CreateChecked(0.5);
-        return half * T.Log((T.One + r) / (T.One - r));
+        if (!T.IsFinite(r) || r < -T.One || r > T.One)
+        {
+            throw new ArgumentOutOfRangeException(nameof(r), r, "Correlation must be finite and lie in [-1, 1].");
+        }
+
+        return T.Atanh(r);
     }
 
     /// <summary>Inverse transform r = tanh(z).</summary>
@@ -52,31 +61,41 @@ public static class FisherZTransform<T>
     /// Two-sided confidence interval for a Pearson correlation r based on
     /// <paramref name="n"/> paired observations.
     /// </summary>
-    /// <param name="r">Sample correlation in (−1, 1).</param>
+    /// <param name="r">Finite sample correlation in [−1, 1].</param>
     /// <param name="n">Sample size (must satisfy n ≥ 4).</param>
     /// <param name="confidenceLevel">Two-sided confidence level in (0, 1). Default 0.95.</param>
     /// <returns>(lower, upper) bounds for the population correlation.</returns>
-    public static (T Lower, T Upper) ConfidenceInterval(T r, int n, T confidenceLevel)
+    public static (T Lower, T Upper) ConfidenceInterval(T r, int n, double confidenceLevel = 0.95)
     {
         if (n < 4)
         {
             throw new ArgumentOutOfRangeException(nameof(n), n, "Need at least 4 observations for a Fisher z CI.");
         }
 
-        if (confidenceLevel <= T.Zero || confidenceLevel >= T.One)
+        if (!double.IsFinite(confidenceLevel) || confidenceLevel <= 0.0 || confidenceLevel >= 1.0)
         {
             throw new ArgumentOutOfRangeException(nameof(confidenceLevel), confidenceLevel, "Confidence level must lie in (0, 1).");
         }
 
-        if (r <= -T.One || r >= T.One)
+        if (!T.IsFinite(r))
+        {
+            throw new ArgumentOutOfRangeException(nameof(r), r, "Sample correlation must be finite.");
+        }
+
+        if (r < -T.One || r > T.One)
+        {
+            throw new ArgumentOutOfRangeException(nameof(r), r, "Sample correlation must lie in [-1, 1].");
+        }
+
+        if (r == -T.One || r == T.One)
         {
             return (r, r);
         }
 
         var z = Forward(r);
-        var se = T.One / T.Sqrt(T.CreateChecked(n - 3));
-        var tail = (T.One - confidenceLevel) / T.CreateChecked(2);
-        var critical = NormalDistribution<T>.InverseCdf(T.One - tail);
+        var se = T.CreateChecked(1.0 / Math.Sqrt(n - 3.0));
+        var tail = (1.0 - confidenceLevel) / 2.0;
+        var critical = T.CreateChecked(-NormalDistribution<double>.InverseCdf(tail));
 
         var lo = z - critical * se;
         var hi = z + critical * se;
@@ -86,19 +105,29 @@ public static class FisherZTransform<T>
 
 /// <summary>
 /// Confidence interval for a Pearson correlation coefficient via the
-/// Fisher z-transform (Fisher 1915). The transform <c>z = atanh(r)</c>
+/// Fisher z-transform. The transform <c>z = atanh(r)</c>
 /// is approximately normal with variance <c>1/(n−3)</c>, allowing a
 /// symmetric Gaussian CI in the z-domain to be back-transformed via
 /// <c>tanh</c> into an asymmetric CI on r ∈ (−1, 1).
 /// </summary>
 /// <remarks>
-/// Reference: Fisher, R. A. (1915). "Frequency Distribution of the Values
-/// of the Correlation Coefficient in Samples from an Indefinitely Large
-/// Population." Biometrika, 10(4), 507–521.
+/// Reference: Press et al. (2007), Numerical Recipes, third edition, §14.5,
+/// equations 14.5.6–8, for the transform and approximate variance 1/(n−3).
+/// Fisher (1915), p.521, mentions the transform but does not derive this interval.
+/// The normal approximation assumes a joint distribution near binormal and
+/// moderately large samples (Numerical Recipes describes approximately N >= 10).
+/// The API's n >= 4 requirement only makes the standard error finite; it does not
+/// establish exact small-sample coverage. The interval is the selected uncorrected
+/// approximation, rather than the source's bias-corrected significance tests.
 /// <para>
 /// Legacy facade: delegates to <see cref="FisherZTransform{T}"/> at <c>T = double</c>.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use FisherZTransform<double> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public static class FisherZTransform
 {
     /// <summary>Forward transform z = atanh(r) = 0.5·ln((1+r)/(1−r)).</summary>
@@ -111,7 +140,7 @@ public static class FisherZTransform
     /// Two-sided confidence interval for a Pearson correlation r based on
     /// <paramref name="n"/> paired observations.
     /// </summary>
-    /// <param name="r">Sample correlation in (−1, 1).</param>
+    /// <param name="r">Finite sample correlation in [−1, 1].</param>
     /// <param name="n">Sample size (must satisfy n ≥ 4).</param>
     /// <param name="confidenceLevel">Two-sided confidence level in (0, 1). Default 0.95.</param>
     /// <returns>(lower, upper) bounds for the population correlation.</returns>

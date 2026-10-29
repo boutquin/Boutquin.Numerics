@@ -25,6 +25,7 @@ public sealed class LinearAlgebraVerificationTests : CrossLanguageVerificationBa
     {
         using var doc = LoadVector("linalg");
         var spd = GetDecimal2D(doc.RootElement.GetProperty("spd_matrix"));
+        Assert.True(spd.GetLength(0) > 0, "Cholesky reference matrix must not be empty.");
         var lower = CholeskyDecomposition.Decompose(spd);
 
         // Reconstruct L · Lᵀ and compare to the original SPD matrix.
@@ -63,6 +64,9 @@ public sealed class LinearAlgebraVerificationTests : CrossLanguageVerificationBa
         var result = JacobiEigenDecomposition.Decompose(spd);
         var actualSorted = result.Values.Select(v => (double)v).OrderBy(v => v).ToArray();
 
+        Assert.NotEmpty(expectedEigvals);
+        Assert.Equal(expectedEigvals.Length, actualSorted.Length);
+
         // Jacobi vs LAPACK can diverge at ~1e-5 on poorly conditioned matrices.
         for (var i = 0; i < actualSorted.Length; i++)
         {
@@ -79,6 +83,9 @@ public sealed class LinearAlgebraVerificationTests : CrossLanguageVerificationBa
         var expected = GetDoubleArray(doc.RootElement.GetProperty("linear_system").GetProperty("x"));
 
         var x = GaussianElimination.Solve(spd, b);
+
+        Assert.NotEmpty(expected);
+        Assert.Equal(expected.Length, x.Length);
 
         for (var i = 0; i < x.Length; i++)
         {

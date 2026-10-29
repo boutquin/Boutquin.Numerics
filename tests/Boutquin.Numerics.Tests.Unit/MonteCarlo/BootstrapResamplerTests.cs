@@ -77,10 +77,10 @@ public sealed class BootstrapResamplerTests
         decimal[] a = [1m, 2m, 3m, 4m, 5m, 6m, 7m, 8m];
         decimal[] b = [101m, 102m, 103m, 104m, 105m, 106m, 107m, 108m];
 
-        var (ra, rb) = BootstrapResampler.FromSeed(3, 99).ResamplePaired(a, b);
+        var (ra, rb) = new BootstrapResampler<decimal>(3, new MaximumRandomSource()).ResamplePaired(a, b);
 
-        ra.Length.Should().Be(a.Length);
-        rb.Length.Should().Be(b.Length);
+        ra.Should().Equal(8m, 1m, 2m, 8m, 1m, 2m, 8m, 1m);
+        rb.Should().Equal(108m, 101m, 102m, 108m, 101m, 102m, 108m, 101m);
         for (var i = 0; i < ra.Length; i++)
         {
             rb[i].Should().Be(ra[i] + 100m);
@@ -102,12 +102,13 @@ public sealed class BootstrapResamplerTests
     {
         // block size > source length → circular wrap around source.
         decimal[] source = [1m, 2m, 3m];
-        var result = BootstrapResampler.FromSeed(10, 55).Resample(source);
+        var result = new BootstrapResampler<decimal>(10, new MaximumRandomSource()).Resample(source);
 
-        result.Length.Should().Be(3);
-        foreach (var v in result)
-        {
-            source.Should().Contain(v);
-        }
+        result.Should().Equal(3m, 1m, 2m);
+    }
+
+    private sealed class MaximumRandomSource : Boutquin.Numerics.Random.IRandomSource
+    {
+        public ulong NextULong() => ulong.MaxValue;
     }
 }

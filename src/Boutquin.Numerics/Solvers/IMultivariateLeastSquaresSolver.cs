@@ -33,12 +33,13 @@ public interface IMultivariateLeastSquaresSolver<T>
     /// <summary>
     /// Minimizes <c>½ Σᵢ rᵢ(θ)²</c> from an initial parameter estimate.
     /// </summary>
+    /// <remarks>Empty bound spans mean no bounds on that side; a nonempty span must match the initial parameter count.</remarks>
     MultivariateSolverResult<T> Solve(
         Func<T[], T[]> residuals,
-        T[] initialGuess,
+        ReadOnlySpan<T> initialGuess,
         Func<T[], T[,]>? jacobian = null,
-        T[]? lowerBounds = null,
-        T[]? upperBounds = null);
+        ReadOnlySpan<T> lowerBounds = default,
+        ReadOnlySpan<T> upperBounds = default);
 }
 
 /// <summary>
@@ -78,12 +79,12 @@ public interface IMultivariateLeastSquaresSolver
     /// via central finite differences.
     /// </param>
     /// <param name="lowerBounds">
-    /// Optional element-wise lower bounds on <c>θ</c>. When supplied, length must equal
+    /// Optional element-wise lower bounds on <c>θ</c>. Empty means no lower bounds; otherwise length must equal
     /// <paramref name="initialGuess"/>. Use <see cref="double.NegativeInfinity"/> for
     /// components that are effectively unbounded below.
     /// </param>
     /// <param name="upperBounds">
-    /// Optional element-wise upper bounds on <c>θ</c>. When supplied, length must equal
+    /// Optional element-wise upper bounds on <c>θ</c>. Empty means no upper bounds; otherwise length must equal
     /// <paramref name="initialGuess"/>. Use <see cref="double.PositiveInfinity"/> for
     /// components that are effectively unbounded above.
     /// </param>

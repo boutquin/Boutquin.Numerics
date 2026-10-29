@@ -210,10 +210,31 @@ public sealed class PrincipalComponentAnalysisTests
         }
 
         var pca = PrincipalComponentAnalysis.FromReturns(data);
-        pca.NumComponentsForExplainedVariance(0.95m).Should().Be(1);
+        pca.NumComponentsForExplainedVariance(0.95).Should().Be(1);
     }
 
     // ── Explained variance arithmetic ──────────────────────────────
+
+    [Fact]
+    public void Decompose_LargeHalfIdentity_PreservesExplainedVariance()
+    {
+        const int dimension = 3000;
+        var covariance = new Half[dimension, dimension];
+        for (var i = 0; i < dimension; i++)
+        {
+            covariance[i, i] = (Half)1;
+        }
+
+        var result = PrincipalComponentAnalysis<Half>.Decompose(covariance);
+
+        result.NumComponentsForExplainedVariance(0.5).Should().Be(dimension / 2);
+        result.ExplainedVarianceRatio.Sum(value => (double)value).Should().BeApproximately(1, 0.001);
+        ((double)result.CumulativeExplainedVariance[^1]).Should().Be(1);
+        for (var i = 0; i < dimension; i++)
+        {
+            ((double)result.CumulativeExplainedVariance[i]).Should().BeApproximately((i + 1.0) / dimension, 0.001);
+        }
+    }
 
     [Fact]
     public void ExplainedVariance_SumsToOne()
@@ -277,7 +298,8 @@ public sealed class PrincipalComponentAnalysisTests
         var unstandardized = PrincipalComponentAnalysis.FromReturns(data, standardize: false);
         var standardized = PrincipalComponentAnalysis.FromReturns(data, standardize: true);
 
-        // Unstandardized — column 2 variance dominates.
+        // Unstandardized — the middle column (index 1, scale ≈ 10·f) has the largest variance and
+        // dominates PC1.
         // Standardized — equal scales, PC1 should capture the shared factor near-fully.
         standardized.ExplainedVarianceRatio[0].Should().BeGreaterThan(0.90m);
         unstandardized.ExplainedVarianceRatio[0].Should().BeGreaterThan(0.90m);
@@ -302,6 +324,19 @@ public sealed class PrincipalComponentAnalysisTests
         var fromMatrix = PrincipalComponentAnalysis.FromReturns(new ReturnsMatrix(data));
 
         fromArray.Eigenvalues.Should().Equal(fromMatrix.Eigenvalues);
+    }
+
+    [Fact]
+    public void FromReturns_RepresentableLargeConstantMean_DoesNotOverflow()
+    {
+        var returns = new decimal[,] { { 5e28m }, { 5e28m } };
+        PcaResult? result = null;
+
+        var act = () => result = PrincipalComponentAnalysis.FromReturns(returns);
+
+        act.Should().NotThrow();
+        result!.Mean.Should().Equal(5e28m);
+        result.Eigenvalues.Should().Equal(0m);
     }
 
     // ── FromReturns input validation ───────────────────────────────
@@ -333,8 +368,8 @@ public sealed class PrincipalComponentAnalysisTests
     public void NumComponentsForExplainedVariance_ThresholdOutOfRange_Throws()
     {
         var pca = PrincipalComponentAnalysis.Decompose(new decimal[,] { { 1m, 0m }, { 0m, 1m } });
-        var act0 = () => pca.NumComponentsForExplainedVariance(0m);
-        var act2 = () => pca.NumComponentsForExplainedVariance(1.5m);
+        var act0 = () => pca.NumComponentsForExplainedVariance(0.0);
+        var act2 = () => pca.NumComponentsForExplainedVariance(1.5);
 
         act0.Should().Throw<ArgumentOutOfRangeException>();
         act2.Should().Throw<ArgumentOutOfRangeException>();
@@ -356,6 +391,138 @@ public sealed class PrincipalComponentAnalysisTests
         var pca = PrincipalComponentAnalysis.Decompose(new decimal[,] { { 1m, 0m }, { 0m, 1m } });
         var act = () => pca.Project(new decimal[,] { { 1m, 2m } }, numComponents: 3);
         act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void PublicResults_RejectEigenvalueAndEigenvectorColumnMismatchBeforeProjection()
+    {
+        var generic = new PcaResult<double>
+        {
+            Eigenvalues = [3, 2, 1],
+            Eigenvectors = new double[,] { { 1, 0 }, { 0, 1 }, { 0, 0 } },
+            ExplainedVarianceRatio = [0.5, 0.3, 0.2],
+            CumulativeExplainedVariance = [0.5, 0.8, 1],
+            Mean = [],
+        };
+        var legacy = new PcaResult
+        {
+            Eigenvalues = [3, 2, 1],
+            Eigenvectors = new decimal[,] { { 1, 0 }, { 0, 1 }, { 0, 0 } },
+            ExplainedVarianceRatio = [0.5m, 0.3m, 0.2m],
+            CumulativeExplainedVariance = [0.5m, 0.8m, 1m],
+            Mean = [],
+        };
+
+        Action genericProject = () => generic.Project(new double[,] { { 1, 2, 3 } }, 3);
+        Action legacyProject = () => legacy.Project(new decimal[,] { { 1, 2, 3 } }, 3);
+        genericProject.Should().Throw<InvalidOperationException>().WithMessage("*Eigenvalues*");
+        legacyProject.Should().Throw<InvalidOperationException>().WithMessage("*Eigenvalues*");
+    }
+
+    [Fact]
+    public void PublicResults_RejectShortCumulativeVarianceBeforeCountingComponents()
+    {
+        var generic = new PcaResult<double>
+        {
+            Eigenvalues = [3, 2, 1],
+            Eigenvectors = new double[,] { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } },
+            ExplainedVarianceRatio = [0.5, 0.3, 0.2],
+            CumulativeExplainedVariance = [0.5, 0.8],
+            Mean = [],
+        };
+        var legacy = new PcaResult
+        {
+            Eigenvalues = [3, 2, 1],
+            Eigenvectors = new decimal[,] { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } },
+            ExplainedVarianceRatio = [0.5m, 0.3m, 0.2m],
+            CumulativeExplainedVariance = [0.5m, 0.8m],
+            Mean = [],
+        };
+
+        Action genericCount = () => generic.NumComponentsForExplainedVariance(0.95);
+        Action legacyCount = () => legacy.NumComponentsForExplainedVariance(0.95);
+        genericCount.Should().Throw<InvalidOperationException>().WithMessage("*CumulativeExplainedVariance*");
+        legacyCount.Should().Throw<InvalidOperationException>().WithMessage("*CumulativeExplainedVariance*");
+    }
+
+    [Fact]
+    public void PublicResults_RejectShortExplainedVarianceBeforeUse()
+    {
+        var generic = new PcaResult<double>
+        {
+            Eigenvalues = [2, 1],
+            Eigenvectors = new double[,] { { 1, 0 }, { 0, 1 } },
+            ExplainedVarianceRatio = [0.67],
+            CumulativeExplainedVariance = [0.67, 1],
+            Mean = [],
+        };
+        var legacy = new PcaResult
+        {
+            Eigenvalues = [2, 1],
+            Eigenvectors = new decimal[,] { { 1, 0 }, { 0, 1 } },
+            ExplainedVarianceRatio = [0.67m],
+            CumulativeExplainedVariance = [0.67m, 1m],
+            Mean = [],
+        };
+
+        Action genericCount = () => generic.NumComponentsForExplainedVariance(0.95);
+        Action legacyProject = () => legacy.Project(new decimal[,] { { 3, 4 } }, 1);
+        genericCount.Should().Throw<InvalidOperationException>().WithMessage("*ExplainedVarianceRatio*");
+        legacyProject.Should().Throw<InvalidOperationException>().WithMessage("*ExplainedVarianceRatio*");
+    }
+
+    [Fact]
+    public void PublicResults_LimitComponentsByEigenvectorColumns()
+    {
+        var generic = new PcaResult<double>
+        {
+            Eigenvalues = [2, 1],
+            Eigenvectors = new double[,] { { 1, 0 }, { 0, 1 }, { 0, 0 } },
+            ExplainedVarianceRatio = [0.67, 0.33],
+            CumulativeExplainedVariance = [0.67, 1],
+            Mean = [],
+        };
+        var legacy = new PcaResult
+        {
+            Eigenvalues = [2, 1],
+            Eigenvectors = new decimal[,] { { 1, 0 }, { 0, 1 }, { 0, 0 } },
+            ExplainedVarianceRatio = [0.67m, 0.33m],
+            CumulativeExplainedVariance = [0.67m, 1m],
+            Mean = [],
+        };
+
+        Action genericProject = () => generic.Project(new double[,] { { 3, 4, 5 } }, 3);
+        Action legacyProject = () => legacy.Project(new decimal[,] { { 3, 4, 5 } }, 3);
+        genericProject.Should().Throw<ArgumentOutOfRangeException>().Where(e => e.ParamName == "numComponents");
+        legacyProject.Should().Throw<ArgumentOutOfRangeException>().Where(e => e.ParamName == "numComponents");
+        generic.NumComponentsForExplainedVariance(0.95).Should().Be(2);
+        legacy.NumComponentsForExplainedVariance(0.95).Should().Be(2);
+    }
+
+    [Fact]
+    public void PublicResults_RejectPopulatedMeanWithWrongLengthBeforeProjection()
+    {
+        var generic = new PcaResult<double>
+        {
+            Eigenvalues = [2, 1],
+            Eigenvectors = new double[,] { { 1, 0 }, { 0, 1 } },
+            ExplainedVarianceRatio = [0.67, 0.33],
+            CumulativeExplainedVariance = [0.67, 1],
+            Mean = [10],
+        };
+        var legacy = new PcaResult
+        {
+            Eigenvalues = [2, 1],
+            Eigenvectors = new decimal[,] { { 1, 0 }, { 0, 1 } },
+            ExplainedVarianceRatio = [0.67m, 0.33m],
+            CumulativeExplainedVariance = [0.67m, 1m],
+            Mean = [10],
+        };
+
+        Action genericProject = () => generic.Project(new double[,] { { 11, 12 } }, 1);
+        Action legacyProject = () => legacy.Project(new decimal[,] { { 11, 12 } }, 1);
+        genericProject.Should().Throw<InvalidOperationException>().WithMessage("*Mean*");
+        legacyProject.Should().Throw<InvalidOperationException>().WithMessage("*Mean*");
     }
 
     // ── Helpers ────────────────────────────────────────────────────

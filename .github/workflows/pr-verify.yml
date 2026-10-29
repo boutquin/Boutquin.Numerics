@@ -10,31 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Build.props') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', 'Directory.Packages.props', 'Directory.Build.props') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
 
       - name: dotnet restore
-        run: dotnet restore
+        run: dotnet restore Boutquin.Numerics.slnx --locked-mode
+
+      - name: Audit vulnerable packages
+        run: dotnet list Boutquin.Numerics.slnx package --vulnerable --include-transitive --no-restore
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build Boutquin.Numerics.slnx --configuration Release --no-restore
 
       - name: dotnet test with coverage
-        run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory ./coverage
+        run: dotnet test Boutquin.Numerics.slnx --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory ./coverage
 
       - name: Upload coverage
         uses: actions/upload-artifact@v7
@@ -43,14 +46,181 @@ jobs:
           path: coverage/
         if: always()
 
+      # ── NIST/LM solver stress gate (reproduce-or-bound) ──────────────────
+      #
+      # Runs the opt-in stress harness (tools/Boutquin.Numerics.StressRunner) as a
+      # per-PR gate: >= 5,000 solve-executions of the numerically-hard NIST targets
+      # under >= 2x ProcessorCount oversubscription. Chosen per-PR rather than
+      # scheduled because the pass costs only seconds on top of the Release build
+      # this job already performs, and a scheduled gate would leave PRs unguarded
+      # between runs. Gated by BOUTQUIN_NUMERICS_STRESS=1 so it never runs
+      # incidentally.
+      #
+      # Exit-code contract (from the runner):
+      #   0 = BOUNDED-NON-REPRO       -> pass
+      #   2 = execution floor unmet, or --inject-failure matched no target
+      #                               -> fail (config error) — never retried
+      #   3 = LOGIC-REPRODUCED        -> fail — NEVER retried (see policy below)
+      #   4 = HOST-ANOMALY-OBSERVED   -> captured, then retried once (see policy below)
+      #   134/137/139 = process abort/OOM kill/segmentation fault
+      #                               -> wrapper-captured, then retried once
+      #
+      # CAPTURE-BEFORE-RETRY POLICY (documented + enforced):
+      #   * The harness writes every evidence bundle to --out BEFORE the process
+      #     exits (NistStRDStressHarness.Run writes bundles + summary before
+      #     returning; Program.cs derives the exit code from the returned report).
+      #     The retry branch below only observes an exit code — i.e. only runs
+      #     after the process has exited — so capture strictly precedes any retry.
+      #   * Exit 3 or a streamed LOGIC capture (a tripped numeric assertion) is
+      #     NEVER retried: retrying would mask a real logic failure. The job fails
+      #     immediately and the bundle is uploaded by the always() step below.
+      #   * Managed exit 4 and process-level exits 134/137/139 are retriable host
+      #     classes. Managed anomalies carry harness bundles; process exits carry
+      #     wrapper metadata because the child could not finish its own write. The
+      #     first attempt lives in attempt-1/ and survives the attempt-2/ retry.
+      #   * Humans may re-run the job after a failed host-anomaly retry; the uploaded
+      #     artifact preserves every captured anomaly for that run.
+      #
+      # STRESS_ARGS is a local-verification affordance: it defaults to the real CI
+      # arguments and lets this identical script be exercised locally against the
+      # injected-failure (exit 3) path without editing this file.
+      - name: NIST/LM stress gate (reproduce-or-bound)
+        env:
+          BOUTQUIN_NUMERICS_STRESS: "1"
+        run: |
+          set -u
+          OUT_ROOT="${RUNNER_TEMP:-$(mktemp -d)}/stress-artifacts"
+          STRESS_ARGS="${STRESS_ARGS:---reps 400}"
+          # Opt-in stress capture-path and integration regressions. These xunit facts
+          # carry [StressGatedFact], so they are SKIPPED in
+          # the earlier `dotnet test with coverage` step (no gate variable set there);
+          # BOUTQUIN_NUMERICS_STRESS=1 is set for this step, so they run here and their
+          # failure must fail the gate. Run before the sweep so a capture-path regression
+          # is caught even when the sweep itself bounds clean. The `if !` form keeps this
+          # -e-safe, matching the run_stress exit-code handling below.
+          if ! dotnet test Boutquin.Numerics.slnx --configuration Release --no-build \
+            --filter "FullyQualifiedName~NistStRDStressCaptureTests|FullyQualifiedName~ArenaR1C1IntegrationRegressionTests"; then
+            echo "::error::Stress capture-path or integration regression facts failed."
+            exit 1
+          fi
+          run_stress() {
+            local attempt_log="$OUT_ROOT/attempt-$1/output.log"
+            mkdir -p "$OUT_ROOT/attempt-$1" || return 2
+            sync "$(dirname "$OUT_ROOT")" || return 2
+            sync "$OUT_ROOT" || return 2
+            sync "$OUT_ROOT/attempt-$1" || return 2
+            # shellcheck disable=SC2086  # STRESS_ARGS is deliberately word-split
+            dotnet run --project tools/Boutquin.Numerics.StressRunner \
+              --configuration Release --no-build -- $STRESS_ARGS --out "$OUT_ROOT/attempt-$1" \
+              2>&1 | tee "$attempt_log"
+            local statuses=("${PIPESTATUS[@]}")
+            # A streamed numeric failure remains authoritative if the child dies
+            # before returning exit 3. Apply this to both initial and retry attempts.
+            if grep -Eq '^NIST-STRESS-CAPTURED .*kind=LOGIC([[:space:]]|$)' "$attempt_log"; then
+              echo "::error::LOGIC-REPRODUCED — captured numeric assertion; refusing host retry."
+              return 3
+            fi
+            if [ "${statuses[1]}" -ne 0 ]; then
+              echo "::error::Cannot retain stress output; refusing an unverified retry."
+              return 2
+            fi
+            return "${statuses[0]}"
+          }
+          write_host_anomaly() {
+            attempt="$1"
+            exit_code="$2"
+            attempt_dir="$OUT_ROOT/attempt-$attempt"
+            mkdir -p "$attempt_dir"
+            sync "$(dirname "$OUT_ROOT")"
+            sync "$OUT_ROOT"
+            temp_path="$attempt_dir/.host-process-anomaly.txt.tmp"
+            final_path="$attempt_dir/host-process-anomaly.txt"
+            {
+              echo "NIST-STRESS WRAPPER HOST ANOMALY"
+              echo "timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              echo "attempt: $attempt"
+              echo "exit-code: $exit_code"
+              echo "runner-os: ${RUNNER_OS:-unknown}"
+              echo "runner-arch: ${RUNNER_ARCH:-unknown}"
+              uname -a
+            } > "$temp_path"
+            sync "$temp_path"
+            mv "$temp_path" "$final_path"
+            sync "$attempt_dir"
+          }
+          # Capture the exit code without tripping GitHub's default `bash -e`: a bare
+          # `run_stress 1` followed by `code=$?` would abort the whole step on any non-zero
+          # exit, so the case arms, annotations, and the retry below would never run. The
+          # `if/then/else` form suspends -e for the call and sets `code` on both paths.
+          if run_stress 1; then code=0; else code=$?; fi
+          echo "attempt-1 exit code: $code"
+          case "$code" in
+            0)
+              echo "BOUNDED-NON-REPRO — stress gate passed."
+              exit 0
+              ;;
+            3)
+              echo "::error::LOGIC-REPRODUCED — a numeric assertion tripped. NEVER retried (retrying would mask a real logic failure); the evidence bundle is in the uploaded artifact."
+              exit 3
+              ;;
+            2)
+              echo "::error::Stress config error (invalid run settings or output path) — gate misconfiguration, not a solver result. Not retried."
+              exit 2
+              ;;
+            4)
+              echo "::warning::HOST-ANOMALY-OBSERVED — evidence bundle already written by the harness before exit (capture-before-retry). Retrying once; attempt-1 bundles are preserved."
+              if run_stress 2; then code2=0; else code2=$?; fi
+              echo "attempt-2 exit code: $code2"
+              if [ "$code2" -eq 0 ]; then
+                echo "Retry clean — anomaly did not recur; attempt-1 evidence is retained in the uploaded artifact."
+                exit 0
+              fi
+              case "$code2" in
+                134|137|139) write_host_anomaly 2 "$code2" ;;
+              esac
+              echo "::error::Retry also failed (exit $code2). Evidence for both attempts is in the uploaded artifact."
+              exit "$code2"
+              ;;
+            134|137|139)
+              write_host_anomaly 1 "$code"
+              echo "::warning::HOST-PROCESS-ANOMALY — exit $code was captured by the wrapper before retry. Retrying once; attempt-1 metadata is preserved."
+              if run_stress 2; then code2=0; else code2=$?; fi
+              echo "attempt-2 exit code: $code2"
+              if [ "$code2" -eq 0 ]; then
+                echo "Retry clean — process anomaly did not recur; attempt-1 metadata is retained in the uploaded artifact."
+                exit 0
+              fi
+              case "$code2" in
+                134|137|139) write_host_anomaly 2 "$code2" ;;
+              esac
+              echo "::error::Retry also failed (exit $code2). Evidence for both attempts is in the uploaded artifact."
+              exit "$code2"
+              ;;
+            *)
+              echo "::error::Unexpected stress-runner exit code $code."
+              exit "$code"
+              ;;
+          esac
+
+      # always(): the evidence bundles must survive a failed gate — that is the
+      # entire point of the capture harness. if-no-files-found is ignore because a
+      # clean BOUNDED-NON-REPRO pass writes only the run summary.
+      - name: Upload stress evidence bundles
+        uses: actions/upload-artifact@v7
+        with:
+          name: stress-evidence
+          path: ${{ runner.temp }}/stress-artifacts/
+          if-no-files-found: ignore
+        if: always()
+
       - name: dotnet format (whitespace)
-        run: dotnet format whitespace --verify-no-changes
+        run: dotnet format Boutquin.Numerics.slnx whitespace --verify-no-changes
 
       - name: dotnet format (style)
-        run: dotnet format style --verify-no-changes
+        run: dotnet format Boutquin.Numerics.slnx style --verify-no-changes
 
       - name: dotnet format (analyzers)
-        run: dotnet format analyzers --verify-no-changes
+        run: dotnet format Boutquin.Numerics.slnx analyzers --verify-no-changes
 
       - name: Doc quality — prohibited phrase scan
         run: |

@@ -23,26 +23,29 @@ namespace Boutquin.Numerics.Tests.Unit.Statistics;
 public sealed class BacktestStatsTests
 {
     [Fact]
-    public void NeweyWest_ZeroLagsEqualsSampleVarianceOfMean()
+    public void NeweyWest_ZeroLagsMatchesExternallyComputedAnswer()
     {
+        // Externally computed (not a re-derivation of the source's loop):
+        //   series mean = 0.055 / 7 = 0.0078571428571428583
+        //   γ₀ = Σ(x - mean)² / 7 = 0.00012040816326530613
+        //   HAC(mean) with L = 0 = γ₀ / 7 = 1.7201166180758018e-05
         decimal[] series = [0.01m, 0.02m, -0.005m, 0.015m, -0.01m, 0.02m, 0.005m];
         var hac = NeweyWestVariance.MeanVariance(series, lags: 0);
-        // With L = 0, HAC = γ₀ / T (no autocorrelation correction).
-        var mean = 0m;
+        Math.Abs(hac - 0.0000172011661807580m).Should().BeLessThan(1e-18m);
+    }
+
+    [Fact]
+    public void NeweyWest_HalfLongAlternatingSeriesRetainsMeanVariance()
+    {
+        var series = new Half[65_520];
         for (var i = 0; i < series.Length; i++)
         {
-            mean += series[i];
+            series[i] = (Half)(i % 2);
         }
 
-        mean /= series.Length;
-        var ssq = 0m;
-        for (var i = 0; i < series.Length; i++)
-        {
-            ssq += (series[i] - mean) * (series[i] - mean);
-        }
+        var actual = NeweyWestVariance<Half>.MeanVariance(series, lags: 0);
 
-        var expected = ssq / series.Length / series.Length;
-        Math.Abs(hac - expected).Should().BeLessThan(1e-20m);
+        ((double)actual).Should().BeApproximately(0.25 / series.Length, 1e-7);
     }
 
     [Fact]
@@ -61,6 +64,24 @@ public sealed class BacktestStatsTests
         var manyTrials = HaircutSharpe.Compute(0.1m, numTrials: 1000, backTestYears: 1m);
         manyTrials.HaircutSharpe.Should().BeLessThan(fewTrials.HaircutSharpe);
         manyTrials.HaircutAmount.Should().BeGreaterThan(fewTrials.HaircutAmount);
+    }
+
+    [Fact]
+    public void HaircutSharpe_ZeroTradingDays_ThrowsArgumentOutOfRangeException()
+    {
+        // F-L5-2: tradingDaysPerYear must be > 0. At 0 the haircut silently returns
+        // -∞ (no exception); the sibling MinimumTrackRecordLength rejects tdy ≤ 0.
+        var act = () => HaircutSharpe<double>.Compute(0.1, numTrials: 10, backTestYears: 1.0, tradingDaysPerYear: 0);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*Trading days*");
+    }
+
+    [Fact]
+    public void HaircutSharpe_NegativeTradingDays_ThrowsArgumentOutOfRangeException()
+    {
+        // F-L5-2: a negative tradingDaysPerYear previously drove Sqrt(negative)=NaN
+        // into InverseCdf, which stack-overflowed (process-killing recursion).
+        var act = () => HaircutSharpe<double>.Compute(0.1, numTrials: 10, backTestYears: 1.0, tradingDaysPerYear: -1);
+        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*Trading days*");
     }
 
     [Fact]
@@ -89,6 +110,64 @@ public sealed class BacktestStatsTests
 
         var pbo = ProbabilityOfBacktestOverfitting.Compute(returns, splitCount: 16);
         pbo.Pbo.Should().BeLessThan(0.5m);
+    }
+
+    [Fact]
+    public void Pbo_CountsLogitsAtOrBelowZero()
+    {
+        // F-L7-02: PBO is the fraction of logits ≤ 0 (Bailey et al. 2014, and the
+        // repo's own Python reference: pbo = mean(logits <= 0)). The code previously
+        // counted strictly < 0, dropping the ω = 0.5 boundary (logit == 0), which is
+        // reachable for any ODD strategy count N (rank = (N+1)/2 → ω = 0.5).
+        //
+        // Deterministic N=3, T=8, splitCount=4 panel (6 splits). Of the 6 CSCV
+        // logits, two are exactly 0 (ω = 0.5). The correct ≤ 0 count is 6/6 = 1.0;
+        // the old < 0 count was 4/6 ≈ 0.6667.
+        var returns = new double[,]
+        {
+            { 0.345584192064786, 0.8216181435011584, 0.33043707618338714, -1.303157231604361, 0.9053558666731177, 0.4463745723640113, -0.5369532353602852, 0.5811181041963531 },
+            { 0.36457239618607573, 0.294132496655526, 0.02842224131579679, 0.5467129866124469, -0.7364540870016669, -0.16290994799305278, -0.48211931267997826, 0.5988462126346276 },
+            { 0.03972210748165899, -0.2924567509650886, -0.7819084623568421, -0.2571922406188707, 0.008142180518343508, -0.2756029052993704, 1.2940638143982073, 1.0067243153057943 },
+        };
+
+        var result = ProbabilityOfBacktestOverfitting<double>.Compute(returns, splitCount: 4);
+        result.Pbo.Should().BeApproximately(1.0, 1e-12);
+    }
+
+    [Fact]
+    public void Pbo_HalfTopRankHasFiniteLogit()
+    {
+        var returns = new Half[2048, 4];
+        for (var strategy = 0; strategy < 2048; strategy++)
+        {
+            var baseline = strategy == 2047 ? (Half)1 : (Half)0;
+            returns[strategy, 0] = baseline;
+            returns[strategy, 1] = baseline + (Half)0.25f;
+            returns[strategy, 2] = baseline;
+            returns[strategy, 3] = baseline + (Half)0.25f;
+        }
+
+        var result = ProbabilityOfBacktestOverfitting<Half>.Compute(returns, 2);
+
+        Half.IsFinite(result.LogitMedian).Should().BeTrue();
+        ((double)result.LogitMedian).Should().BeApproximately(Math.Log(2048), 0.01);
+    }
+
+    [Fact]
+    public void Pbo_HalfTwentyBlocksKeepsFiniteFoldFraction()
+    {
+        var returns = new Half[2, 40];
+        for (var t = 0; t < 40; t++)
+        {
+            returns[0, t] = (Half)(t % 2 == 0 ? 0.25f : 0.5f);
+            returns[1, t] = (Half)(t % 2 == 0 ? 0.5f : 0.25f);
+        }
+
+        var result = ProbabilityOfBacktestOverfitting<Half>.Compute(returns, 20);
+
+        result.LogitValues.Should().HaveCount(184_756);
+        Half.IsFinite(result.Pbo).Should().BeTrue();
+        result.Pbo.Should().Be((Half)1);
     }
 
     [Fact]

@@ -21,6 +21,53 @@ namespace Boutquin.Numerics.Tests.Unit.Statistics;
 
 public sealed class SampleMomentTests
 {
+    [Fact]
+    public void Skewness_HalfOutlierAtThreeHundred_RemainsPositive()
+    {
+        var values = new Half[300];
+        values[^1] = (Half)1;
+
+        var actual = SampleSkewness<Half>.Compute(values);
+
+        ((float)actual).Should().BeApproximately(17.32f, 0.1f);
+    }
+
+    [Fact]
+    public void Skewness_HalfOutlierAtFourThousand_RemainsFinite()
+    {
+        var values = new Half[4096];
+        values[^1] = (Half)1;
+
+        var actual = SampleSkewness<Half>.Compute(values);
+
+        ((float)actual).Should().BeApproximately(64f, 1f);
+    }
+
+    [Fact]
+    public void ExcessKurtosis_HalfOutlierAtThreeHundred_RemainsFinite()
+    {
+        var values = new Half[300];
+        values[^1] = (Half)1;
+
+        var actual = SampleExcessKurtosis<Half>.Compute(values);
+
+        ((float)actual).Should().BeApproximately(300f, 2f);
+    }
+
+    [Fact]
+    public void ExcessKurtosis_HalfBalancedAtMaximumFiniteCount_RemainsFinite()
+    {
+        var values = new Half[65504];
+        for (var i = 1; i < values.Length; i += 2)
+        {
+            values[i] = (Half)1;
+        }
+
+        var actual = SampleExcessKurtosis<Half>.Compute(values);
+
+        ((float)actual).Should().BeApproximately(-2f, 0.1f);
+    }
+
     // -------------------------------------------------------------------------
     // SampleSkewness<T> tests
     // -------------------------------------------------------------------------
@@ -186,5 +233,57 @@ public sealed class SampleMomentTests
         const double expected = -2.098602258096086;
         var result = SampleExcessKurtosis<double>.Compute(data);
         result.Should().BeApproximately(expected, 1e-10);
+    }
+
+    [Fact]
+    public void ExcessKurtosis_LargeBalancedSample_MatchesAnalyticCorrection()
+    {
+        const int n = 2_100_000;
+        var data = new double[n];
+        for (var i = 0; i < n; i++)
+        {
+            data[i] = i % 2 == 0 ? -1.0 : 1.0;
+        }
+
+        // For equal counts of -1 and +1, the corrected excess kurtosis simplifies exactly.
+        var expected = -2.0 * (n - 1.0) / (n - 3.0);
+        var actual = SampleExcessKurtosis<double>.Compute(data);
+
+        actual.Should().BeApproximately(expected, 1e-9);
+    }
+
+    [Fact]
+    public void ExcessKurtosis_LargeFourAtomSample_MatchesAnalyticCorrection()
+    {
+        const int n = 2_200_000;
+        var data = new double[n];
+        for (var i = 0; i < n; i++)
+        {
+            data[i] = i % 4;
+        }
+
+        // Four equally frequent atoms 0,1,2,3 have population variance 5/4
+        // and population fourth central moment 41/16.
+        var sampleVariance = 1.25 * n / (n - 1.0);
+        var standardizedFourthSum = n * 2.5625 / (sampleVariance * sampleVariance);
+        var expected = n * (n + 1.0) / ((n - 1.0) * (n - 2.0) * (n - 3.0))
+                       * standardizedFourthSum
+                       - 3.0 * (n - 1.0) * (n - 1.0) / ((n - 2.0) * (n - 3.0));
+        var actual = SampleExcessKurtosis<double>.Compute(data);
+
+        actual.Should().BeApproximately(expected, 1e-9);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void ExcessKurtosis_NonFiniteObservation_ThrowsBeforeReturning(double invalid)
+    {
+        var data = new[] { 1.0, 2.0, invalid, 4.0, 5.0 };
+
+        var act = () => SampleExcessKurtosis<double>.Compute(data);
+
+        act.Should().Throw<ArgumentException>().WithParameterName("values");
     }
 }

@@ -34,8 +34,11 @@ namespace Boutquin.Numerics.Statistics;
 /// <see cref="NumericPrecision{T}.Sqrt"/>.
 /// </para>
 /// <para>
-/// Reference: <em>Econometrics and Statistics</em> (2024) — "Doubly Sparse
-/// Estimation of High-Dimensional Covariance Matrices".
+/// This is a declared repository variant: MP eigenvalue clipping followed by a
+/// one-shot absolute threshold on signal-eigenvector entries and renormalisation.
+/// It does not implement the Kutateladze–Seregina estimator: there is no truncated
+/// power iteration, rank or support-size input, least-squares eigenvalue
+/// re-estimation, or residual thresholding.
 /// </para>
 /// <para>
 /// Algorithm:
@@ -48,45 +51,80 @@ namespace Boutquin.Numerics.Statistics;
 ///   <item>Reconstruct and convert back to covariance.</item>
 /// </list>
 /// </para>
+/// <para>
+/// <b>PSD guarantee.</b> The reconstructed correlation matrix has the form
+/// <c>Σᵢ∈signal λᵢ uᵢuᵢᵀ + λ̄noise Σⱼ∈noise vⱼvⱼᵀ</c>, where <c>uᵢ</c> are the
+/// re-normalized (post-threshold) signal eigenvectors and <c>vⱼ</c> are the original
+/// noise eigenvectors. Every rank-1 term <c>wwᵀ</c> is positive semi-definite for any
+/// non-zero vector <c>w</c>, and both <c>λᵢ</c> (signal eigenvalues, positive by
+/// Marcenko-Pastur selection) and <c>λ̄noise</c> (arithmetic mean of noise eigenvalues,
+/// non-negative) are non-negative scalars. A non-negative linear combination of PSD
+/// matrices is PSD, so the result is PSD by construction — regardless of how aggressively
+/// the eigenvectors were thresholded. The fallback path (triggered when all entries of a
+/// signal eigenvector are thresholded to zero) substitutes the original eigenvector,
+/// preserving the same guarantee.
+/// </para>
+/// <para>Half inputs widen exactly to double for estimation; only the final covariance is rounded back.</para>
 /// </remarks>
 /// <typeparam name="T">Floating-point numeric type.</typeparam>
 public sealed class DoublySparseEstimator<T> : ICovarianceEstimator<T>
-    where T : IFloatingPoint<T>
+    where T : struct, IFloatingPoint<T>
 {
     private readonly T _eigenvectorThreshold;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DoublySparseEstimator{T}"/> type
+    /// with the default 0.1 eigenvector threshold.
+    /// </summary>
+    public DoublySparseEstimator()
+        : this(T.CreateChecked(0.1))
+    {
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DoublySparseEstimator{T}"/> type.
     /// </summary>
     /// <param name="eigenvectorThreshold">
     /// Absolute threshold for eigenvector entries. Values below this threshold are
-    /// set to zero. Default is 0.1.
+    /// set to zero. <see langword="null"/> (including the <see langword="default"/> literal) selects 0.1.
     /// </param>
-    public DoublySparseEstimator(T? eigenvectorThreshold = default)
+    public DoublySparseEstimator(T? eigenvectorThreshold = null)
     {
-        _eigenvectorThreshold = eigenvectorThreshold ?? T.CreateChecked(0.1);
+        var threshold = eigenvectorThreshold ?? T.CreateChecked(0.1);
+
+        if (!T.IsFinite(threshold) || threshold < T.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(eigenvectorThreshold),
+                threshold,
+                "Eigenvector threshold must be a non-negative number.");
+        }
+
+        _eigenvectorThreshold = threshold;
     }
 
     /// <inheritdoc/>
     public T[,] Estimate(T[,] returns)
     {
+        CovarianceHelpers<T>.ValidateReturns(returns);
+        if (typeof(T) == typeof(Half))
+        {
+            // Keep the correlation eigensolver and observation ratio out of Half arithmetic.
+            return CovarianceHelpers<T>.EstimateHalfShrinkage(
+                returns, new DoublySparseEstimator<double>(double.CreateChecked(_eigenvectorThreshold)));
+        }
+
         var t = returns.GetLength(0);
         var n = returns.GetLength(1);
 
-        if (t < 2)
-        {
-            throw new ArgumentException("At least 2 observations are required.", nameof(returns));
-        }
-
-        // Step 1: Compute sample covariance.
-        var means = CovarianceHelpers<T>.ComputeMeans(returns);
-        var sampleCov = CovarianceHelpers<T>.ComputeSampleCovariance(returns, means);
-
-        // Step 2: Convert to correlation.
-        var (corr, stdDevs) = CovarianceHelpers<T>.CovarianceToCorrelation(sampleCov);
+        // Steps 1-2: Sample covariance converted to correlation, formed per column so a column
+        // whose variance leaves the type's range keeps its correlations.
+        var (corr, stdDevs) = CovarianceHelpers<T>.SampleCorrelation(returns);
 
         // Step 3: Eigendecompose.
         var eigen = JacobiEigenDecomposition<T>.Decompose(corr);
+        var eigenvalues = eigen.Values;
+        var eigenvectors = eigen.Vectors;
 
         // Step 4: Marcenko-Pastur bound.
         var q = T.CreateChecked(t) / T.CreateChecked(n);
@@ -101,9 +139,9 @@ public sealed class DoublySparseEstimator<T> : ICovarianceEstimator<T>
         var noiseCount = 0;
         for (var i = 0; i < n; i++)
         {
-            if (eigen.Values[i] <= lambdaPlus)
+            if (eigenvalues[i] <= lambdaPlus)
             {
-                noiseSum += eigen.Values[i];
+                noiseSum += eigenvalues[i];
                 noiseCount++;
             }
         }
@@ -112,13 +150,13 @@ public sealed class DoublySparseEstimator<T> : ICovarianceEstimator<T>
 
         for (var i = 0; i < n; i++)
         {
-            if (eigen.Values[i] > lambdaPlus)
+            if (eigenvalues[i] > lambdaPlus)
             {
                 // Signal: keep eigenvalue, threshold eigenvector.
-                cleanValues[i] = eigen.Values[i];
+                cleanValues[i] = eigenvalues[i];
                 for (var j = 0; j < n; j++)
                 {
-                    var entry = eigen.Vectors[j, i];
+                    var entry = eigenvectors[j, i];
                     sparseVectors[j, i] = T.Abs(entry) >= _eigenvectorThreshold ? entry : T.Zero;
                 }
 
@@ -137,6 +175,16 @@ public sealed class DoublySparseEstimator<T> : ICovarianceEstimator<T>
                         sparseVectors[j, i] *= invNorm;
                     }
                 }
+                else
+                {
+                    // Every entry was thresholded away — fall back to the original eigenvector
+                    // so the component and its information are preserved rather than silently zeroed.
+                    // Singularity alone does not violate PSD.
+                    for (var j = 0; j < n; j++)
+                    {
+                        sparseVectors[j, i] = eigenvectors[j, i];
+                    }
+                }
             }
             else
             {
@@ -144,7 +192,7 @@ public sealed class DoublySparseEstimator<T> : ICovarianceEstimator<T>
                 cleanValues[i] = noiseAvg;
                 for (var j = 0; j < n; j++)
                 {
-                    sparseVectors[j, i] = eigen.Vectors[j, i];
+                    sparseVectors[j, i] = eigenvectors[j, i];
                 }
             }
         }
@@ -170,9 +218,10 @@ public sealed class DoublySparseEstimator<T> : ICovarianceEstimator<T>
         var result = new T[n, n];
         for (var i = 0; i < n; i++)
         {
-            for (var j = 0; j < n; j++)
+            for (var j = i; j < n; j++)
             {
                 result[i, j] = cleanCorr[i, j] * stdDevs[i] * stdDevs[j];
+                result[j, i] = result[i, j];
             }
         }
 
@@ -181,17 +230,25 @@ public sealed class DoublySparseEstimator<T> : ICovarianceEstimator<T>
 }
 
 /// <summary>
-/// Doubly-sparse covariance estimator (DSCE) — decomposes the sample covariance
+/// Repository-variant doubly-sparse covariance estimator (DSCE) — decomposes the sample covariance
 /// into a signal component with sparsified eigenvectors (hard-thresholded
 /// entries, re-normalized to unit norm) and a noise component with eigenvalues
 /// replaced by their average. PSD by construction.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Reference: <em>Econometrics and Statistics</em> (2024) — "Doubly Sparse
-/// Estimation of High-Dimensional Covariance Matrices".
+/// This is a declared repository variant: MP eigenvalue clipping followed by a
+/// one-shot absolute threshold on signal-eigenvector entries and renormalisation.
+/// It does not implement the Kutateladze–Seregina estimator: there is no truncated
+/// power iteration, rank or support-size input, least-squares eigenvalue
+/// re-estimation, or residual thresholding.
 /// </para>
 /// </remarks>
+[Obsolete(
+    "Use DoublySparseEstimator<decimal> instead. This concrete-typed facade will be removed in v3.0. " +
+    "See docs/migration-to-generic-math.md for migration examples.",
+    DiagnosticId = "BNU0001",
+    UrlFormat = "https://github.com/boutquin/Boutquin.Numerics/blob/main/docs/migration-to-generic-math.md")]
 public sealed class DoublySparseEstimator : ICovarianceEstimator
 {
     private readonly DoublySparseEstimator<decimal> _inner;

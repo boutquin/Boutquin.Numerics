@@ -54,7 +54,7 @@ public interface IUnbracketedRootSolver<T>
 /// </para>
 /// <list type="bullet">
 ///   <item><see cref="SecantSolver"/> — superlinear, order φ ≈ 1.618 (no derivative required).</item>
-///   <item><see cref="MullerSolver"/> — superlinear, order ≈ 1.84; handles near-complex roots via <c>|disc|</c> under the square root.</item>
+///   <item><see cref="MullerSolver"/> — superlinear, order ≈ 1.84; uses <c>|disc|</c> under the square root as a real-valued continuation heuristic; cannot return complex roots.</item>
 ///   <item><see cref="NewtonRaphsonSolver"/> — quadratic when <c>f'</c> is well-behaved; diverges near stationary points.</item>
 /// </list>
 /// </remarks>

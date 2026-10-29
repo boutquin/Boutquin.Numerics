@@ -34,7 +34,7 @@ namespace Boutquin.Numerics.Internal;
 /// <list type="bullet">
 ///   <item><description>
 ///     <c>T = decimal</c> — uses Newton-Raphson iteration seeded from the
-///     <c>double</c> approximation and polished to full 28-digit precision.
+///     <c>double</c> approximation and refined in <c>decimal</c> arithmetic.
 ///   </description></item>
 ///   <item><description>
 ///     <c>T = double</c> — delegates to <see cref="Math.Sqrt(double)"/>,
@@ -53,16 +53,15 @@ namespace Boutquin.Numerics.Internal;
 ///   </description></item>
 /// </list>
 /// <para>
-/// <b>Authority:</b> The <c>typeof(T) == typeof(decimal)</c> dispatch pattern follows
-/// the precedent set by <c>System.Numerics.Tensors.TensorPrimitives</c> in
-/// <c>dotnet/runtime#74055</c>, where compile-time-constant-typeof checks are used
-/// to specialise generic numeric kernels.
+/// <b>Implementation:</b> The type dispatch is a library implementation choice.
+/// Known IEEE types use the corresponding runtime square-root operation;
+/// the decimal branch uses Newton iteration.
 /// </para>
 /// <para>
 /// <b>Contract:</b> For known IEEE types (<c>double</c>, <c>float</c>, <c>Half</c>),
 /// the result is bit-identical to the type's native <c>Sqrt</c>. For <c>decimal</c>,
-/// the result agrees with the internal Newton-Raphson decimal sqrt — full 28-digit
-/// precision via Newton iteration. For unknown <c>T</c> implementing
+/// the result uses Newton iteration with an absolute stopping threshold of <c>1e-28</c>;
+/// correct rounding is not guaranteed. For unknown <c>T</c> implementing
 /// <see cref="IFloatingPoint{TSelf}"/>, the fallback round-trips through
 /// <c>double</c>, which is correct to <c>double</c> precision (~15 digits).
 /// </para>
@@ -70,6 +69,8 @@ namespace Boutquin.Numerics.Internal;
 internal static class NumericPrecision<T>
     where T : IFloatingPoint<T>
 {
+    private static readonly T s_lnTwo = T.CreateChecked(0.6931471805599453094172321215m);
+
     /// <summary>
     /// Computes the square root of <paramref name="value"/> for any
     /// <typeparamref name="T"/> that implements <see cref="IFloatingPoint{TSelf}"/>.
@@ -89,7 +90,7 @@ internal static class NumericPrecision<T>
 
         if (typeof(T) == typeof(decimal))
         {
-            // Tier A+Sqrt decimal path: full 28-digit Newton-Raphson iteration.
+            // Tier A+Sqrt decimal path: Newton-Raphson iteration in decimal.
             return (T)(object)SqrtDecimal((decimal)(object)value);
         }
 
@@ -115,6 +116,134 @@ internal static class NumericPrecision<T>
         // BigFloat or third-party types). Round-trips through double — correct
         // to double precision, which is the best we can do without IRootFunctions<T>.
         return T.CreateChecked(Math.Sqrt(double.CreateChecked(value)));
+    }
+
+    /// <summary>
+    /// Computes the natural logarithm of a positive integer using range reduction
+    /// and the atanh series, entirely in <typeparamref name="T"/>.
+    /// </summary>
+    internal static T LogPositiveInteger(int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
+
+        var exponent = BitOperations.Log2((uint)value);
+        var scale = 1u << exponent;
+        var mantissa = T.CreateChecked(value) / T.CreateChecked(scale);
+        var z = (mantissa - T.One) / (mantissa + T.One);
+        var zSquared = z * z;
+        var term = z;
+        var sum = term;
+
+        for (var k = 1; k < 256; k++)
+        {
+            term *= zSquared;
+            var next = sum + term / T.CreateChecked(2 * k + 1);
+            if (next == sum)
+            {
+                break;
+            }
+
+            sum = next;
+        }
+
+        return T.CreateChecked(2) * sum + T.CreateChecked(exponent) * s_lnTwo;
+    }
+
+    /// <summary>
+    /// Computes <c>value^(-numerator/denominator)</c> for positive integer inputs,
+    /// using a Newton integer-root iteration and integer powers in <typeparamref name="T"/>.
+    /// </summary>
+    internal static T NegativeRationalPowerOfPositiveInteger(
+        int value,
+        int numerator,
+        int denominator)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
+        ArgumentOutOfRangeException.ThrowIfNegative(numerator);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(denominator);
+
+        if (numerator == 0)
+        {
+            return T.One;
+        }
+
+        var root = IntegerRoot(value, denominator);
+        return T.One / IntegerPower(root, numerator);
+    }
+
+    private static T IntegerRoot(int value, int degree)
+    {
+        if (degree == 1 || value == 1)
+        {
+            return T.CreateChecked(value);
+        }
+
+        // All current callers use an observation count (Int32) and a 20th root;
+        // the exact integer upper bound is therefore tiny (at most 3).
+        var upper = 2;
+        while (IntegerPowerBelow(upper, degree, value))
+        {
+            upper++;
+        }
+
+        var guess = T.CreateChecked(upper);
+        var valueT = T.CreateChecked(value);
+        var degreeT = T.CreateChecked(degree);
+        var degreeMinusOneT = T.CreateChecked(degree - 1);
+        var previous = T.Zero;
+        for (var i = 0; i < 128; i++)
+        {
+            var next = (degreeMinusOneT * guess + valueT / IntegerPower(guess, degree - 1)) / degreeT;
+            if (next == guess || next == previous)
+            {
+                return next;
+            }
+
+            previous = guess;
+            guess = next;
+        }
+
+        return guess;
+    }
+
+    private static bool IntegerPowerBelow(int value, int exponent, int target)
+    {
+        ulong product = 1;
+        var factor = (ulong)value;
+        var targetValue = (ulong)target;
+        for (var i = 0; i < exponent; i++)
+        {
+            if (product >= targetValue || product > ulong.MaxValue / factor)
+            {
+                return false;
+            }
+
+            product *= factor;
+        }
+
+        return product < targetValue;
+    }
+
+    private static T IntegerPower(T value, int exponent)
+    {
+        var result = T.One;
+        var factor = value;
+        var remaining = exponent;
+        while (remaining > 0)
+        {
+            if ((remaining & 1) != 0)
+            {
+                result *= factor;
+            }
+
+            remaining >>= 1;
+            if (remaining > 0)
+            {
+                factor *= factor;
+            }
+        }
+
+        return result;
     }
 
     private static decimal SqrtDecimal(decimal value)

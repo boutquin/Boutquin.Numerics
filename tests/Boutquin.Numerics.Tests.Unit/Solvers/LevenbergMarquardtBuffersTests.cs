@@ -71,13 +71,10 @@ public sealed class LevenbergMarquardtBuffersTests
     }
 
     [Fact]
-    public void Reset_ToSmallerDimensions_RetainsCapacity_NoReallocation()
+    public void Reset_ShrinkThenRegrow_UpdatesLogicalDimensions()
     {
-        // Grow then shrink. The pool must retain its high-water storage so a subsequent
-        // grow back to the original size does not reallocate — the test checks this by
-        // re-growing to the original capacity and observing no exception and stable
-        // logical dimensions (capacity is internal; the lifecycle contract is the only
-        // observable behavior).
+        // A smaller configuration and return to the original size both update the
+        // logical dimensions. This test does not measure allocation.
         var buffers = new LevenbergMarquardtBuffers(parameterCount: 6, residualCount: 24);
 
         buffers.Reset(3, 10);

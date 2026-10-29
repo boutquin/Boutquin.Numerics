@@ -21,7 +21,7 @@ using FluentAssertions;
 namespace Boutquin.Numerics.Tests.Unit.Solvers;
 
 /// <summary>
-/// Regression harness for AC §3.1 of <c>specs/feature-lm-zero-alloc-iteration.md</c>.
+/// Regression harness for the Levenberg-Marquardt zero-allocation iteration contract.
 /// Uses <see cref="GC.GetAllocatedBytesForCurrentThread"/> deltas to verify that the
 /// pooled <see cref="LevenbergMarquardtSolver.Solve(Func{double[], double[]}, double[], LevenbergMarquardtBuffers, Func{double[], double[,]}, double[], double[])"/>
 /// overload does not grow per-iteration managed-heap allocation, and that the inner
@@ -30,21 +30,21 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Allocation budget (AC §3.1 bullet 1) covers <c>MultivariateSolverResult</c> and its
+/// The whole-solve allocation budget covers <c>MultivariateSolverResult</c> and its
 /// three owned arrays (<c>Parameters</c>, <c>FinalResiduals</c>, <c>ParameterCovariance</c>)
 /// plus the one-shot <see cref="DampedLinearSolve.TryInvertNormalEquations"/> scratch
 /// allocated at convergence — all one-shot terminal allocations per solve, not
 /// inner-loop growth. The budget is expressed as a multiple of a computed
 /// <c>ExpectedResultRecordSizeBytes</c> that sums those quantities for the chosen
-/// problem size so the test catches regressions that introduce any new inner-loop
-/// allocation source.
+/// problem size to bound fixed whole-solve overhead. The separate
+/// <see cref="Arena20260928LmAllocationSlopeTests"/> varies actual iteration counts
+/// and detects new inner-loop allocation sources.
 /// </para>
 /// <para>
-/// Inner micro-test (AC §3.1 bullet 2) targets the narrow zero-byte bar — with a
-/// non-allocating residual callback, the combined
-/// <see cref="FiniteDifferenceJacobian.EvaluateInto"/> +
-/// <see cref="DampedLinearSolve.TrySolve"/> round-trip must allocate exactly zero bytes
-/// on the measured thread.
+/// The inner micro-test targets the narrow zero-byte bar — with a non-allocating
+/// residual callback, the combined <see cref="FiniteDifferenceJacobian.EvaluateInto"/>
+/// + <see cref="DampedLinearSolve.TrySolve"/> round-trip must allocate exactly zero
+/// bytes on the measured thread.
 /// </para>
 /// </remarks>
 public sealed class LevenbergMarquardtAllocationTests
@@ -58,12 +58,11 @@ public sealed class LevenbergMarquardtAllocationTests
 
     // Approximate per-solve terminal allocation (record + 2 owned arrays + covariance +
     // TryInvertNormalEquations scratch). Sized generously so the test allows for CLR
-    // header overhead variance but fails if a new iteration-loop allocation source is
-    // introduced.
+    // header overhead variance. The separate iteration-slope test detects loop growth.
     private const double ExpectedResultRecordSizeBytes = 1800.0;
 
     [Fact]
-    public void Solve_WithBuffers_NoAllocationGrowthAcrossIterations()
+    public void Solve_WithBuffers_WholeSolveAllocationWithinTerminalBudget()
     {
         var fixture = new PolynomialFixture(ParameterCount, ResidualCount, seed: 13);
         var buffers = new LevenbergMarquardtBuffers(ParameterCount, ResidualCount);
@@ -95,7 +94,7 @@ public sealed class LevenbergMarquardtAllocationTests
         perSolve.Should().BeLessThan(
             ExpectedResultRecordSizeBytes * 2.0,
             because: "only the MultivariateSolverResult record, its owned arrays, and the one-shot " +
-                     "TryInvertNormalEquations scratch should be allocated per solve — no inner-loop growth");
+                     "TryInvertNormalEquations scratch should fit the whole-solve budget");
     }
 
     [Fact]

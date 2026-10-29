@@ -44,7 +44,7 @@ public sealed class NormalDistributionTests
     [Fact]
     public void Cdf_AtZero_ReturnsHalf()
     {
-        // Laikov's erf(0) = 0 exactly → N(0) = 0.5 exactly
+        // Symmetry gives N(0) = 0.5 exactly.
         CumulativeNormal.Evaluate(0.0).Should().BeApproximately(0.5, 1e-14);
     }
 
@@ -68,7 +68,7 @@ public sealed class NormalDistributionTests
     [InlineData(2.326, 0.98999072465913)]
     public void Cdf_KnownValues_HighPrecision(double x, double expected)
     {
-        // Laikov's approximation provides ~14 decimal digits.
+        // Independent central Gaussian probability.
         // Use 1e-10 tolerance to leave margin for the erf→N(x) composition.
         CumulativeNormal.Evaluate(x).Should().BeApproximately(expected, 1e-10);
     }
@@ -88,5 +88,19 @@ public sealed class NormalDistributionTests
         var result = CumulativeNormal.Evaluate(-8.0);
         result.Should().BeGreaterThan(0.0);
         result.Should().BeLessThan(1e-10);
+    }
+
+    [Fact]
+    public void Cdf_RepresentableLowerTail_RetainsProbability()
+    {
+        const double expected = 1.1285884059538425e-19;
+        NormalDistribution<double>.Cdf(-9.0)
+            .Should().BeApproximately(expected, expected * 1e-9);
+    }
+
+    [Fact]
+    public void Cdf_SubnormalLowerTail_RemainsRepresentable()
+    {
+        NormalDistribution<double>.Cdf(-38.0).Should().BeGreaterThan(0.0);
     }
 }
