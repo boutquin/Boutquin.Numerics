@@ -167,7 +167,7 @@ public sealed class NistLinearRegressionDecimalTests
         {
             for (var j = 0; j < cols; j++)
             {
-                result[i, j] = (decimal)source[i, j];
+                result[i, j] = NistLinearRegressionData.DecimalFixtureValue(source[i, j]);
             }
         }
 
@@ -179,7 +179,7 @@ public sealed class NistLinearRegressionDecimalTests
         var result = new decimal[source.Length];
         for (var i = 0; i < source.Length; i++)
         {
-            result[i] = (decimal)source[i];
+            result[i] = NistLinearRegressionData.DecimalFixtureValue(source[i]);
         }
 
         return result;

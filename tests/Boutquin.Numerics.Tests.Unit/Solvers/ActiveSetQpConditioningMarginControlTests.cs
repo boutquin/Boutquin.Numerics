@@ -219,14 +219,14 @@ public sealed class ActiveSetQpConditioningMarginControlTests
         var a = new T[m, m];
         if (typeof(T) == typeof(decimal))
         {
-            var vd = v.Select(x => (decimal)x).ToArray();
+            var vd = v.Select(NistStRD.NistLinearRegressionData.DecimalFixtureValue).ToArray();
             var root = NumericPrecision<decimal>.Sqrt(vd.Sum(x => x * x));
             for (var i = 0; i < m; i++)
             {
                 vd[i] /= root;
             }
 
-            var c = 1m - (decimal)delta;
+            var c = 1m - NistStRD.NistLinearRegressionData.DecimalFixtureValue(delta);
             for (var i = 0; i < m; i++)
             {
                 for (var j = 0; j <= i; j++)

@@ -513,7 +513,11 @@ public static class DeflatedSharpeRatio<T>
         var thresholdAnnual = thresholdPerPeriod * sqrtPeriodsPerYear;
 
         return new DsrResult<T>(
+#if NET11_0_OR_GREATER
+            DeflatedSharpe: observedSharpe - T.CreateChecked(thresholdAnnual),
+#else
             DeflatedSharpe: T.CreateChecked(srAnnual - thresholdAnnual),
+#endif
             PValue: T.Clamp(T.CreateChecked(pValue), T.Zero, T.One),
             NumTrials: numTrials,
             ExpectedMaxSharpe: T.CreateChecked(thresholdAnnual));

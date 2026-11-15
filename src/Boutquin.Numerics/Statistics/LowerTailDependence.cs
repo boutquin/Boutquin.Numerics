@@ -200,10 +200,10 @@ public static class LowerTailDependence<T>
 {
     private static readonly T[] s_defaultQuantiles =
     [
-        T.CreateChecked(0.05),
-        T.CreateChecked(0.10),
-        T.CreateChecked(0.15),
-        T.CreateChecked(0.20),
+        T.CreateChecked(0.05m),
+        T.CreateChecked(0.10m),
+        T.CreateChecked(0.15m),
+        T.CreateChecked(0.20m),
     ];
 
     /// <summary>

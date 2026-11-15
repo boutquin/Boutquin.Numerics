@@ -36,6 +36,20 @@ namespace Boutquin.Numerics.Tests.Unit.Solvers.NistStRD;
 /// </remarks>
 internal static class NistLinearRegressionData
 {
+    // Keep the historical 15-significant-digit fixture inputs explicit across runtime versions.
+    // .NET 11 casts preserve the binary double's full value instead of applying this rounding.
+    internal static decimal DecimalFixtureValue(double value)
+    {
+#if NET11_0_OR_GREATER
+        return decimal.Parse(
+            value.ToString("G15", System.Globalization.CultureInfo.InvariantCulture),
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture);
+#else
+        return (decimal)value;
+#endif
+    }
+
     // Shared by the certified-value suites and the repeated stress gate.
     internal static double DoubleCoefficientToleranceFor(string name) => name == "Filip" ? 1e-7 : 1e-12;
 
