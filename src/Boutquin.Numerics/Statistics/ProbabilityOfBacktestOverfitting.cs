@@ -163,6 +163,13 @@ public static class ProbabilityOfBacktestOverfitting<T>
                 $"Split count produces more than {MaximumFoldCount:N0} CSCV folds.");
         }
 
+#if NET11_0_OR_GREATER
+        if (typeof(T) == typeof(decimal))
+        {
+            return (PboResult<T>)(object)ExactDecimalPbo.Compute((decimal[,])(object)returns, splitCount, out _);
+        }
+#endif
+
         // Half cannot represent long joined sample counts or accumulated moments.
         // Widen the panel once and retain the wider Sharpes through ranking.
         if (typeof(T) == typeof(Half))

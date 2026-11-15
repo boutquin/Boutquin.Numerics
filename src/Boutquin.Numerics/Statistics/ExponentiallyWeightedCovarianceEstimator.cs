@@ -74,7 +74,7 @@ public sealed class ExponentiallyWeightedCovarianceEstimator<T> : ICovarianceEst
     /// Initializes a new instance with the default RiskMetrics daily decay factor (0.94).
     /// </summary>
     public ExponentiallyWeightedCovarianceEstimator()
-        : this(T.CreateChecked(0.94))
+        : this(T.CreateChecked(0.94m))
     {
     }
 

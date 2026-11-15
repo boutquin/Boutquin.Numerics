@@ -21,14 +21,19 @@ namespace Boutquin.Numerics.Tests.Unit.Interpolation;
 
 public sealed class C2IndependentJarreBoundaryTests
 {
+    public static TheoryData<int, decimal, decimal, decimal, decimal> BoundaryCases => new()
+    {
+        { 0, 0m, 300m, 24m, 24m },
+        { 2, 0.9m, 348m, 26.4m, 31.2m },
+        { -2, -2m, 250.9m, 19.2m, 14.4m },
+        { -10, -10m, 60m, 0m, -12m },
+        { -11, -8.8m, 36m, 0m, -15.6m }
+    };
+
     [Theory]
-    [InlineData(0, 0, 300, 24, 24)]
-    [InlineData(2, 0.9, 348, 26.4, 31.2)]
-    [InlineData(-2, -2, 250.9, 19.2, 14.4)]
-    [InlineData(-10, -10, 60, 0, -12)]
-    [InlineData(-11, -8.8, 36, 0, -15.6)]
+    [MemberData(nameof(BoundaryCases))]
     public void QuinticBoundaryData_HasIndependentCurvatureAndJump(
-        int hundredths, double qLeft, double qRight, double jumpLeft, double jumpRight)
+        int hundredths, decimal qLeft, decimal qRight, decimal jumpLeft, decimal jumpRight)
     {
         // f=x^4+c*x^5 on 0,...,5: fourth divided differences are
         // 1+10c and 1+15c; both fifth differences equal c.
@@ -47,12 +52,12 @@ public sealed class C2IndependentJarreBoundaryTests
             // Four samples determine each cubic's derivatives exactly.
             // Dyadic offsets avoid a rounded finite-difference spacing.
             // Reflection exchanges endpoint curvatures and preserves oriented jumps.
-            SecondAtStart(q, 0m, 1m).Should().BeApproximately((decimal)(reflected ? qRight : qLeft), 1e-18m);
-            SecondAtStart(q, 5m, -1m).Should().BeApproximately((decimal)(reflected ? qLeft : qRight), 1e-18m);
+            SecondAtStart(q, 0m, 1m).Should().BeApproximately(reflected ? qRight : qLeft, 1e-18m);
+            SecondAtStart(q, 5m, -1m).Should().BeApproximately(reflected ? qLeft : qRight, 1e-18m);
             (ThirdOnSegment(rnak, 1m) - ThirdOnSegment(rnak, 0m))
-                .Should().BeApproximately((decimal)(reflected ? jumpRight : jumpLeft), 1e-17m);
+                .Should().BeApproximately(reflected ? jumpRight : jumpLeft, 1e-17m);
             (ThirdOnSegment(rnak, 4m) - ThirdOnSegment(rnak, 3m))
-                .Should().BeApproximately((decimal)(reflected ? jumpLeft : jumpRight), 1e-17m);
+                .Should().BeApproximately(reflected ? jumpLeft : jumpRight, 1e-17m);
         }
     }
 
